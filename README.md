@@ -28,12 +28,13 @@ uv run uvicorn app.main:app --reload
 ### Web 使用流程
 
 - 在首页输入 javdb 影片页面 URL（例如 `https://javdb.com/v/82ebmO`）。
-- 选择本地的视频文件。
+- 填写**服务器本地视频文件路径**（例如 `/mnt/media/movies/IPVR-335.mp4`）。
+- （可选）等待图片候选加载后，在表单中选择哪一张作为 `poster.jpg`、哪一张作为 `fanart.jpg`。
 - 提交后后台会：
   - 抓取 javdb 页面信息，生成统一的影片元数据。
   - 生成 Jellyfin 兼容的 `movie.nfo`。
-  - 下载封面 / 背景图 / 剧照到目标目录。
-  - 将上传的视频文件保存到同一影片文件夹（文件名会根据番号 + 标题自动生成，可在 `app/services/file_service.py` 中调整逻辑）。
+  - 下载封面 / 背景图 / 剧照到该视频所在目录（`poster.jpg`、`fanart.jpg`、`extrafanart/*`）。
+  - **不会复制/移动原始视频文件**，仅在原目录旁生成 NFO 与图片资源。
 
 默认输出根目录为项目运行目录下的 `output/`，可通过环境变量修改：
 
@@ -46,14 +47,6 @@ export NFOFETCH_OUTPUT_ROOT=/path/to/your/library
 ```bash
 export NFOFETCH_HTTP_PROXY=http://127.0.0.1:7890
 ```
-
-如需只生成 NFO / 图片而**不复制上传的视频文件**，可以设置：
-
-```bash
-export NFOFETCH_SKIP_VIDEO_COPY=true
-```
-
-此时仍会根据番号 + 标题计算出目标视频文件名路径，但不会在输出目录写入视频文件。
 
 ### 命令行模式：针对已有视频文件
 

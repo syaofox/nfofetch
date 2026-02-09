@@ -4,17 +4,11 @@
   <section class="nf-card">
     <h2 class="nf-card-title">影片刮削</h2>
     <p class="nf-card-desc">
-      输入 javdb 影片页面 URL，并选择本地视频文件。提交后会自动生成 Jellyfin 兼容的
-      <code>movie.nfo</code> 和图片，并放入单独的影片文件夹。
+      输入 javdb 影片页面 URL，并填写服务器本地视频文件路径。提交后会在该视频所在目录下生成
+      Jellyfin 兼容的 <code>movie.nfo</code> 和图片。
     </p>
 
-    <form
-      hx-post="/scrape"
-      hx-target="#result"
-      hx-swap="innerHTML"
-      enctype="multipart/form-data"
-      class="nf-form"
-    >
+    <form hx-post="/scrape" hx-target="#result" hx-swap="innerHTML" class="nf-form">
       <div class="nf-form-group">
         <label for="url" class="nf-label">影片页面 URL（当前支持 javdb）</label>
         <input
@@ -32,9 +26,18 @@
       </div>
 
       <div class="nf-form-group">
-        <label for="video" class="nf-label">本地视频文件</label>
-        <input type="file" id="video" name="video" required class="nf-input-file" />
-        <p class="nf-hint">建议选择对应的主视频文件（mp4、mkv 等）。</p>
+        <label for="video_path" class="nf-label">服务器本地视频路径</label>
+        <input
+          type="text"
+          id="video_path"
+          name="video_path"
+          required
+          placeholder="/path/to/your/movie.mp4"
+          class="nf-input"
+        />
+        <p class="nf-hint">
+          填写服务器上已有视频的绝对路径（例如挂载的媒体盘中的 mp4/mkv 文件），不会上传或复制视频本身。
+        </p>
       </div>
 
       <div id="image-options" class="nf-form-group">

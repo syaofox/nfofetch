@@ -1,13 +1,13 @@
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.config import get_settings
 from app.schemas import ScrapeResult
-from app.services.file_service import save_movie_package
+from app.services.file_service import save_assets_for_existing_video
 from app.services.nfo_service import build_movie_nfo
 from app.services.scrape_service import scrape_movie
 
@@ -34,7 +34,7 @@ async def index(request: Request) -> HTMLResponse:
 async def scrape(
     request: Request,
     url: str = Form(...),
-    video: UploadFile = File(...),
+    video_path: str = Form(...),
     poster_url: str | None = Form(default=None),
     fanart_url: str | None = Form(default=None),
 ) -> HTMLResponse:
@@ -43,10 +43,15 @@ async def scrape(
     try:
         metadata = scrape_movie(url, settings=settings)
         nfo_text = build_movie_nfo(metadata)
-        result: ScrapeResult = save_movie_package(
+
+        vp = Path(video_path).expanduser()
+        if not vp.is_file():
+            raise FileNotFoundError(f"视频文件不存在或不可读：{vp}")
+
+        result: ScrapeResult = save_assets_for_existing_video(
             metadata=metadata,
             nfo_text=nfo_text,
-            upload_file=video,
+            video_path=vp,
             settings=settings,
             poster_url=poster_url,
             fanart_url=fanart_url,
