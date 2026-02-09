@@ -35,6 +35,8 @@ async def scrape(
     request: Request,
     url: str = Form(...),
     video: UploadFile = File(...),
+    poster_url: str | None = Form(default=None),
+    fanart_url: str | None = Form(default=None),
 ) -> HTMLResponse:
     """处理 HTMX 表单：刮削 javdb 并生成 NFO / 图片 / 影片目录。"""
     settings = get_settings()
@@ -46,6 +48,8 @@ async def scrape(
             nfo_text=nfo_text,
             upload_file=video,
             settings=settings,
+            poster_url=poster_url,
+            fanart_url=fanart_url,
         )
     except Exception as exc:  # noqa: BLE001 - 用户侧希望看到原始错误
         result = ScrapeResult(success=False, message=str(exc))
@@ -55,6 +59,38 @@ async def scrape(
         {
             "request": request,
             "result": result,
+        },
+    )
+
+
+@app.post("/scrape/preview", response_class=HTMLResponse)
+async def scrape_preview(
+    request: Request,
+    url: str = Form(...),
+) -> HTMLResponse:
+    """仅根据 URL 抓取元数据，返回图片候选列表供前端选择 poster / fanart。"""
+    settings = get_settings()
+    error: str | None = None
+    poster_candidates: list[str] = []
+
+    try:
+        metadata = scrape_movie(url, settings=settings)
+        seen: set[str] = set()
+        # 优先封面列表，其次剧照列表，统一去重。
+        for u in list(metadata.posters) + list(metadata.art):
+            s = str(u)
+            if s not in seen:
+                seen.add(s)
+                poster_candidates.append(s)
+    except Exception as exc:  # noqa: BLE001
+        error = str(exc)
+
+    return templates.TemplateResponse(
+        "partials/image_options.html",
+        {
+            "request": request,
+            "poster_candidates": poster_candidates,
+            "error": error,
         },
     )
 

@@ -37,6 +37,8 @@ def _write_nfo_and_images(
     metadata: MovieMetadata,
     settings: Settings,
     max_extra_images: int,
+    poster_url: Optional[str] = None,
+    fanart_url: Optional[str] = None,
 ) -> tuple[Path, Optional[Path], Optional[Path], List[Path]]:
     """写入 movie.nfo 并下载图片资源，返回相关路径。"""
 
@@ -50,8 +52,20 @@ def _write_nfo_and_images(
     fanart_path: Optional[Path] = None
     extra_paths: List[Path] = []
 
-    poster_urls = list(metadata.posters)
-    art_urls = list(metadata.art)
+    # 构造候选 URL 列表（用户选择优先，其次为元数据中的顺序）
+    poster_urls: List[str] = []
+    if poster_url:
+        poster_urls.append(poster_url)
+    for u in metadata.posters:
+        s = str(u)
+        if s not in poster_urls:
+            poster_urls.append(s)
+
+    art_urls: List[str] = []
+    for u in metadata.art:
+        s = str(u)
+        if s not in art_urls:
+            art_urls.append(s)
 
     def download_image(url: str, dest: Path) -> bool:
         try:
@@ -81,10 +95,18 @@ def _write_nfo_and_images(
 
     # 2. fanart.jpg
     fanart_candidates: List[str] = []
+    if fanart_url:
+        fanart_candidates.append(fanart_url)
     if art_urls:
         fanart_candidates.append(str(art_urls[0]))
     if poster_urls:
         fanart_candidates.append(str(poster_urls[0]))
+
+    # 去重保持顺序
+    _seen: set[str] = set()
+    fanart_candidates = [
+        u for u in fanart_candidates if not (u in _seen or _seen.add(u))
+    ]
 
     for url in fanart_candidates:
         fanart_path_candidate = movie_dir / "fanart.jpg"
@@ -95,11 +117,15 @@ def _write_nfo_and_images(
     # 3. extrafanart/*
     extra_dir = movie_dir / "extrafanart"
     extra_dir.mkdir(exist_ok=True)
-    used_urls = set()
+    used_urls: set[str] = set()
     if poster_urls:
         used_urls.add(str(poster_urls[0]))
     if art_urls:
         used_urls.add(str(art_urls[0]))
+    if poster_url:
+        used_urls.add(poster_url)
+    if fanart_url:
+        used_urls.add(fanart_url)
 
     all_extra_sources: List[str] = []
     all_extra_sources.extend(str(u) for u in art_urls)
@@ -126,6 +152,8 @@ def save_movie_package(
     upload_file: UploadFile,
     settings: Settings,
     max_extra_images: int = 8,
+    poster_url: Optional[str] = None,
+    fanart_url: Optional[str] = None,
 ) -> ScrapeResult:
     """保存 NFO、视频文件和图片到目标目录，返回 ScrapeResult 用于前端展示。"""
 
@@ -152,6 +180,8 @@ def save_movie_package(
         metadata=metadata,
         settings=settings,
         max_extra_images=max_extra_images,
+        poster_url=poster_url,
+        fanart_url=fanart_url,
     )
 
     return ScrapeResult(
@@ -174,6 +204,8 @@ def save_assets_for_existing_video(
     video_path: Path,
     settings: Settings,
     max_extra_images: int = 8,
+    poster_url: Optional[str] = None,
+    fanart_url: Optional[str] = None,
 ) -> ScrapeResult:
     """针对已存在的视频文件，在同一目录下生成 NFO 和图片，不复制视频。
 
@@ -191,6 +223,8 @@ def save_assets_for_existing_video(
         metadata=metadata,
         settings=settings,
         max_extra_images=max_extra_images,
+        poster_url=poster_url,
+        fanart_url=fanart_url,
     )
 
     return ScrapeResult(

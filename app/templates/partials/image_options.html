@@ -1,0 +1,53 @@
+{% if error %}
+  <div class="nf-alert nf-alert-error">
+    <strong>图片预览失败：</strong>
+    <div class="nf-alert-message">
+      {{ error }}
+    </div>
+  </div>
+{% endif %}
+
+{% if poster_candidates %}
+  <div class="nf-form-group">
+    <p class="nf-hint">
+      从下方图片中选择一张作为 <code>poster.jpg</code>（封面），以及一张作为
+      <code>fanart.jpg</code>（背景图）。如不选择，将使用默认顺序。
+    </p>
+
+    <div class="nf-image-grid">
+      {% for url in poster_candidates %}
+        <div class="nf-image-option">
+          <img
+            src="{{ url }}"
+            alt="候选图片 {{ loop.index }}"
+            class="nf-image-thumb"
+          />
+          <div class="nf-image-option-controls">
+            <label>
+              <input
+                type="radio"
+                name="poster_url"
+                value="{{ url }}"
+                {% if loop.first %}checked{% endif %}
+              />
+              作为封面 poster
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="fanart_url"
+                value="{{ url }}"
+              />
+              作为背景 fanart
+            </label>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% else %}
+  {% if not error %}
+    <p class="nf-hint">未从该页面解析到可用图片，或暂不可用。</p>
+  {% endif %}
+{% endif %}
+

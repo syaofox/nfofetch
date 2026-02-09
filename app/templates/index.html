@@ -24,6 +24,10 @@
           required
           placeholder="例如：https://javdb.com/v/82ebmO"
           class="nf-input"
+          hx-post="/scrape/preview"
+          hx-trigger="change delay:700ms"
+          hx-target="#image-options"
+          hx-swap="innerHTML"
         />
       </div>
 
@@ -31,6 +35,12 @@
         <label for="video" class="nf-label">本地视频文件</label>
         <input type="file" id="video" name="video" required class="nf-input-file" />
         <p class="nf-hint">建议选择对应的主视频文件（mp4、mkv 等）。</p>
+      </div>
+
+      <div id="image-options" class="nf-form-group">
+        <p class="nf-hint">
+          填写并离开 URL 输入框后，将自动加载即可用的封面 / 背景图列表供你选择。
+        </p>
       </div>
 
       <button type="submit" class="nf-button">开始刮削</button>
