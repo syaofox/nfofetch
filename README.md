@@ -74,31 +74,13 @@ uv run python -m app.cli \
 
 ### Cookie 管理
 
-访问 javdb 时通常需要带上浏览器里的 Cookie（含 `cf_clearance` 等），本项目支持两种配置方式：
+访问 javdb 时通常需要带上浏览器里的 Cookie（含 `cf_clearance` 等），通过环境变量配置：
 
-- **环境变量（全局优先级最高）**：
+```bash
+export NFOFETCH_JAVDB_COOKIE='在浏览器中复制的完整 Cookie 串'
+```
 
-  ```bash
-  export NFOFETCH_JAVDB_COOKIE='在浏览器中复制的完整 Cookie 串'
-  ```
-
-- **站点预设 Cookie（模块配置）**：
-
-  编辑 `app/cookie_store.py`，在 `SITE_COOKIES` 中按站点名或域名填入预设值，例如：
-
-  ```python
-  SITE_COOKIES = {
-      "javdb": "theme=auto; locale=zh; over18=1; ...",
-      # "javdb565.com": "..."
-  }
-  ```
-
-Cookie 优先级为：
-
-1. 环境变量 `NFOFETCH_JAVDB_COOKIE`
-2. `SITE_COOKIES` 中按域名 / 站点匹配到的预设 Cookie
-
-命令行模式和 Web 模式共用同一套配置逻辑。
+Web 模式和命令行模式共用这一配置。
 
 > 当前实现基于 javdb 页面的一般结构做了解析，若站点结构调整导致字段抓取不完整，可根据实际 HTML 调整 `app/scrapers/javdb.py` 中的 CSS 选择器。
 
