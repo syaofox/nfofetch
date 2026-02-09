@@ -1,0 +1,128 @@
+{% if not result.success %}
+  <div class="nf-alert nf-alert-error">
+    <strong>刮削失败：</strong>
+    <div class="nf-alert-message">
+      {{ result.message or "未知错误" }}
+    </div>
+  </div>
+{% else %}
+  <div class="nf-card nf-card-result">
+    <h3 class="nf-card-title">刮削完成</h3>
+
+    {% if result.metadata %}
+      <div class="nf-meta">
+        <div class="nf-meta-main">
+          <h4 class="nf-meta-title">
+            {{ result.metadata.title }}
+            {% if result.metadata.number %}
+              <span class="nf-meta-number">({{ result.metadata.number }})</span>
+            {% endif %}
+          </h4>
+          {% if result.metadata.plot %}
+            <p class="nf-meta-plot">{{ result.metadata.plot }}</p>
+          {% endif %}
+
+          <dl class="nf-meta-list">
+            {% if result.metadata.year %}
+              <div>
+                <dt>年份</dt>
+                <dd>{{ result.metadata.year }}</dd>
+              </div>
+            {% endif %}
+            {% if result.metadata.premiered %}
+              <div>
+                <dt>发行日期</dt>
+                <dd>{{ result.metadata.premiered }}</dd>
+              </div>
+            {% endif %}
+            {% if result.metadata.runtime %}
+              <div>
+                <dt>片长</dt>
+                <dd>{{ result.metadata.runtime }} 分钟</dd>
+              </div>
+            {% endif %}
+            {% if result.metadata.studio %}
+              <div>
+                <dt>片商</dt>
+                <dd>{{ result.metadata.studio }}</dd>
+              </div>
+            {% endif %}
+          </dl>
+
+          {% if result.metadata.actors %}
+            <div class="nf-meta-actors">
+              <strong>演员：</strong>
+              <span>
+                {% for a in result.metadata.actors[:8] %}
+                  {{ a.name }}{% if not loop.last %}、{% endif %}
+                {% endfor %}
+                {% if result.metadata.actors|length > 8 %}
+                  等 {{ result.metadata.actors|length }} 人
+                {% endif %}
+              </span>
+            </div>
+          {% endif %}
+        </div>
+
+        {% if result.poster_path %}
+          <div class="nf-meta-poster">
+            <div class="nf-meta-poster-inner">
+              <span class="nf-meta-poster-label">封面预览</span>
+              <img
+                src="{{ url_for('static', path='/placeholder-poster.png') }}"
+                alt="Poster"
+                class="nf-meta-poster-img"
+              />
+              <p class="nf-hint">
+                实际 poster.jpg 已保存到目标目录：此处仅为占位预览。
+              </p>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <div class="nf-result-paths">
+      <h4>生成的文件</h4>
+      <ul>
+        {% if result.movie_dir %}
+          <li>
+            <strong>影片文件夹：</strong>
+            <code>{{ result.movie_dir }}</code>
+          </li>
+        {% endif %}
+        {% if result.video_path %}
+          <li>
+            <strong>视频：</strong>
+            <code>{{ result.video_path }}</code>
+          </li>
+        {% endif %}
+        {% if result.nfo_path %}
+          <li>
+            <strong>NFO：</strong>
+            <code>{{ result.nfo_path }}</code>
+          </li>
+        {% endif %}
+        {% if result.poster_path %}
+          <li>
+            <strong>封面：</strong>
+            <code>{{ result.poster_path }}</code>
+          </li>
+        {% endif %}
+        {% if result.fanart_path %}
+          <li>
+            <strong>背景图：</strong>
+            <code>{{ result.fanart_path }}</code>
+          </li>
+        {% endif %}
+        {% if result.extra_images %}
+          <li>
+            <strong>剧照：</strong>
+            <code>{{ result.extra_images|length }} 张，位于 extrafanart/</code>
+          </li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+{% endif %}
+

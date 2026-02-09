@@ -1,0 +1,14 @@
+
+# 当任何命令执行失败时，立即退出脚本
+set -e
+
+# 获取脚本所在的目录，并切换到该目录
+# 这使得脚本可以从任何位置被调用
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+cd "$SCRIPT_DIR"
+
+
+export NFOFETCH_JAVDB_COOKIE='theme=auto; locale=zh; over18=1; list_mode=v; cf_clearance=Q7JWebG79o2mgPvKh221eHvwzqtMeIxyzxaqSWwCQfU-1770643654-1.2.1.1-0AVR23pIZ86tghek0MnXsYVpO0km7VG9MNmgMR005uAtT9sV_BFvRx4xU02_HDCJY6Y9XndneSccFgCWwKUGGxsTJrMEAM9PuWngGx15gBYyV9Y8v1vf2kmfXNFvLp4MeLW514RulCqkWuCV48TmLxd1h3jLTDjsG1N0rlwfIP_DKqM.P2tVKMxEfg38uG8UdvzT0wNNuYdLW3O5Q9PddwsfQ1WNq0dZG0NmrMSyfZE; _jdb_session=Pg8G6xJzriv4vEdO6Z4lJNOVVnA2imL5uvP9CtQtrArnLGGhCxU7EgnNbAD9dkfP91CtYxU0noNOTjjRxr45k4kOnE8aIjEe7ovJw%2B74bGS1EJ6ZCnY39K65XHetqtF5Iivb5M7FKGBcbwIkDRtlFj5fUEDlBllscjvlVPbIMSM6qlOK2ueGSbJjRHI6Gj1gllxs%2BBoa4xpBH3ezhCPlkUDHrSrlXsbE2u%2Bk0MqVoAxU4TrGdBrcxaoBuPKpAUsBYeFqGdRWPEtuX1STGfuRSegYKX%2BtsRROEh8GxMWyOzyVMpbLXlmJHwyIIvXEiAXmNvT5oQ339kZn%2FV54zG1ePRCMtZLeBfQ02qUKezr%2BMlNMEBeAT4pghOwhyCppsvm0mf4hlA3H7ySi9ec1AWmY8A3zhhQw14rHzNMYgRibdZiY%2FQd2u%2Fk6%2FDr1Hrj65QmDqqGxraU%2FIhYFETZxUH7T%2FfetqVZSaA%3D%3D--yLmMCJT73SfjWxSO--s3CSSzW3hVlcAB3i6XwRyg%3D%3D'
+
+
+uv run uvicorn app.main:app --reload

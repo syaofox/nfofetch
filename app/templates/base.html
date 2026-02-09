@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>NfoFetch - 影片刮削工具</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/modern-normalize@2.0.0/modern-normalize.min.css"
+    />
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/style.css') }}" />
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  </head>
+  <body>
+    <header class="nf-header">
+      <div class="nf-container">
+        <h1 class="nf-title">NfoFetch</h1>
+        <p class="nf-subtitle">
+          FastAPI + HTMX 影片刮削器（Jellyfin NFO，当前支持 javdb）
+        </p>
+      </div>
+    </header>
+    <main class="nf-main">
+      <div class="nf-container">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+    <footer class="nf-footer">
+      <div class="nf-container">
+        <small>输出根目录默认为运行目录下的 <code>output/</code>，可通过环境变量 <code>NFOFETCH_OUTPUT_ROOT</code> 修改。</small>
+      </div>
+    </footer>
+  </body>
+</html>
+

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="nf-card">
+    <h2 class="nf-card-title">影片刮削</h2>
+    <p class="nf-card-desc">
+      输入 javdb 影片页面 URL，并选择本地视频文件。提交后会自动生成 Jellyfin 兼容的
+      <code>movie.nfo</code> 和图片，并放入单独的影片文件夹。
+    </p>
+
+    <form
+      hx-post="/scrape"
+      hx-target="#result"
+      hx-swap="innerHTML"
+      enctype="multipart/form-data"
+      class="nf-form"
+    >
+      <div class="nf-form-group">
+        <label for="url" class="nf-label">影片页面 URL（当前支持 javdb）</label>
+        <input
+          type="url"
+          id="url"
+          name="url"
+          required
+          placeholder="例如：https://javdb.com/v/82ebmO"
+          class="nf-input"
+        />
+      </div>
+
+      <div class="nf-form-group">
+        <label for="video" class="nf-label">本地视频文件</label>
+        <input type="file" id="video" name="video" required class="nf-input-file" />
+        <p class="nf-hint">建议选择对应的主视频文件（mp4、mkv 等）。</p>
+      </div>
+
+      <button type="submit" class="nf-button">开始刮削</button>
+    </form>
+  </section>
+
+  <section id="result" class="nf-result">
+    <!-- HTMX 将在这里渲染刮削结果 -->
+  </section>
+{% endblock %}
+

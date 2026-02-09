@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.log
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# Python 工具缓存
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# 编辑器/IDE
+.vscode/
+.idea/
+
+# 本地输出与媒体文件
+output/
+
+# 杂项
+*.swp
+*.swo
+.DS_Store

@@ -1,0 +1,234 @@
+.nf-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.nf-header {
+  background: #111827;
+  color: #e5e7eb;
+}
+
+.nf-title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.nf-subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.95rem;
+  color: #9ca3af;
+}
+
+.nf-main {
+  background: #f3f4f6;
+  min-height: calc(100vh - 120px);
+}
+
+.nf-footer {
+  background: #111827;
+  color: #9ca3af;
+  padding: 0.75rem 0;
+  font-size: 0.8rem;
+}
+
+.nf-card {
+  background: #ffffff;
+  margin-top: 1.5rem;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.12);
+}
+
+.nf-card-result {
+  margin-top: 1rem;
+}
+
+.nf-card-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.nf-card-desc {
+  margin: 0 0 1rem;
+  color: #4b5563;
+  font-size: 0.95rem;
+}
+
+.nf-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.nf-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.nf-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.nf-input,
+.nf-input-file {
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.5rem;
+  border: 1px solid #d1d5db;
+  font-size: 0.95rem;
+}
+
+.nf-input:focus,
+.nf-input-file:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px #2563eb33;
+}
+
+.nf-button {
+  align-self: flex-start;
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  color: #f9fafb;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.nf-button:hover {
+  filter: brightness(1.05);
+}
+
+.nf-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.nf-result {
+  margin-top: 1rem;
+}
+
+.nf-alert {
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.nf-alert-error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.nf-alert-message {
+  margin-top: 0.25rem;
+}
+
+.nf-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.nf-meta-main {
+  flex: 1 1 260px;
+}
+
+.nf-meta-title {
+  margin: 0 0 0.4rem;
+  font-size: 1.1rem;
+}
+
+.nf-meta-number {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.nf-meta-plot {
+  margin: 0 0 0.6rem;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.nf-meta-list {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.25rem 1rem;
+}
+
+.nf-meta-list div {
+  display: flex;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.nf-meta-list dt {
+  font-weight: 600;
+}
+
+.nf-meta-list dd {
+  margin: 0;
+}
+
+.nf-meta-actors {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.nf-meta-poster {
+  flex: 0 0 180px;
+}
+
+.nf-meta-poster-inner {
+  text-align: center;
+}
+
+.nf-meta-poster-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.8rem;
+  color: #4b5563;
+}
+
+.nf-meta-poster-img {
+  width: 160px;
+  height: 230px;
+  border-radius: 0.5rem;
+  background: #e5e7eb;
+  object-fit: cover;
+}
+
+.nf-result-paths {
+  font-size: 0.85rem;
+}
+
+.nf-result-paths ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.nf-result-paths li {
+  margin: 0.15rem 0;
+}
+
+.nf-result-paths code {
+  background: #e5e7eb;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.3rem;
+  font-size: 0.8rem;
+}
+
