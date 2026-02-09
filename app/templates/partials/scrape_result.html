@@ -47,6 +47,26 @@
                 <dd>{{ result.metadata.studio }}</dd>
               </div>
             {% endif %}
+            {% if result.metadata.series %}
+              <div>
+                <dt>系列</dt>
+                <dd>{{ result.metadata.series }}</dd>
+              </div>
+            {% endif %}
+            {% if result.metadata.directors %}
+              <div>
+                <dt>导演</dt>
+                <dd>
+                  {{ result.metadata.directors | join("、") }}
+                </dd>
+              </div>
+            {% endif %}
+            {% if result.metadata.rating is not none %}
+              <div>
+                <dt>评分</dt>
+                <dd>{{ "%.1f"|format(result.metadata.rating) }}</dd>
+              </div>
+            {% endif %}
           </dl>
 
           {% if result.metadata.actors %}

@@ -99,6 +99,7 @@ class JavdbScraper(BaseScraper):
         genres = self._parse_genres(tree)
         actors = self._parse_actors(tree, base_url)
         studio, label, series = self._parse_companies(tree)
+        directors, rating = self._parse_directors_and_rating(tree)
         posters, art = self._parse_images(tree, base_url)
 
         return MovieMetadata(
@@ -116,6 +117,8 @@ class JavdbScraper(BaseScraper):
             studio=studio,
             label=label,
             series=series,
+            directors=directors,
+            rating=rating,
             posters=posters,
             art=art,
         )
@@ -310,6 +313,54 @@ class JavdbScraper(BaseScraper):
             elif "系列" in label_text or "Series" in label_text:
                 series = value_text
         return studio, label, series
+
+    def _parse_directors_and_rating(
+        self, tree: HTMLParser
+    ) -> tuple[List[str], Optional[float]]:
+        """解析导演和评分信息。
+
+        - 导演：优先从「導演 / 导演 / Director」信息块中读取 a 标签文本；
+        - 评分：从包含「評分 / 评分」的块中提取第一个数字（支持小数）。
+        """
+
+        directors: List[str] = []
+        rating: Optional[float] = None
+
+        # 导演
+        for block in tree.css("nav.movie-panel-info div.panel-block"):
+            label_el = block.css_first("strong")
+            label_text = label_el.text(strip=True) if label_el else ""
+            if (
+                "導演" in label_text
+                or "导演" in label_text
+                or "Director" in label_text
+            ):
+                value_span = block.css_first("span.value")
+                if not value_span:
+                    continue
+                for a in value_span.css("a"):
+                    name = a.text(strip=True)
+                    if name and name not in directors:
+                        directors.append(name)
+
+        # 评分
+        import re
+
+        if rating is None:
+            for node in tree.css("div.panel-block, div.panel-item, tr, section, div"):
+                text = node.text(strip=True)
+                if not text:
+                    continue
+                if "評分" in text or "评分" in text or "Rating" in text:
+                    m = re.search(r"(\d+(?:\.\d+)?)", text)
+                    if m:
+                        try:
+                            rating = float(m.group(1))
+                        except ValueError:
+                            rating = None
+                    break
+
+        return directors, rating
 
     def _parse_images(
         self, tree: HTMLParser, base_url: str

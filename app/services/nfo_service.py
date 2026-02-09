@@ -36,11 +36,19 @@ def build_movie_nfo(metadata: MovieMetadata) -> str:
     set_text(movie_el, "label", metadata.label)
     set_text(movie_el, "series", metadata.series)
 
+    # 评分
+    if metadata.rating is not None:
+        set_text(movie_el, "rating", f"{metadata.rating:.1f}")
+
     for tag in metadata.tags:
         set_text(movie_el, "tag", tag)
 
     for genre in metadata.genres:
         set_text(movie_el, "genre", genre)
+
+    # 导演
+    for director in metadata.directors:
+        set_text(movie_el, "director", director)
 
     # 演员
     for actor in metadata.actors:

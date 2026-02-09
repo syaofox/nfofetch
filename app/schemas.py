@@ -37,9 +37,16 @@ class MovieMetadata(BaseModel):
     tags: List[str] = Field(default_factory=list)
     actors: List[Actor] = Field(default_factory=list)
 
+    # 制作信息
     studio: Optional[str] = None
     label: Optional[str] = None
     series: Optional[str] = None
+    directors: List[str] = Field(
+        default_factory=list, description="导演列表，可能多名导演"
+    )
+    rating: Optional[float] = Field(
+        default=None, description="评分（0-10 之间），无法解析时为 None"
+    )
 
     posters: List[HttpUrl] = Field(
         default_factory=list, description="封面图片 URL 列表，优先第一张"
