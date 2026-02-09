@@ -35,14 +35,8 @@ uv run uvicorn app.main:app --reload
 - 提交后后台会：
   - 抓取 javdb 页面信息，生成统一的影片元数据。
   - 生成 Jellyfin 兼容的 `movie.nfo`。
-  - 下载封面 / 背景图 / 剧照到该视频所在目录（`poster.jpg`、`fanart.jpg`、`extrafanart/*`），并在界面中预览你所选择的封面。
-  - **不会复制/移动原始视频文件**，仅在原目录旁生成 NFO 与图片资源。
-
-默认输出根目录为项目运行目录下的 `output/`，可通过环境变量修改：
-
-```bash
-export NFOFETCH_OUTPUT_ROOT=/path/to/your/library
-```
+- 下载封面 / 背景图 / 剧照到该视频所在目录（`poster.jpg`、`fanart.jpg`、`extrafanart/*`），并在界面中预览你所选择的封面。
+- **不会复制/移动原始视频文件**，仅在原目录旁生成 NFO 与图片资源。
 
 文件浏览器的根目录可通过环境变量指定（默认等于当前工作目录）：
 
@@ -129,12 +123,10 @@ Cookie 优先级为：
    services:
      nfofetch:
        volumes:
-         - /mnt/dnas:/data/media       # 媒体库所在目录
-         - /home/you/nfo-output:/data/output  # 输出目录
+         - /mnt/dnas:/data/media       # 媒体库所在目录（NFO 与图片也会生成在此目录内）
    ```
 
-   同一个宿主机目录可以同时作为媒体和输出目录，只需指向同一个路径即可。
-
+   NFO 及图片总是生成在你选择的视频文件所在目录中。
 3. **构建并启动**
 
    ```bash
