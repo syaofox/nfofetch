@@ -24,3 +24,4 @@ output/
 *.swp
 *.swo
 .DS_Store
+.env
