@@ -68,3 +68,7 @@ class ScrapeResult(BaseModel):
     fanart_path: Optional[str] = None
     extra_images: List[str] = Field(default_factory=list)
 
+    # 前端选择的封面 / 背景图源 URL，用于预览展示。
+    chosen_poster_url: Optional[str] = None
+    chosen_fanart_url: Optional[str] = None
+

@@ -69,12 +69,12 @@
             <div class="nf-meta-poster-inner">
               <span class="nf-meta-poster-label">封面预览</span>
               <img
-                src="{{ url_for('static', path='/placeholder-poster.png') }}"
+                src="{{ result.chosen_poster_url or (result.metadata.posters[0] if result.metadata and result.metadata.posters else '') }}"
                 alt="Poster"
                 class="nf-meta-poster-img"
               />
               <p class="nf-hint">
-                实际 poster.jpg 已保存到目标目录：此处仅为占位预览。
+                实际 poster.jpg 已保存到目标目录，此处为来源站点封面预览。
               </p>
             </div>
           </div>

@@ -194,6 +194,8 @@ def save_movie_package(
         poster_path=str(poster_path) if poster_path else None,
         fanart_path=str(fanart_path) if fanart_path else None,
         extra_images=[str(p) for p in extra_paths],
+        chosen_poster_url=poster_url,
+        chosen_fanart_url=fanart_url,
     )
 
 
@@ -237,5 +239,7 @@ def save_assets_for_existing_video(
         poster_path=str(poster_path) if poster_path else None,
         fanart_path=str(fanart_path) if fanart_path else None,
         extra_images=[str(p) for p in extra_paths],
+        chosen_poster_url=poster_url,
+        chosen_fanart_url=fanart_url,
     )
 
