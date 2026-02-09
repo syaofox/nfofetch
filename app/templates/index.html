@@ -8,7 +8,13 @@
       Jellyfin 兼容的 <code>movie.nfo</code> 和图片。
     </p>
 
-    <form hx-post="/scrape" hx-target="#result" hx-swap="innerHTML" class="nf-form">
+    <form
+      id="scrape-form"
+      hx-post="/scrape"
+      hx-target="#result"
+      hx-swap="innerHTML"
+      class="nf-form"
+    >
       <div class="nf-form-group">
         <label for="url" class="nf-label">影片页面 URL（当前支持 javdb）</label>
         <input
@@ -46,7 +52,9 @@
         </p>
       </div>
 
-      <button type="submit" class="nf-button">开始刮削</button>
+      <button id="scrape-button" type="submit" class="nf-button">
+        开始刮削
+      </button>
     </form>
   </section>
 
