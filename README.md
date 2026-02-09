@@ -108,3 +108,38 @@ Cookie 优先级为：
 
 > 当前实现基于 javdb 页面的一般结构做了解析，若站点结构调整导致字段抓取不完整，可根据实际 HTML 调整 `app/scrapers/javdb.py` 中的 CSS 选择器。
 
+### 使用 Docker / docker-compose 运行
+
+本仓库提供了生产环境可用的 `Dockerfile` 与 `docker-compose.yml`。
+
+1. **准备 `.env`（可选但推荐）**
+
+   在项目根目录复制示例文件并填入真实 Cookie：
+
+   ```bash
+   cp .env.example .env
+   # 然后编辑 .env，设置 NFOFETCH_JAVDB_COOKIE 为浏览器中复制的完整 Cookie 串
+   ```
+
+2. **根据自己的媒体库路径修改卷挂载**
+
+   编辑 `docker-compose.yml` 中的卷，将宿主机路径替换为你自己的路径：
+
+   ```yaml
+   services:
+     nfofetch:
+       volumes:
+         - /mnt/dnas:/data/media       # 媒体库所在目录
+         - /home/you/nfo-output:/data/output  # 输出目录
+   ```
+
+   同一个宿主机目录可以同时作为媒体和输出目录，只需指向同一个路径即可。
+
+3. **构建并启动**
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+   默认会监听 `8000` 端口，对应浏览器访问地址为 `http://127.0.0.1:8000/`。
+
