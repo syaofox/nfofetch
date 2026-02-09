@@ -22,6 +22,9 @@ class Settings:
     user_agent: str
     http_proxy: Optional[str]
     javdb_cookie: Optional[str]
+    # 是否跳过保存 / 复制视频文件，只生成 NFO 和图片。
+    # 通过环境变量 NFOFETCH_SKIP_VIDEO_COPY 控制。
+    skip_video_copy: bool
 
 
 @lru_cache(maxsize=1)
@@ -46,10 +49,14 @@ def get_settings() -> Settings:
     http_proxy = os.getenv("NFOFETCH_HTTP_PROXY") or None
     javdb_cookie = os.getenv("NFOFETCH_JAVDB_COOKIE") or None
 
+    skip_video_copy_env = os.getenv("NFOFETCH_SKIP_VIDEO_COPY", "").strip().lower()
+    skip_video_copy = skip_video_copy_env in {"1", "true", "yes", "on"}
+
     return Settings(
         output_root=output_root,
         user_agent=user_agent,
         http_proxy=http_proxy,
         javdb_cookie=javdb_cookie,
+        skip_video_copy=skip_video_copy,
     )
 

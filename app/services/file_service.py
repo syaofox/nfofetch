@@ -30,25 +30,15 @@ def build_movie_dir_name(metadata: MovieMetadata, upload_file: UploadFile) -> st
     return sanitize_filename(base)
 
 
-def save_movie_package(
+def _write_nfo_and_images(
     *,
-    metadata: MovieMetadata,
+    movie_dir: Path,
     nfo_text: str,
-    upload_file: UploadFile,
+    metadata: MovieMetadata,
     settings: Settings,
-    max_extra_images: int = 8,
-) -> ScrapeResult:
-    """保存 NFO、视频文件和图片到目标目录，返回 ScrapeResult 用于前端展示。"""
-
-    movie_dir_name = build_movie_dir_name(metadata, upload_file)
-    movie_dir = settings.output_root / movie_dir_name
-    movie_dir.mkdir(parents=True, exist_ok=True)
-
-    # 保存视频文件（直接保存上传内容）
-    suffix = Path(upload_file.filename or "movie.mp4").suffix or ".mp4"
-    video_path = movie_dir / f"{movie_dir_name}{suffix}"
-    with video_path.open("wb") as f:
-        shutil.copyfileobj(upload_file.file, f)
+    max_extra_images: int,
+) -> tuple[Path, Optional[Path], Optional[Path], List[Path]]:
+    """写入 movie.nfo 并下载图片资源，返回相关路径。"""
 
     # 写入 movie.nfo
     nfo_path = movie_dir / "movie.nfo"
@@ -125,6 +115,83 @@ def save_movie_package(
         if download_image(url, dest):
             extra_paths.append(dest)
             idx += 1
+
+    return nfo_path, poster_path, fanart_path, extra_paths
+
+
+def save_movie_package(
+    *,
+    metadata: MovieMetadata,
+    nfo_text: str,
+    upload_file: UploadFile,
+    settings: Settings,
+    max_extra_images: int = 8,
+) -> ScrapeResult:
+    """保存 NFO、视频文件和图片到目标目录，返回 ScrapeResult 用于前端展示。"""
+
+    movie_dir_name = build_movie_dir_name(metadata, upload_file)
+    movie_dir = settings.output_root / movie_dir_name
+    movie_dir.mkdir(parents=True, exist_ok=True)
+
+    # 保存视频文件（直接保存上传内容）
+    suffix = Path(upload_file.filename or "movie.mp4").suffix or ".mp4"
+    video_path = movie_dir / f"{movie_dir_name}{suffix}"
+    if not settings.skip_video_copy:
+        # 默认行为：将上传的视频复制到目标影片目录。
+        with video_path.open("wb") as f:
+            shutil.copyfileobj(upload_file.file, f)
+    else:
+        # 当配置为跳过复制时，不再写入视频文件，只保留预期命名的目标路径，
+        # 方便用户根据该路径自行移动 / 重命名现有视频文件。
+        # 此时 UploadFile 仅用于获取后缀名，不再持久化内容。
+        pass
+
+    nfo_path, poster_path, fanart_path, extra_paths = _write_nfo_and_images(
+        movie_dir=movie_dir,
+        nfo_text=nfo_text,
+        metadata=metadata,
+        settings=settings,
+        max_extra_images=max_extra_images,
+    )
+
+    return ScrapeResult(
+        success=True,
+        message=None,
+        metadata=metadata,
+        movie_dir=str(movie_dir),
+        nfo_path=str(nfo_path),
+        video_path=str(video_path),
+        poster_path=str(poster_path) if poster_path else None,
+        fanart_path=str(fanart_path) if fanart_path else None,
+        extra_images=[str(p) for p in extra_paths],
+    )
+
+
+def save_assets_for_existing_video(
+    *,
+    metadata: MovieMetadata,
+    nfo_text: str,
+    video_path: Path,
+    settings: Settings,
+    max_extra_images: int = 8,
+) -> ScrapeResult:
+    """针对已存在的视频文件，在同一目录下生成 NFO 和图片，不复制视频。
+
+    - movie_dir 使用现有视频文件的父目录；
+    - 视频文件保持原有文件名和位置。
+    """
+
+    video_path = video_path.resolve()
+    movie_dir = video_path.parent
+    movie_dir.mkdir(parents=True, exist_ok=True)
+
+    nfo_path, poster_path, fanart_path, extra_paths = _write_nfo_and_images(
+        movie_dir=movie_dir,
+        nfo_text=nfo_text,
+        metadata=metadata,
+        settings=settings,
+        max_extra_images=max_extra_images,
+    )
 
     return ScrapeResult(
         success=True,

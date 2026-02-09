@@ -10,6 +10,7 @@ from selectolax.parser import HTMLParser
 from app.config import Settings
 from app.schemas import Actor, MovieMetadata
 from app.scrapers.base import BaseScraper
+from app.cookie_store import get_cookie_for_url
 
 try:  # 尝试使用 curl_cffi 来模拟浏览器指纹，绕过 Cloudflare
     from curl_cffi import requests as curl_requests
@@ -54,10 +55,12 @@ class JavdbScraper(BaseScraper):
             "Upgrade-Insecure-Requests": "1",
         }
 
-        # 如果你从浏览器复制了 Cookie（包含 cf_clearance 等），可以通过
-        # 环境变量 NFOFETCH_JAVDB_COOKIE 传进来，这里会原样带上。
-        if settings.javdb_cookie:
-            headers["Cookie"] = settings.javdb_cookie
+        # Cookie 优先顺序：
+        # 1. 环境变量 NFOFETCH_JAVDB_COOKIE
+        # 2. app.cookie_store.SITE_COOKIES 中按站点预设的 Cookie
+        cookie = get_cookie_for_url(url, env_cookie=settings.javdb_cookie)
+        if cookie:
+            headers["Cookie"] = cookie
         # 代理通过环境变量传递，curl_cffi / httpx 都能识别。
         if settings.http_proxy:
             os.environ.setdefault("HTTP_PROXY", settings.http_proxy)
