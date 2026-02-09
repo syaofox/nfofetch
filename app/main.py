@@ -1,6 +1,7 @@
+import os
 from pathlib import Path
 
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, Form, Request, Query
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -28,6 +29,66 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 async def index(request: Request) -> HTMLResponse:
     """首页：渲染包含 HTMX 表单的页面。"""
     return templates.TemplateResponse("index.html", {"request": request})
+
+
+@app.get("/browse", response_class=HTMLResponse)
+async def browse(
+    request: Request,
+    path: str | None = Query(default=None, description="要浏览的起始路径"),
+) -> HTMLResponse:
+    """简单的服务器文件浏览：用于选择本地视频文件路径。
+
+    为了安全，浏览范围限制在 NFOFETCH_BROWSE_ROOT（默认当前工作目录）下。
+    """
+    base_dir = Path(os.getenv("NFOFETCH_BROWSE_ROOT", os.getcwd())).resolve()
+
+    if path:
+        current = Path(path).expanduser()
+    else:
+        current = base_dir
+
+    try:
+        current = current.resolve()
+    except OSError:
+        current = base_dir
+
+    # 不允许跳出 base_dir 之外
+    try:
+        current.relative_to(base_dir)
+    except ValueError:
+        current = base_dir
+
+    parent_dir: str | None = None
+    if current != base_dir:
+        parent_dir = str(current.parent)
+
+    entries: list[dict[str, str | bool]] = []
+    try:
+        for child in sorted(current.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+            if child.name.startswith("."):
+                continue
+            if not (child.is_dir() or child.is_file()):
+                continue
+            entries.append(
+                {
+                    "name": child.name + ("/" if child.is_dir() else ""),
+                    "path": str(child),
+                    "is_dir": child.is_dir(),
+                }
+            )
+    except OSError:
+        # 目录不可读时，返回空列表
+        entries = []
+
+    return templates.TemplateResponse(
+        "partials/file_browser.html",
+        {
+            "request": request,
+            "current_dir": str(current),
+            "parent_dir": parent_dir,
+            "entries": entries,
+        },
+    )
 
 
 @app.post("/scrape", response_class=HTMLResponse)

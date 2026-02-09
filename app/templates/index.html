@@ -41,17 +41,27 @@
 
       <div class="nf-form-group">
         <label for="video_path" class="nf-label">服务器本地视频路径</label>
-        <input
-          type="text"
-          id="video_path"
-          name="video_path"
-          required
-          placeholder="/path/to/your/movie.mp4"
-          class="nf-input"
-        />
+        <div class="nf-input-with-button">
+          <input
+            type="text"
+            id="video_path"
+            name="video_path"
+            required
+            placeholder="/path/to/your/movie.mp4"
+            class="nf-input"
+          />
+          <button
+            type="button"
+            class="nf-button nf-button-secondary"
+            onclick="window.nfOpenFileBrowser()"
+          >
+            浏览…
+          </button>
+        </div>
         <p class="nf-hint">
-          填写服务器上已有视频的绝对路径（例如挂载的媒体盘中的 mp4/mkv 文件），不会上传或复制视频本身。
+          可直接输入路径，或点击「浏览…」从服务器文件系统中选择视频文件。
         </p>
+        <div id="file-browser-container"></div>
       </div>
     </form>
   </section>

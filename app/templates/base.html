@@ -53,6 +53,54 @@
           btn.innerText = "开始刮削";
         }
       });
+
+      // 简单的服务器文件浏览器
+      (function () {
+        function loadBrowser(path) {
+          var params = new URLSearchParams();
+          if (path) {
+            params.set("path", path);
+          }
+          fetch("/browse?" + params.toString())
+            .then(function (resp) {
+              return resp.text();
+            })
+            .then(function (html) {
+              var container = document.getElementById("file-browser-container");
+              if (container) {
+                container.innerHTML = html;
+              }
+            })
+            .catch(function () {
+              // ignore
+            });
+        }
+
+        window.nfOpenFileBrowser = function () {
+          var input = document.getElementById("video_path");
+          var initial = input && input.value ? input.value : "";
+          loadBrowser(initial);
+        };
+
+        window.nfBrowseTo = function (path) {
+          loadBrowser(path);
+        };
+
+        window.nfSelectFile = function (path) {
+          var input = document.getElementById("video_path");
+          if (input) {
+            input.value = path;
+          }
+          window.nfCloseFileBrowser();
+        };
+
+        window.nfCloseFileBrowser = function () {
+          var container = document.getElementById("file-browser-container");
+          if (container) {
+            container.innerHTML = "";
+          }
+        };
+      })();
     </script>
   </body>
 </html>

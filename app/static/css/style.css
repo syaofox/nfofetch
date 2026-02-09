@@ -90,6 +90,15 @@
   box-shadow: 0 0 0 1px #2563eb33;
 }
 
+.nf-input-with-button {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nf-input-with-button .nf-input {
+  flex: 1;
+}
+
 .nf-button {
   align-self: flex-start;
   padding: 0.6rem 1.2rem;
@@ -275,5 +284,100 @@
   .nf-image-grid {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }
+}
+
+/* 文件浏览器 */
+.nf-file-browser {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+.nf-file-browser-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.nf-file-browser-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.nf-file-browser-path {
+  font-size: 0.75rem;
+  color: #6b7280;
+  word-break: break-all;
+}
+
+.nf-file-browser-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.nf-button-secondary {
+  background: #e5e7eb;
+  color: #111827;
+  box-shadow: none;
+}
+
+.nf-button-secondary:hover {
+  filter: brightness(0.97);
+}
+
+.nf-file-browser-list {
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.nf-file-browser-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.5rem;
+  border: none;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.nf-file-browser-item:hover {
+  background: #eff6ff;
+}
+
+.nf-file-browser-item-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nf-file-browser-item-meta {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-left: 0.75rem;
+}
+
+.nf-file-browser-dir .nf-file-browser-item-name::before {
+  content: "📁 ";
+}
+
+.nf-file-browser-file .nf-file-browser-item-name::before {
+  content: "📄 ";
+}
+
+.nf-file-browser-empty {
+  font-size: 0.8rem;
+  color: #6b7280;
 }
 

@@ -28,18 +28,26 @@ uv run uvicorn app.main:app --reload
 ### Web 使用流程
 
 - 在首页输入 javdb 影片页面 URL（例如 `https://javdb.com/v/82ebmO`）。
-- 填写**服务器本地视频文件路径**（例如 `/mnt/media/movies/IPVR-335.mp4`）。
+- 填写**服务器本地视频文件路径**（例如 `/mnt/media/movies/IPVR-335.mp4`），或者点击「浏览…」按钮从服务器文件系统中选择文件：
+  - 浏览范围默认限制在 `NFOFETCH_BROWSE_ROOT` 指定的目录（未设置时为服务启动时的当前工作目录）。
+  - 只会在服务器端读取路径，不会上传或复制视频本身。
 - （可选）等待图片候选加载后，在表单中选择哪一张作为 `poster.jpg`、哪一张作为 `fanart.jpg`。
 - 提交后后台会：
   - 抓取 javdb 页面信息，生成统一的影片元数据。
   - 生成 Jellyfin 兼容的 `movie.nfo`。
-  - 下载封面 / 背景图 / 剧照到该视频所在目录（`poster.jpg`、`fanart.jpg`、`extrafanart/*`）。
+  - 下载封面 / 背景图 / 剧照到该视频所在目录（`poster.jpg`、`fanart.jpg`、`extrafanart/*`），并在界面中预览你所选择的封面。
   - **不会复制/移动原始视频文件**，仅在原目录旁生成 NFO 与图片资源。
 
 默认输出根目录为项目运行目录下的 `output/`，可通过环境变量修改：
 
 ```bash
 export NFOFETCH_OUTPUT_ROOT=/path/to/your/library
+```
+
+文件浏览器的根目录可通过环境变量指定（默认等于当前工作目录）：
+
+```bash
+export NFOFETCH_BROWSE_ROOT=/mnt/media
 ```
 
 如需使用代理访问 javdb，可以设置：

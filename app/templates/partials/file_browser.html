@@ -1,0 +1,43 @@
+<div class="nf-file-browser">
+  <div class="nf-file-browser-header">
+    <span class="nf-file-browser-title">选择服务器本地视频文件</span>
+    <span class="nf-file-browser-path">{{ current_dir }}</span>
+  </div>
+
+  <div class="nf-file-browser-actions">
+    {% if parent_dir %}
+      <button
+        type="button"
+        class="nf-button nf-button-secondary"
+        onclick="window.nfBrowseTo('{{ parent_dir }}')"
+      >
+        上级目录
+      </button>
+    {% endif %}
+    <button
+      type="button"
+      class="nf-button nf-button-secondary"
+      onclick="window.nfCloseFileBrowser()"
+    >
+      关闭
+    </button>
+  </div>
+
+  <div class="nf-file-browser-list">
+    {% for entry in entries %}
+      <button
+        type="button"
+        class="nf-file-browser-item {% if entry.is_dir %}nf-file-browser-dir{% else %}nf-file-browser-file{% endif %}"
+        onclick="{% if entry.is_dir %}window.nfBrowseTo('{{ entry.path }}'){% else %}window.nfSelectFile('{{ entry.path }}'){% endif %}"
+      >
+        <span class="nf-file-browser-item-name">{{ entry.name }}</span>
+        <span class="nf-file-browser-item-meta">
+          {% if entry.is_dir %}目录{% else %}文件{% endif %}
+        </span>
+      </button>
+    {% else %}
+      <div class="nf-file-browser-empty">此目录下没有可显示的文件或子目录。</div>
+    {% endfor %}
+  </div>
+</div>
+
