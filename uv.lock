@@ -514,7 +514,7 @@ wheels = [
 [[package]]
 name = "nfofetch"
 version = "0.1.0"
-source = { editable = "." }
+source = { virtual = "." }
 dependencies = [
     { name = "curl-cffi" },
     { name = "fastapi" },
