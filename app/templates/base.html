@@ -36,6 +36,10 @@
         var elt = evt.detail && evt.detail.elt;
         if (!elt || !(elt instanceof HTMLElement)) return;
         if (elt.id !== "scrape-form") return;
+        var result = document.getElementById("result");
+        if (result) {
+          result.innerHTML = "";
+        }
         var btn = elt.querySelector("#scrape-button");
         if (btn instanceof HTMLButtonElement) {
           btn.disabled = true;
