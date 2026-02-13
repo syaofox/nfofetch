@@ -6,7 +6,7 @@ from pathlib import Path
 from app.config import get_settings
 from app.services.nfo_service import build_movie_nfo
 from app.services.scrape_service import scrape_movie
-from app.services.file_service import save_assets_for_existing_video
+from app.services.file_service import DEFAULT_RENAME_FORMAT, save_assets_for_existing_video
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -33,6 +33,12 @@ def main(argv: list[str] | None = None) -> None:
         required=True,
         help="本地已有视频文件路径，例如：/path/to/movie.mp4",
     )
+    parser.add_argument(
+        "--rename-format",
+        default=None,
+        metavar="FMT",
+        help=f"重命名格式，留空则不重命名。默认：{DEFAULT_RENAME_FORMAT}。占位符：id/year/date/actor/title/vr/idx",
+    )
 
     args = parser.parse_args(argv)
 
@@ -49,6 +55,7 @@ def main(argv: list[str] | None = None) -> None:
         nfo_text=nfo_text,
         video_path=video_path,
         settings=settings,
+        rename_format=args.rename_format or None,
     )
 
     print("刮削成功 ✅")

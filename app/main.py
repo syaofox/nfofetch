@@ -132,6 +132,7 @@ async def scrape(
     video_path: str = Form(...),
     poster_url: str | None = Form(default=None),
     fanart_url: str | None = Form(default=None),
+    rename_format: str | None = Form(default=None),
 ) -> HTMLResponse:
     """处理 HTMX 表单：刮削 javdb 并生成 NFO / 图片 / 影片目录。"""
     settings = get_settings()
@@ -150,6 +151,7 @@ async def scrape(
             settings=settings,
             poster_url=poster_url,
             fanart_url=fanart_url,
+            rename_format=rename_format or None,
         )
     except Exception as exc:  # noqa: BLE001 - 用户侧希望看到原始错误
         result = ScrapeResult(success=False, message=str(exc))

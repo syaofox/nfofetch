@@ -178,6 +178,25 @@
       </div>
 
       <div class="nf-form-group nf-write-section">
+        <label for="rename_format" class="nf-label">重命名格式（可选）</label>
+        <input
+          type="text"
+          id="rename_format"
+          name="rename_format"
+          placeholder="[{actor}][{date}]{id}"
+          value="[{actor}][{date}]{id}"
+          class="nf-input"
+        />
+        <p class="nf-hint">
+          留空则不重命名。占位符：<code>{id}</code>番号、
+          <code>{year}</code>年份、<code>{date}</code>发行日期、
+          <code>{actor}</code>演员、<code>{title}</code>标题、
+          <code>{vr}</code>VR 视频（180_LR）、
+          <code>{idx}</code>同目录视频序号（按文件名排序，从 1 起）。同目录所有视频会一起重命名。
+        </p>
+      </div>
+
+      <div class="nf-form-group nf-write-section">
         <hr class="nf-write-divider" />
         {% if poster_candidates %}
           <p class="nf-hint">确认选择后，点击下方按钮将 NFO 和图片写入到视频所在目录。</p>
