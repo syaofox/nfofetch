@@ -19,6 +19,11 @@ _FILENAME_UNSAFE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 # 默认重命名格式
 DEFAULT_RENAME_FORMAT = "[{actor}][{date}]{id}"
 
+# 常见文件系统单文件名最大字节数（ext4/Windows 等）
+MAX_FILENAME_BYTES = 255
+# 为重名冲突时追加的 _2、_3 等后缀预留字节
+RESERVED_SUFFIX_BYTES = 8
+
 
 def _is_vr(metadata: MovieMetadata) -> bool:
     """根据元数据判断是否为 VR 视频。"""
@@ -38,6 +43,18 @@ def _sanitize_filename_part(s: str) -> str:
     """将字符串清理为安全的文件名片段。"""
     s = _FILENAME_UNSAFE.sub("_", s)
     return s.strip(" .") or "_"
+
+
+def _truncate_to_bytes(s: str, max_bytes: int) -> str:
+    """将字符串截断至不超过 max_bytes 字节，避免在 UTF-8 多字节字符中间切断。"""
+    b = s.encode("utf-8")
+    if len(b) <= max_bytes:
+        return s
+    b = b[:max_bytes]
+    # 移除可能被切断的 UTF-8 续字节（0x80–0xBF）
+    while b and (b[-1] & 0xC0) == 0x80:
+        b = b[:-1]
+    return b.decode("utf-8", errors="replace")
 
 
 def _format_rename(
@@ -87,7 +104,9 @@ def _rename_videos_in_dir(
     for i, old_path in enumerate(video_files, start=1):
         base_name = _format_rename(metadata, i, is_vr, format_str)
         ext = old_path.suffix
-        new_name = base_name + ext
+        ext_bytes = len(ext.encode("utf-8"))
+        max_base_bytes = max(1, MAX_FILENAME_BYTES - ext_bytes - RESERVED_SUFFIX_BYTES)
+        base_name = _truncate_to_bytes(base_name, max_base_bytes)
         temp_path = movie_dir / f"__nfofetch_tmp_{i}{ext}"
         temp_renames.append((old_path, temp_path))
 
@@ -100,6 +119,9 @@ def _rename_videos_in_dir(
     for i, (_, temp_p) in enumerate(temp_renames, start=1):
         base_name = _format_rename(metadata, i, is_vr, format_str)
         ext = temp_p.suffix
+        ext_bytes = len(ext.encode("utf-8"))
+        max_base_bytes = max(1, MAX_FILENAME_BYTES - ext_bytes - RESERVED_SUFFIX_BYTES)
+        base_name = _truncate_to_bytes(base_name, max_base_bytes)
         new_path = movie_dir / (base_name + ext)
         # 避免重名冲突，若已存在则追加 _2, _3 等
         final_path = new_path

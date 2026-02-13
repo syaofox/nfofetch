@@ -128,6 +128,39 @@
           }
         };
       })();
+
+      // 重命名格式：从 localStorage 恢复，并在变更或提交时保存
+      (function () {
+        var STORAGE_KEY = "nfofetch_rename_format";
+
+        document.body.addEventListener("htmx:afterSwap", function (evt) {
+          if (evt.detail && evt.detail.target && evt.detail.target.id === "result") {
+            var input = document.getElementById("rename_format");
+            if (input) {
+              var saved = localStorage.getItem(STORAGE_KEY);
+              if (saved !== null) {
+                input.value = saved;
+              }
+            }
+          }
+        });
+
+        document.body.addEventListener("input", function (evt) {
+          var elt = evt.target;
+          if (elt && elt.id === "rename_format") {
+            localStorage.setItem(STORAGE_KEY, elt.value);
+          }
+        });
+
+        document.body.addEventListener("htmx:beforeRequest", function (evt) {
+          var elt = evt.detail && evt.detail.elt;
+          if (!elt || elt.id !== "write-form") return;
+          var input = document.getElementById("rename_format");
+          if (input) {
+            localStorage.setItem(STORAGE_KEY, input.value);
+          }
+        });
+      })();
     </script>
   </body>
 </html>
