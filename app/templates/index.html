@@ -10,7 +10,7 @@
 
     <form
       id="scrape-form"
-      hx-post="/scrape"
+      hx-post="/scrape/fetch"
       hx-target="#result"
       hx-swap="innerHTML"
       class="nf-form"
@@ -24,45 +24,14 @@
           required
           placeholder="例如：https://javdb.com/v/82ebmO"
           class="nf-input"
-          hx-post="/scrape/preview"
-          hx-trigger="change delay:700ms"
-          hx-target="#image-options"
-          hx-swap="innerHTML"
         />
       </div>
 
-      <div id="image-options" class="nf-form-group">
-        <p class="nf-hint">
-          填写并离开 URL 输入框后，将自动加载即可用的封面 / 背景图列表供你选择。
-        </p>
-      </div>
+      <p class="nf-hint">
+        点击「开始刮削」后，将获取元数据和图片候选。在预览中填写视频路径并点击「写入」保存到本地。
+      </p>
 
       <button id="scrape-button" type="submit" class="nf-button">开始刮削</button>
-
-      <div class="nf-form-group">
-        <label for="video_path" class="nf-label">服务器本地视频路径</label>
-        <div class="nf-input-with-button">
-          <input
-            type="text"
-            id="video_path"
-            name="video_path"
-            required
-            placeholder="/path/to/your/movie.mp4"
-            class="nf-input"
-          />
-          <button
-            type="button"
-            class="nf-button nf-button-secondary"
-            onclick="window.nfOpenFileBrowser()"
-          >
-            浏览…
-          </button>
-        </div>
-        <p class="nf-hint">
-          可直接输入路径，或点击「浏览…」从服务器文件系统中选择视频文件。
-        </p>
-        <div id="file-browser-container"></div>
-      </div>
     </form>
   </section>
 

@@ -91,6 +91,40 @@ async def browse(
     )
 
 
+@app.post("/scrape/fetch", response_class=HTMLResponse)
+async def scrape_fetch(
+    request: Request,
+    url: str = Form(...),
+) -> HTMLResponse:
+    """仅刮削元数据和图片，不写入磁盘。返回预览供用户选择后点击「写入」。"""
+    settings = get_settings()
+    error: str | None = None
+    metadata = None
+    poster_candidates: list[str] = []
+
+    try:
+        metadata = scrape_movie(url, settings=settings)
+        seen: set[str] = set()
+        for u in list(metadata.posters) + list(metadata.art):
+            s = str(u)
+            if s not in seen:
+                seen.add(s)
+                poster_candidates.append(s)
+    except Exception as exc:  # noqa: BLE001
+        error = str(exc)
+
+    return templates.TemplateResponse(
+        "partials/scrape_preview.html",
+        {
+            "request": request,
+            "metadata": metadata,
+            "poster_candidates": poster_candidates,
+            "error": error,
+            "url": url,
+        },
+    )
+
+
 @app.post("/scrape", response_class=HTMLResponse)
 async def scrape(
     request: Request,
@@ -125,38 +159,6 @@ async def scrape(
         {
             "request": request,
             "result": result,
-        },
-    )
-
-
-@app.post("/scrape/preview", response_class=HTMLResponse)
-async def scrape_preview(
-    request: Request,
-    url: str = Form(...),
-) -> HTMLResponse:
-    """仅根据 URL 抓取元数据，返回图片候选列表供前端选择 poster / fanart。"""
-    settings = get_settings()
-    error: str | None = None
-    poster_candidates: list[str] = []
-
-    try:
-        metadata = scrape_movie(url, settings=settings)
-        seen: set[str] = set()
-        # 优先封面列表，其次剧照列表，统一去重。
-        for u in list(metadata.posters) + list(metadata.art):
-            s = str(u)
-            if s not in seen:
-                seen.add(s)
-                poster_candidates.append(s)
-    except Exception as exc:  # noqa: BLE001
-        error = str(exc)
-
-    return templates.TemplateResponse(
-        "partials/image_options.html",
-        {
-            "request": request,
-            "poster_candidates": poster_candidates,
-            "error": error,
         },
     )
 

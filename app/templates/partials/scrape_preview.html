@@ -1,0 +1,191 @@
+{% if error %}
+  <div class="nf-alert nf-alert-error">
+    <strong>刮削失败：</strong>
+    <div class="nf-alert-message">
+      {{ error }}
+    </div>
+  </div>
+{% else %}
+  <div class="nf-card nf-card-result">
+    <h3 class="nf-card-title">刮削结果预览</h3>
+
+    {% if metadata %}
+      <div class="nf-meta">
+        <div class="nf-meta-main">
+          <h4 class="nf-meta-title">
+            {{ metadata.title }}
+            {% if metadata.number %}
+              <span class="nf-meta-number">({{ metadata.number }})</span>
+            {% endif %}
+          </h4>
+          {% if metadata.plot %}
+            <p class="nf-meta-plot">{{ metadata.plot }}</p>
+          {% endif %}
+
+          <dl class="nf-meta-list">
+            {% if metadata.year %}
+              <div>
+                <dt>年份</dt>
+                <dd>{{ metadata.year }}</dd>
+              </div>
+            {% endif %}
+            {% if metadata.premiered %}
+              <div>
+                <dt>发行日期</dt>
+                <dd>{{ metadata.premiered }}</dd>
+              </div>
+            {% endif %}
+            {% if metadata.runtime %}
+              <div>
+                <dt>片长</dt>
+                <dd>{{ metadata.runtime }} 分钟</dd>
+              </div>
+            {% endif %}
+            {% if metadata.studio %}
+              <div>
+                <dt>片商</dt>
+                <dd>{{ metadata.studio }}</dd>
+              </div>
+            {% endif %}
+            {% if metadata.series %}
+              <div>
+                <dt>系列</dt>
+                <dd>{{ metadata.series }}</dd>
+              </div>
+            {% endif %}
+            {% if metadata.directors %}
+              <div>
+                <dt>导演</dt>
+                <dd>
+                  {{ metadata.directors | join("、") }}
+                </dd>
+              </div>
+            {% endif %}
+            {% if metadata.rating is not none %}
+              <div>
+                <dt>评分</dt>
+                <dd>{{ "%.1f"|format(metadata.rating) }}</dd>
+              </div>
+            {% endif %}
+          </dl>
+
+          {% if metadata.actors %}
+            <div class="nf-meta-actors">
+              <strong>演员：</strong>
+              <span>
+                {% for a in metadata.actors[:8] %}
+                  {{ a.name }}{% if not loop.last %}、{% endif %}
+                {% endfor %}
+                {% if metadata.actors|length > 8 %}
+                  等 {{ metadata.actors|length }} 人
+                {% endif %}
+              </span>
+            </div>
+          {% endif %}
+        </div>
+
+        {% if poster_candidates %}
+          <div class="nf-meta-poster">
+            <div class="nf-meta-poster-inner">
+              <span class="nf-meta-poster-label">封面预览</span>
+              <img
+                src="{{ poster_candidates[0] }}"
+                alt="Poster"
+                class="nf-meta-poster-img"
+              />
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <form
+      id="write-form"
+      hx-post="/scrape"
+      hx-target="#result"
+      hx-swap="innerHTML"
+      class="nf-form"
+    >
+      <input type="hidden" name="url" value="{{ url }}" />
+
+      <div class="nf-form-group nf-write-section">
+        <label for="video_path" class="nf-label">服务器本地视频路径</label>
+        <div class="nf-input-with-button">
+          <input
+            type="text"
+            id="video_path"
+            name="video_path"
+            required
+            placeholder="/path/to/your/movie.mp4"
+            class="nf-input"
+          />
+          <button
+            type="button"
+            class="nf-button nf-button-secondary"
+            onclick="window.nfOpenFileBrowser()"
+          >
+            浏览…
+          </button>
+        </div>
+        <p class="nf-hint">
+          填写视频文件路径，NFO 和图片将写入到该文件所在目录。
+        </p>
+        <div id="file-browser-container"></div>
+      </div>
+
+      {% if poster_candidates %}
+        <div class="nf-form-group">
+          <p class="nf-hint">
+            从下方图片中选择一张作为 <code>poster.jpg</code>（封面），以及一张作为
+            <code>fanart.jpg</code>（背景图）。如不选择，将使用默认顺序。
+          </p>
+
+          <div class="nf-image-grid">
+            {% for img_url in poster_candidates %}
+              <div class="nf-image-option">
+                <img
+                  src="{{ img_url }}"
+                  alt="候选图片 {{ loop.index }}"
+                  class="nf-image-thumb"
+                />
+                <div class="nf-image-option-controls">
+                  <label>
+                    <input
+                      type="radio"
+                      name="poster_url"
+                      value="{{ img_url }}"
+                      {% if loop.first %}checked{% endif %}
+                    />
+                    作为封面 poster
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="fanart_url"
+                      value="{{ img_url }}"
+                    />
+                    作为背景 fanart
+                  </label>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% else %}
+        {% if metadata %}
+          <p class="nf-hint">未从该页面解析到可用图片，或暂不可用。</p>
+        {% endif %}
+      {% endif %}
+
+      <div class="nf-form-group nf-write-section">
+        <hr class="nf-write-divider" />
+        {% if poster_candidates %}
+          <p class="nf-hint">确认选择后，点击下方按钮将 NFO 和图片写入到视频所在目录。</p>
+        {% else %}
+          <p class="nf-hint">点击下方按钮将 NFO 写入到视频所在目录（无图片可选时将使用默认顺序）。</p>
+        {% endif %}
+        <button type="submit" class="nf-button nf-button-write">写入</button>
+      </div>
+    </form>
+  </div>
+{% endif %}
