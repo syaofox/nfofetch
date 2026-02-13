@@ -85,6 +85,29 @@ def _format_rename(
     return _sanitize_filename_part(result)
 
 
+def _rename_single_video(
+    video_path: Path,
+    metadata: MovieMetadata,
+    format_str: str,
+) -> Path:
+    """仅重命名指定的单个视频文件，返回新路径。"""
+    movie_dir = video_path.parent
+    ext = video_path.suffix
+    is_vr = _is_vr(metadata)
+    base_name = _format_rename(metadata, 1, is_vr, format_str)
+    ext_bytes = len(ext.encode("utf-8"))
+    max_base_bytes = max(1, MAX_FILENAME_BYTES - ext_bytes - RESERVED_SUFFIX_BYTES)
+    base_name = _truncate_to_bytes(base_name, max_base_bytes)
+    new_path = movie_dir / (base_name + ext)
+    n = 1
+    while new_path.exists() and new_path != video_path:
+        n += 1
+        new_path = movie_dir / f"{base_name}_{n}{ext}"
+    if new_path != video_path:
+        video_path.rename(new_path)
+    return new_path
+
+
 def _rename_videos_in_dir(
     movie_dir: Path,
     metadata: MovieMetadata,
@@ -264,7 +287,7 @@ def save_assets_for_existing_video(
     """针对已存在的视频文件，在同一目录下生成 NFO 和图片，不复制视频。
 
     - movie_dir 使用现有视频文件的父目录；
-    - 若提供 rename_format，则按格式重命名目录下所有视频文件。
+    - 若提供 rename_format：含 {idx} 时重命名同目录下所有视频，不含则仅重命名选中的视频。
     """
 
     video_path = video_path.resolve()
@@ -276,8 +299,11 @@ def save_assets_for_existing_video(
     if rename_format and rename_format.strip():
         fmt = rename_format.strip()
         try:
-            renames = _rename_videos_in_dir(movie_dir, metadata, fmt)
-            final_video_path = renames.get(video_path, video_path)
+            if "{idx}" in fmt:
+                renames = _rename_videos_in_dir(movie_dir, metadata, fmt)
+                final_video_path = renames.get(video_path, video_path)
+            else:
+                final_video_path = _rename_single_video(video_path, metadata, fmt)
         except OSError as e:
             return ScrapeResult(
                 success=False,
