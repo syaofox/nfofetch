@@ -33,6 +33,19 @@
   font-size: 0.8rem;
 }
 
+.nf-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.nf-version {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
 .nf-card {
   background: #ffffff;
   margin-top: 1.5rem;

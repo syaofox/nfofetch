@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 
 from fastapi import FastAPI, Form, Request, Query
@@ -14,11 +15,23 @@ from app.services.scrape_service import scrape_movie
 
 
 BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 
 
-app = FastAPI(title="NfoFetch", version="0.1.0")
+def _read_version() -> str:
+    """从 pyproject.toml 读取版本号。"""
+    pyproject = PROJECT_ROOT / "pyproject.toml"
+    if pyproject.exists():
+        match = re.search(r'version\s*=\s*"([^"]+)"', pyproject.read_text())
+        if match:
+            return match.group(1)
+    return "0.0.0"
+
+
+VERSION = _read_version()
+app = FastAPI(title="NfoFetch", version=VERSION)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
@@ -28,7 +41,9 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request) -> HTMLResponse:
     """首页：渲染包含 HTMX 表单的页面。"""
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(
+        "index.html", {"request": request, "version": VERSION}
+    )
 
 
 @app.get("/browse", response_class=HTMLResponse)
