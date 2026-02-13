@@ -108,31 +108,6 @@
     >
       <input type="hidden" name="url" value="{{ url }}" />
 
-      <div class="nf-form-group nf-write-section">
-        <label for="video_path" class="nf-label">服务器本地视频路径</label>
-        <div class="nf-input-with-button">
-          <input
-            type="text"
-            id="video_path"
-            name="video_path"
-            required
-            placeholder="/path/to/your/movie.mp4"
-            class="nf-input"
-          />
-          <button
-            type="button"
-            class="nf-button nf-button-secondary"
-            onclick="window.nfOpenFileBrowser()"
-          >
-            浏览…
-          </button>
-        </div>
-        <p class="nf-hint">
-          填写视频文件路径，NFO 和图片将写入到该文件所在目录。
-        </p>
-        <div id="file-browser-container"></div>
-      </div>
-
       {% if poster_candidates %}
         <div class="nf-form-group">
           <p class="nf-hint">
@@ -178,13 +153,38 @@
       {% endif %}
 
       <div class="nf-form-group nf-write-section">
+        <label for="video_path" class="nf-label">服务器本地视频路径</label>
+        <div class="nf-input-with-button">
+          <input
+            type="text"
+            id="video_path"
+            name="video_path"
+            required
+            placeholder="/path/to/your/movie.mp4"
+            class="nf-input"
+          />
+          <button
+            type="button"
+            class="nf-button nf-button-secondary"
+            onclick="window.nfOpenFileBrowser()"
+          >
+            浏览…
+          </button>
+        </div>
+        <p class="nf-hint">
+          填写视频文件路径，NFO 和图片将写入到该文件所在目录。
+        </p>
+        <div id="file-browser-container"></div>
+      </div>
+
+      <div class="nf-form-group nf-write-section">
         <hr class="nf-write-divider" />
         {% if poster_candidates %}
           <p class="nf-hint">确认选择后，点击下方按钮将 NFO 和图片写入到视频所在目录。</p>
         {% else %}
           <p class="nf-hint">点击下方按钮将 NFO 写入到视频所在目录（无图片可选时将使用默认顺序）。</p>
         {% endif %}
-        <button type="submit" class="nf-button nf-button-write">写入</button>
+        <button type="submit" id="write-button" class="nf-button nf-button-write">写入</button>
       </div>
     </form>
   </div>

@@ -54,6 +54,29 @@
         }
       });
 
+      // 写入按钮点击时的文字反馈
+      document.addEventListener("htmx:beforeRequest", function (evt) {
+        var elt = evt.detail && evt.detail.elt;
+        if (!elt || !(elt instanceof HTMLElement)) return;
+        if (elt.id !== "write-form") return;
+        var btn = elt.querySelector("#write-button");
+        if (btn instanceof HTMLButtonElement) {
+          btn.disabled = true;
+          btn.innerText = "正在写入…";
+        }
+      });
+
+      document.addEventListener("htmx:afterRequest", function (evt) {
+        var elt = evt.detail && evt.detail.elt;
+        if (!elt || !(elt instanceof HTMLElement)) return;
+        if (elt.id !== "write-form") return;
+        var btn = elt.querySelector("#write-button");
+        if (btn instanceof HTMLButtonElement) {
+          btn.disabled = false;
+          btn.innerText = "写入";
+        }
+      });
+
       // 简单的服务器文件浏览器
       (function () {
         function loadBrowser(path) {
