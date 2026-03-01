@@ -42,6 +42,7 @@ COPY --from=builder /install /usr/local
 
 # 拷贝应用代码
 COPY app app
+COPY pyproject.toml .
 
 EXPOSE 8000
 
