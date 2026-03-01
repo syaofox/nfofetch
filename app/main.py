@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.config import get_settings
+from app.middleware import create_rate_limit_middleware
 from app.schemas import ScrapeResult
 from app.services.file_service import save_assets_for_existing_video
 from app.services.nfo_service import build_movie_nfo
@@ -32,6 +33,8 @@ def _read_version() -> str:
 
 VERSION = _read_version()
 app = FastAPI(title="NfoFetch", version=VERSION)
+
+create_rate_limit_middleware(app)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 

@@ -12,6 +12,11 @@
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   </head>
   <body>
+    <div id="nf-loading-overlay" class="nf-loading-overlay">
+      <div class="nf-loading-spinner"></div>
+      <div id="nf-loading-text" class="nf-loading-text">处理中…</div>
+    </div>
+
     <header class="nf-header">
       <div class="nf-container">
         <h1 class="nf-title">NfoFetch</h1>
@@ -32,53 +37,115 @@
       </div>
     </footer>
     <script>
-      // 使用 htmx 提供的 detail.elt 来判断是哪个元素发起请求
+      var NF_LOADING_TEXT = {
+        "scrape-form": "正在搜索/刮削…",
+        "write-form": "正在写入文件…",
+        "nf-search-item-form": "正在刮削…",
+      };
+
+      function nfGetLoadingText(elt) {
+        if (elt.id && NF_LOADING_TEXT[elt.id]) {
+          return NF_LOADING_TEXT[elt.id];
+        }
+        if (elt.classList.contains("nf-search-item-form")) {
+          return NF_LOADING_TEXT["nf-search-item-form"];
+        }
+        return "处理中…";
+      }
+
+      function nfShowLoading(elt) {
+        var overlay = document.getElementById("nf-loading-overlay");
+        var textEl = document.getElementById("nf-loading-text");
+        if (overlay && textEl) {
+          textEl.innerText = nfGetLoadingText(elt);
+          overlay.classList.add("active");
+        }
+      }
+
+      function nfHideLoading() {
+        var overlay = document.getElementById("nf-loading-overlay");
+        if (overlay) {
+          overlay.classList.remove("active");
+        }
+      }
+
+      function nfDisableFormButtons(elt) {
+        if (elt.id === "scrape-form") {
+          var btn = elt.querySelector("#scrape-button");
+          if (btn instanceof HTMLButtonElement) {
+            btn.disabled = true;
+            btn.dataset.originalText = btn.innerText;
+            btn.innerText = "处理中…";
+          }
+        } else if (elt.id === "write-form") {
+          var btn = elt.querySelector("#write-button");
+          if (btn instanceof HTMLButtonElement) {
+            btn.disabled = true;
+            btn.dataset.originalText = btn.innerText;
+            btn.innerText = "写入中…";
+          }
+        } else if (elt.classList.contains("nf-search-item-form")) {
+          var btn = elt.querySelector(".nf-search-item-btn");
+          if (btn instanceof HTMLButtonElement) {
+            btn.disabled = true;
+            btn.dataset.originalText = btn.innerHTML;
+            btn.innerHTML = '<span style="color: #6b7280;">处理中…</span>';
+          }
+        }
+      }
+
+      function nfEnableFormButtons(elt) {
+        if (elt.id === "scrape-form") {
+          var btn = elt.querySelector("#scrape-button");
+          if (btn instanceof HTMLButtonElement) {
+            btn.disabled = false;
+            btn.innerText = btn.dataset.originalText || "开始刮削";
+          }
+        } else if (elt.id === "write-form") {
+          var btn = elt.querySelector("#write-button");
+          if (btn instanceof HTMLButtonElement) {
+            btn.disabled = false;
+            btn.innerText = btn.dataset.originalText || "写入";
+          }
+        } else if (elt.classList.contains("nf-search-item-form")) {
+          var btn = elt.querySelector(".nf-search-item-btn");
+          if (btn instanceof HTMLButtonElement) {
+            btn.disabled = false;
+            btn.innerHTML = btn.dataset.originalText || "";
+          }
+        }
+      }
+
+      function nfIsRelevantForm(elt) {
+        if (!(elt instanceof HTMLElement)) return false;
+        if (elt.id === "scrape-form" || elt.id === "write-form") return true;
+        return elt.classList.contains("nf-search-item-form");
+      }
+
       document.addEventListener("htmx:beforeRequest", function (evt) {
         var elt = evt.detail && evt.detail.elt;
-        if (!elt || !(elt instanceof HTMLElement)) return;
-        if (elt.id !== "scrape-form") return;
-        var result = document.getElementById("result");
-        if (result) {
-          result.innerHTML = "";
+        if (!nfIsRelevantForm(elt)) return;
+        if (elt.id === "scrape-form") {
+          var result = document.getElementById("result");
+          if (result) {
+            result.innerHTML = "";
+          }
         }
-        var btn = elt.querySelector("#scrape-button");
-        if (btn instanceof HTMLButtonElement) {
-          btn.disabled = true;
-          btn.innerText = "正在刮削…";
-        }
+        nfDisableFormButtons(elt);
+        nfShowLoading(elt);
       });
 
       document.addEventListener("htmx:afterRequest", function (evt) {
         var elt = evt.detail && evt.detail.elt;
-        if (!elt || !(elt instanceof HTMLElement)) return;
-        if (elt.id !== "scrape-form") return;
-        var btn = elt.querySelector("#scrape-button");
-        if (btn instanceof HTMLButtonElement) {
-          btn.disabled = false;
-          btn.innerText = "开始刮削";
-        }
+        if (!nfIsRelevantForm(elt)) return;
+        nfEnableFormButtons(elt);
+        nfHideLoading();
       });
 
-      // 写入按钮点击时的文字反馈
-      document.addEventListener("htmx:beforeRequest", function (evt) {
-        var elt = evt.detail && evt.detail.elt;
-        if (!elt || !(elt instanceof HTMLElement)) return;
-        if (elt.id !== "write-form") return;
-        var btn = elt.querySelector("#write-button");
-        if (btn instanceof HTMLButtonElement) {
-          btn.disabled = true;
-          btn.innerText = "正在写入…";
-        }
-      });
-
-      document.addEventListener("htmx:afterRequest", function (evt) {
-        var elt = evt.detail && evt.detail.elt;
-        if (!elt || !(elt instanceof HTMLElement)) return;
-        if (elt.id !== "write-form") return;
-        var btn = elt.querySelector("#write-button");
-        if (btn instanceof HTMLButtonElement) {
-          btn.disabled = false;
-          btn.innerText = "写入";
+      document.addEventListener("htmx:afterSwap", function (evt) {
+        var target = evt.detail && evt.detail.target;
+        if (target && target.id === "result") {
+          nfHideLoading();
         }
       });
 
