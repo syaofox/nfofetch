@@ -11,7 +11,7 @@ nfofetch 是一个基于 **FastAPI + HTMX** 的影片刮削工具，支持从 ja
 - **Python**: 3.10+
 - **Web 框架**: FastAPI
 - **依赖管理**: uv
-- **代码检查**: ruff, mypy
+- **代码检查**: ruff
 - **容器化**: Docker, docker-compose
 
 ## 环境配置
@@ -68,9 +68,6 @@ uv run ruff check .
 
 # 运行 ruff 格式化检查
 uv run ruff format --check .
-
-# 运行 mypy 类型检查
-uv run mypy .
 ```
 
 ### 自动修复
