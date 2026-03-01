@@ -8,7 +8,7 @@ import httpx
 from selectolax.parser import HTMLParser
 
 from app.config import Settings
-from app.schemas import Actor, MovieMetadata
+from app.schemas import Actor, MovieMetadata, SearchResult
 from app.scrapers.base import BaseScraper
 
 try:  # 尝试使用 curl_cffi 来模拟浏览器指纹，绕过 Cloudflare
@@ -81,6 +81,48 @@ class JavdbScraper(BaseScraper):
         metadata = self._parse_metadata(tree, base_url=url)
         metadata.source_url = url  # type: ignore[assignment]
         return metadata
+
+    def search(self, query: str, settings: Settings) -> List[SearchResult]:
+        """搜索影片，支持番号或标题搜索。"""
+        import urllib.parse
+
+        search_url = f"https://javdb565.com/search?q={urllib.parse.quote(query)}&f=all"
+
+        headers = {
+            "User-Agent": settings.user_agent,
+            "Referer": "https://javdb565.com/",
+            "Accept": (
+                "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                "image/avif,image/webp,image/apng,*/*;q=0.8"
+            ),
+            "Accept-Language": "zh-CN,zh;q=0.7,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+        }
+
+        if settings.javdb_cookie:
+            headers["Cookie"] = settings.javdb_cookie
+        if settings.http_proxy:
+            os.environ.setdefault("HTTP_PROXY", settings.http_proxy)
+            os.environ.setdefault("HTTPS_PROXY", settings.http_proxy)
+
+        if _HAS_CURL_CFFI:
+            resp = curl_requests.get(  # type: ignore[union-attr]
+                search_url,
+                headers=headers,
+                impersonate="chrome",
+                timeout=20.0,
+            )
+            resp.raise_for_status()
+            html = resp.text
+        else:
+            with httpx.Client(headers=headers, timeout=20.0) as client:
+                resp = client.get(search_url)
+                resp.raise_for_status()
+                html = resp.text
+
+        return self._parse_search_results(html, base_url=search_url)
 
     def _parse_metadata(self, tree: HTMLParser, base_url: str) -> MovieMetadata:
         number = self._parse_number(tree)
@@ -182,7 +224,12 @@ class JavdbScraper(BaseScraper):
 
     def _parse_plot(self, tree: HTMLParser) -> Optional[str]:
         # 简介区域
-        for sel in ["div.description", "div.synopsis", "section#introduction", "p.description"]:
+        for sel in [
+            "div.description",
+            "div.synopsis",
+            "section#introduction",
+            "p.description",
+        ]:
             node = tree.css_first(sel)
             if node and node.text():
                 return node.text(strip=True)
@@ -326,11 +373,7 @@ class JavdbScraper(BaseScraper):
         for block in tree.css("nav.movie-panel-info div.panel-block"):
             label_el = block.css_first("strong")
             label_text = label_el.text(strip=True) if label_el else ""
-            if (
-                "導演" in label_text
-                or "导演" in label_text
-                or "Director" in label_text
-            ):
+            if "導演" in label_text or "导演" in label_text or "Director" in label_text:
                 value_span = block.css_first("span.value")
                 if not value_span:
                     continue
@@ -434,3 +477,52 @@ class JavdbScraper(BaseScraper):
                 return text.split(label, 1)[-1].strip(" ：: ")
         return None
 
+    def _parse_search_results(self, html: str, base_url: str) -> List[SearchResult]:
+        """解析搜索结果页面，返回搜索结果列表。"""
+        tree = HTMLParser(html)
+        results: List[SearchResult] = []
+
+        for item in tree.css("div.movie-list div.item"):
+            link = item.css_first("a.box")
+            if not link:
+                continue
+
+            href = link.attributes.get("href")
+            if not href or not href.startswith("/v/"):
+                continue
+
+            video_url = self._abspath_url(href, base_url)
+
+            title_node = item.css_first("div.video-title")
+            title_text = title_node.text(strip=True) if title_node else ""
+
+            number_node = item.css_first("div.video-title strong")
+            number_text = number_node.text(strip=True) if number_node else None
+
+            date_node = item.css_first("div.meta")
+            date_text = date_node.text(strip=True) if date_node else None
+            if date_text:
+                import re
+
+                match = re.search(r"(\d{2})/(\d{2})/(\d{4})", date_text)
+                if match:
+                    date_text = f"{match.group(3)}-{match.group(1)}-{match.group(2)}"
+
+            poster_img = item.css_first("img")
+            poster_url = None
+            if poster_img:
+                poster_url = poster_img.attributes.get("src")
+                if poster_url:
+                    poster_url = self._abspath_url(poster_url, base_url)
+
+            results.append(
+                SearchResult(
+                    title=title_text,
+                    number=number_text,
+                    url=video_url,
+                    poster_url=poster_url,
+                    date=date_text,
+                )
+            )
+
+        return results

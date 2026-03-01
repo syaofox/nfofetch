@@ -20,5 +20,9 @@ def get_scraper(url: str) -> BaseScraper:
     for scraper in SCRAPERS:
         if scraper.supports(url):
             return scraper
-    raise NoSupportedScraperError(f"暂不支持该 URL: {url}")
+    return SCRAPERS[0]
 
+
+def get_default_scraper() -> BaseScraper:
+    """获取默认的 scraper 用于搜索等操作。"""
+    return SCRAPERS[0]

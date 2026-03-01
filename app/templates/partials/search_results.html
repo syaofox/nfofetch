@@ -1,0 +1,58 @@
+{% if error %}
+  <div class="nf-alert nf-alert-error">
+    <strong>搜索失败：</strong>
+    <div class="nf-alert-message">
+      {{ error }}
+    </div>
+  </div>
+{% else %}
+  <div class="nf-card nf-card-result">
+    <h3 class="nf-card-title">搜索结果</h3>
+    <p class="nf-hint">找到 {{ results|length }} 个结果，点击选择正确的影片继续刮削。</p>
+
+    {% if results %}
+      <div class="nf-search-results">
+        {% for item in results %}
+          <div class="nf-search-item">
+            <form
+              class="nf-search-item-form"
+              hx-post="/scrape/fetch"
+              hx-target="#result"
+              hx-swap="innerHTML"
+            >
+              <input type="hidden" name="url" value="{{ item.url }}" />
+              <button type="submit" class="nf-search-item-btn">
+                {% if item.poster_url %}
+                  <img src="{{ item.poster_url }}" alt="{{ item.title }}" class="nf-search-item-poster" />
+                {% else %}
+                  <div class="nf-search-item-poster nf-search-item-poster-empty">无图</div>
+                {% endif %}
+                <div class="nf-search-item-info">
+                  <div class="nf-search-item-title">{{ item.title }}</div>
+                  {% if item.number %}
+                    <div class="nf-search-item-number">{{ item.number }}</div>
+                  {% endif %}
+                  {% if item.date %}
+                    <div class="nf-search-item-date">{{ item.date }}</div>
+                  {% endif %}
+                </div>
+              </button>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="nf-hint">未找到相关影片，请尝试其他关键字。</p>
+    {% endif %}
+
+    <div class="nf-form-group">
+      <button
+        type="button"
+        class="nf-button nf-button-secondary"
+        onclick="document.getElementById('result').innerHTML = ''"
+      >
+        重新搜索
+      </button>
+    </div>
+  </div>
+{% endif %}

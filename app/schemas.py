@@ -60,6 +60,16 @@ class MovieMetadata(BaseModel):
     )
 
 
+class SearchResult(BaseModel):
+    """搜索结果模型"""
+
+    title: str
+    number: Optional[str] = None
+    url: str
+    poster_url: Optional[str] = None
+    date: Optional[str] = None
+
+
 class ScrapeResult(BaseModel):
     """一次完整刮削的结果，用于返回到模板做展示。"""
 
@@ -78,4 +88,3 @@ class ScrapeResult(BaseModel):
     # 前端选择的封面 / 背景图源 URL，用于预览展示。
     chosen_poster_url: Optional[str] = None
     chosen_fanart_url: Optional[str] = None
-

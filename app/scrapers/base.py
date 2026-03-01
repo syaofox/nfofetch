@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Protocol
 
 from app.config import Settings
-from app.schemas import MovieMetadata
+from app.schemas import MovieMetadata, SearchResult
 
 
 class BaseScraper(ABC):
@@ -23,10 +23,15 @@ class BaseScraper(ABC):
     def scrape(self, url: str, settings: Settings) -> MovieMetadata:  # pragma: no cover
         """从 URL 抓取并解析影片信息，返回统一的 MovieMetadata。"""
 
+    def search(
+        self, query: str, settings: Settings
+    ) -> list[SearchResult]:  # pragma: no cover
+        """根据关键字搜索影片，返回搜索结果列表。"""
+        return []
+
 
 class ScraperFactory(Protocol):
     """用于 typing 的工厂协议，便于后续扩展。"""
 
     def __call__(self) -> BaseScraper:  # pragma: no cover - 类型辅助
         ...
-

@@ -11,7 +11,7 @@ from app.config import get_settings
 from app.schemas import ScrapeResult
 from app.services.file_service import save_assets_for_existing_video
 from app.services.nfo_service import build_movie_nfo
-from app.services.scrape_service import scrape_movie
+from app.services.scrape_service import is_url, scrape_movie, search_movie
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -79,7 +79,9 @@ async def browse(
 
     entries: list[dict[str, str | bool]] = []
     try:
-        for child in sorted(current.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+        for child in sorted(
+            current.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())
+        ):
             if child.name.startswith("."):
                 continue
             if not (child.is_dir() or child.is_file()):
@@ -111,22 +113,30 @@ async def scrape_fetch(
     request: Request,
     url: str = Form(...),
 ) -> HTMLResponse:
-    """仅刮削元数据和图片，不写入磁盘。返回预览供用户选择后点击「写入」。"""
+    """仅刮削元数据和图片，不写入磁盘。返回预览供用户选择后点击「写入」。
+
+    支持两种输入：
+    - URL：直接刮取该 URL 的元数据
+    - 番号/关键字：先搜索影片，用户选择后再刮取
+    """
     settings = get_settings()
     error: str | None = None
     metadata = None
     poster_candidates: list[str] = []
 
-    try:
-        metadata = scrape_movie(url, settings=settings)
-        seen: set[str] = set()
-        for u in list(metadata.posters) + list(metadata.art):
-            s = str(u)
-            if s not in seen:
-                seen.add(s)
-                poster_candidates.append(s)
-    except Exception as exc:  # noqa: BLE001
-        error = str(exc)
+    if is_url(url):
+        try:
+            metadata = scrape_movie(url, settings=settings)
+            seen: set[str] = set()
+            for u in list(metadata.posters) + list(metadata.art):
+                s = str(u)
+                if s not in seen:
+                    seen.add(s)
+                    poster_candidates.append(s)
+        except Exception as exc:  # noqa: BLE001
+            error = str(exc)
+    else:
+        return await search_and_select(request, url)
 
     return templates.TemplateResponse(
         "partials/scrape_preview.html",
@@ -136,6 +146,32 @@ async def scrape_fetch(
             "poster_candidates": poster_candidates,
             "error": error,
             "url": url,
+        },
+    )
+
+
+@app.post("/scrape/search", response_class=HTMLResponse)
+async def search_and_select(
+    request: Request,
+    query: str = Form(...),
+) -> HTMLResponse:
+    """搜索影片并显示结果列表供用户选择。"""
+    settings = get_settings()
+    error: str | None = None
+    results: list = []
+
+    try:
+        results = search_movie(query, settings=settings)
+    except Exception as exc:  # noqa: BLE001
+        error = str(exc)
+
+    return templates.TemplateResponse(
+        "partials/search_results.html",
+        {
+            "request": request,
+            "results": results,
+            "error": error,
+            "query": query,
         },
     )
 
@@ -189,4 +225,3 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
-
