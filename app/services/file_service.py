@@ -115,7 +115,11 @@ def _rename_videos_in_dir(
 ) -> dict[Path, Path]:
     """重命名目录下所有视频文件，返回 旧路径 -> 新路径 映射。"""
     video_files = sorted(
-        [p for p in movie_dir.iterdir() if p.is_file() and p.suffix.lower() in VIDEO_EXTENSIONS],
+        [
+            p
+            for p in movie_dir.iterdir()
+            if p.is_file() and p.suffix.lower() in VIDEO_EXTENSIONS
+        ],
         key=lambda p: p.name.lower(),
     )
     if not video_files:
@@ -334,4 +338,3 @@ def save_assets_for_existing_video(
         chosen_poster_url=poster_url,
         chosen_fanart_url=fanart_url,
     )
-

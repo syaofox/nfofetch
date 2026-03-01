@@ -6,7 +6,10 @@ from pathlib import Path
 from app.config import get_settings
 from app.services.nfo_service import build_movie_nfo
 from app.services.scrape_service import scrape_movie
-from app.services.file_service import DEFAULT_RENAME_FORMAT, save_assets_for_existing_video
+from app.services.file_service import (
+    DEFAULT_RENAME_FORMAT,
+    save_assets_for_existing_video,
+)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -55,6 +58,7 @@ def main(argv: list[str] | None = None) -> None:
         nfo_text=nfo_text,
         video_path=video_path,
         settings=settings,
+        max_extra_images=settings.max_extra_images,
         rename_format=args.rename_format or None,
     )
 
@@ -71,4 +75,3 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
-

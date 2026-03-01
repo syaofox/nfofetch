@@ -14,11 +14,13 @@ class Settings:
     - NFOFETCH_USER_AGENT : HTTP User-Agent
     - NFOFETCH_HTTP_PROXY : HTTP 代理，例如 http://127.0.0.1:7890
     - NFOFETCH_JAVDB_COOKIE: 访问 javdb 时使用的 Cookie（含 cf_clearance 等）
+    - NFOFETCH_MAX_EXTRA_IMAGES: extrafanart 最大保存数量（默认 8）
     """
 
     user_agent: str
     http_proxy: Optional[str]
     javdb_cookie: Optional[str]
+    max_extra_images: int
 
 
 @lru_cache(maxsize=1)
@@ -34,10 +36,12 @@ def get_settings() -> Settings:
 
     http_proxy = os.getenv("NFOFETCH_HTTP_PROXY") or None
     javdb_cookie = os.getenv("NFOFETCH_JAVDB_COOKIE") or None
+    max_extra_images_str = os.getenv("NFOFETCH_MAX_EXTRA_IMAGES")
+    max_extra_images = int(max_extra_images_str) if max_extra_images_str else 8
 
     return Settings(
         user_agent=user_agent,
         http_proxy=http_proxy,
         javdb_cookie=javdb_cookie,
+        max_extra_images=max_extra_images,
     )
-

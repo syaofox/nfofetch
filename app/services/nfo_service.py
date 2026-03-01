@@ -65,4 +65,3 @@ def build_movie_nfo(metadata: MovieMetadata) -> str:
 
     xml_bytes = tostring(movie_el, encoding="utf-8")
     return xml_bytes.decode("utf-8")
-

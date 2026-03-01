@@ -200,6 +200,7 @@ async def scrape(
             nfo_text=nfo_text,
             video_path=vp,
             settings=settings,
+            max_extra_images=settings.max_extra_images,
             poster_url=poster_url,
             fanart_url=fanart_url,
             rename_format=rename_format or None,
