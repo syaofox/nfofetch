@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   nfofetch:
     build:
@@ -10,6 +8,7 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - TZ=${TZ:-Asia/Shanghai}
       # 浏览根目录（根据自己宿主机目录调整）
       - NFOFETCH_BROWSE_ROOT=/data/media
       # 可选：自定义 HTTP User-Agent，避免部分站点直接 403
@@ -21,4 +20,8 @@ services:
     volumes:
       # 挂载媒体库所在目录到容器内部，供浏览和写 NFO/图片（NFO 会生成在视频同目录）
       - /mnt/dnas:/data/media
+      # 同步宿主机时区
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    user: "${UID:-1000}:${GID:-1000}"
 
