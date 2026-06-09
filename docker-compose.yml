@@ -11,6 +11,8 @@ services:
       - TZ=${TZ:-Asia/Shanghai}
       # 浏览根目录（根据自己宿主机目录调整）
       - NFOFETCH_BROWSE_ROOT=/data/media
+      # 用户设置持久化路径（JSON 文件），默认 ~/.config/nfofetch/settings.json
+      - NFOFETCH_SETTINGS_PATH=/config/settings.json
       # 可选：自定义 HTTP User-Agent，避免部分站点直接 403
       # - NFOFETCH_USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:117.0) Gecko/20100101 Firefox/117.0
       # 可选：访问 javdb 时使用的 HTTP 代理，例如 http://127.0.0.1:7890
@@ -22,6 +24,8 @@ services:
     volumes:
       # 挂载媒体库所在目录到容器内部，供浏览和写 NFO/图片（NFO 会生成在视频同目录）
       - /mnt/dnas:/data/media
+      # 持久化用户设置（重命名格式等）
+      - ./config:/config
       # 同步宿主机时区
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro

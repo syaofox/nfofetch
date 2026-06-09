@@ -168,7 +168,9 @@ def _rename_videos_in_dir(
     for i, old_path in enumerate(video_files, start=1):
         resolution = _get_video_resolution(old_path)
         resolutions.append(resolution)
-        base_name = _format_rename(metadata, i, is_vr, format_str, resolution=resolution)
+        base_name = _format_rename(
+            metadata, i, is_vr, format_str, resolution=resolution
+        )
         ext = old_path.suffix
         ext_bytes = len(ext.encode("utf-8"))
         max_base_bytes = max(1, MAX_FILENAME_BYTES - ext_bytes - RESERVED_SUFFIX_BYTES)
@@ -183,7 +185,9 @@ def _rename_videos_in_dir(
     # 最终重命名
     result: dict[Path, Path] = {}
     for i, (_, temp_p) in enumerate(temp_renames, start=1):
-        base_name = _format_rename(metadata, i, is_vr, format_str, resolution=resolutions[i - 1])
+        base_name = _format_rename(
+            metadata, i, is_vr, format_str, resolution=resolutions[i - 1]
+        )
         ext = temp_p.suffix
         ext_bytes = len(ext.encode("utf-8"))
         max_base_bytes = max(1, MAX_FILENAME_BYTES - ext_bytes - RESERVED_SUFFIX_BYTES)

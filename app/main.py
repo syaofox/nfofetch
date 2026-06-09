@@ -9,10 +9,11 @@ from fastapi.templating import Jinja2Templates
 
 from app.config import get_settings
 from app.middleware import create_rate_limit_middleware
-from app.schemas import ScrapeResult
+from app.schemas import ScrapeResult, UserSettings
 from app.services.file_service import save_assets_for_existing_video
 from app.services.nfo_service import build_movie_nfo
 from app.services.scrape_service import is_url, scrape_movie, search_movie
+from app.services.settings_service import load_user_settings, save_user_settings
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -218,6 +219,19 @@ async def scrape(
             "result": result,
         },
     )
+
+
+@app.get("/api/settings", response_model=UserSettings)
+async def api_get_settings() -> UserSettings:
+    """获取持久化的用户设置。"""
+    return load_user_settings()
+
+
+@app.post("/api/settings")
+async def api_update_settings(settings: UserSettings) -> dict[str, bool]:
+    """保存用户设置到 JSON 文件。"""
+    save_user_settings(settings)
+    return {"ok": True}
 
 
 @app.get("/health", response_class=HTMLResponse)

@@ -257,6 +257,7 @@ nfofetch/
 | `NFOFETCH_HTTP_PROXY` | HTTP 代理 | 无 |
 | `NFOFETCH_JAVDB_COOKIE` | javdb Cookie（含 cf_clearance） | 无 |
 | `NFOFETCH_BROWSE_ROOT` | 文件浏览器根目录 | 当前工作目录 |
+| `NFOFETCH_SETTINGS_PATH` | 用户设置 JSON 文件路径 | `~/.config/nfofetch/settings.json` |
 
 ## 常用操作
 

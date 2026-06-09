@@ -197,37 +197,63 @@
         };
       })();
 
-      // 重命名格式：从 localStorage 恢复，并在变更或提交时保存
+      // 重命名格式：从服务器 JSON 文件加载，变更时自动保存
       (function () {
-        var STORAGE_KEY = "nfofetch_rename_format";
+        var SETTINGS_URL = "/api/settings";
+        var pendingTimer = null;
 
+        function loadSettings() {
+          fetch(SETTINGS_URL)
+            .then(function (resp) { return resp.json(); })
+            .then(function (data) {
+              var input = document.getElementById("rename_format");
+              if (input && data.rename_format) {
+                input.value = data.rename_format;
+              }
+            })
+            .catch(function () {});
+        }
+
+        function saveSettings(value) {
+          fetch(SETTINGS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rename_format: value }),
+          }).catch(function () {});
+        }
+
+        // HTMX 刷新预览后，从服务器加载已保存的格式
         document.body.addEventListener("htmx:afterSwap", function (evt) {
           if (evt.detail && evt.detail.target && evt.detail.target.id === "result") {
-            var input = document.getElementById("rename_format");
-            if (input) {
-              var saved = localStorage.getItem(STORAGE_KEY);
-              if (saved !== null) {
-                input.value = saved;
-              }
-            }
+            loadSettings();
           }
         });
 
+        // 输入变更时防抖保存
         document.body.addEventListener("input", function (evt) {
           var elt = evt.target;
           if (elt && elt.id === "rename_format") {
-            localStorage.setItem(STORAGE_KEY, elt.value);
+            clearTimeout(pendingTimer);
+            pendingTimer = setTimeout(function () { saveSettings(elt.value); }, 300);
           }
         });
 
+        // 提交前立即保存
         document.body.addEventListener("htmx:beforeRequest", function (evt) {
           var elt = evt.detail && evt.detail.elt;
           if (!elt || elt.id !== "write-form") return;
           var input = document.getElementById("rename_format");
           if (input) {
-            localStorage.setItem(STORAGE_KEY, input.value);
+            saveSettings(input.value);
           }
         });
+
+        // 页面初次加载时读取
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", loadSettings);
+        } else {
+          loadSettings();
+        }
       })();
     </script>
   </body>

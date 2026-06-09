@@ -20,6 +20,9 @@ env/
 # 本地输出与媒体文件
 output/
 
+# 用户设置持久化（Docker 默认挂载）
+config/
+
 # 杂项
 *.swp
 *.swo

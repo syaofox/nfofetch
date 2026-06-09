@@ -88,3 +88,9 @@ class ScrapeResult(BaseModel):
     # 前端选择的封面 / 背景图源 URL，用于预览展示。
     chosen_poster_url: Optional[str] = None
     chosen_fanart_url: Optional[str] = None
+
+
+class UserSettings(BaseModel):
+    """用户偏好设置，持久化到 JSON 文件。"""
+
+    rename_format: str = "[{actor}][{date}]{id}"
