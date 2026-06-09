@@ -23,7 +23,7 @@ services:
       - NFOFETCH_MAX_EXTRA_IMAGES=99
     volumes:
       # 挂载媒体库所在目录到容器内部，供浏览和写 NFO/图片（NFO 会生成在视频同目录）
-      - /mnt/dnas:/data/media
+      - /home/syaofox/Downloads/localsend:/data/media
       # 持久化用户设置（重命名格式等）
       - ./config:/config
       # 同步宿主机时区
