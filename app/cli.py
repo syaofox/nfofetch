@@ -40,7 +40,7 @@ def main(argv: list[str] | None = None) -> None:
         "--rename-format",
         default=None,
         metavar="FMT",
-        help=f"重命名格式，留空则不重命名。默认：{DEFAULT_RENAME_FORMAT}。占位符：id/year/date/actor/title/vr/idx",
+        help=f"重命名格式，留空则不重命名。默认：{DEFAULT_RENAME_FORMAT}。占位符：id/year/date/actor/title/vr/resolution/idx",
     )
 
     args = parser.parse_args(argv)

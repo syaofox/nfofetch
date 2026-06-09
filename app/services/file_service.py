@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import os
 import re
+import subprocess
 from pathlib import Path
 from typing import List, Optional
 
@@ -57,11 +59,43 @@ def _truncate_to_bytes(s: str, max_bytes: int) -> str:
     return b.decode("utf-8", errors="replace")
 
 
+def _get_video_resolution(video_path: Path) -> str:
+    """通过 ffprobe 获取视频分辨率（宽x高），失败返回空字符串。"""
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "quiet",
+                "-print_format",
+                "json",
+                "-show_streams",
+                str(video_path),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            return ""
+        data = json.loads(result.stdout)
+        for stream in data.get("streams", []):
+            if stream.get("codec_type") == "video":
+                w = stream.get("width")
+                h = stream.get("height")
+                if w and h:
+                    return f"{w}x{h}"
+        return ""
+    except Exception:
+        return ""
+
+
 def _format_rename(
     metadata: MovieMetadata,
     idx: int,
     is_vr: bool,
     format_str: str,
+    resolution: str = "",
 ) -> str:
     """根据格式字符串生成新文件名（不含扩展名）。"""
     id_val = metadata.number or ""
@@ -80,6 +114,7 @@ def _format_rename(
     result = result.replace("{actor}", actor_val)
     result = result.replace("{title}", title_val)
     result = result.replace("{vr}", vr_val)
+    result = result.replace("{resolution}", resolution)
     result = result.replace("{idx}", str(idx))
 
     return _sanitize_filename_part(result)
@@ -94,7 +129,8 @@ def _rename_single_video(
     movie_dir = video_path.parent
     ext = video_path.suffix
     is_vr = _is_vr(metadata)
-    base_name = _format_rename(metadata, 1, is_vr, format_str)
+    resolution = _get_video_resolution(video_path)
+    base_name = _format_rename(metadata, 1, is_vr, format_str, resolution=resolution)
     ext_bytes = len(ext.encode("utf-8"))
     max_base_bytes = max(1, MAX_FILENAME_BYTES - ext_bytes - RESERVED_SUFFIX_BYTES)
     base_name = _truncate_to_bytes(base_name, max_base_bytes)
@@ -128,8 +164,11 @@ def _rename_videos_in_dir(
     is_vr = _is_vr(metadata)
     # 两阶段重命名：先到临时名，再到最终名，避免冲突
     temp_renames: list[tuple[Path, Path]] = []
+    resolutions: list[str] = []
     for i, old_path in enumerate(video_files, start=1):
-        base_name = _format_rename(metadata, i, is_vr, format_str)
+        resolution = _get_video_resolution(old_path)
+        resolutions.append(resolution)
+        base_name = _format_rename(metadata, i, is_vr, format_str, resolution=resolution)
         ext = old_path.suffix
         ext_bytes = len(ext.encode("utf-8"))
         max_base_bytes = max(1, MAX_FILENAME_BYTES - ext_bytes - RESERVED_SUFFIX_BYTES)
@@ -144,7 +183,7 @@ def _rename_videos_in_dir(
     # 最终重命名
     result: dict[Path, Path] = {}
     for i, (_, temp_p) in enumerate(temp_renames, start=1):
-        base_name = _format_rename(metadata, i, is_vr, format_str)
+        base_name = _format_rename(metadata, i, is_vr, format_str, resolution=resolutions[i - 1])
         ext = temp_p.suffix
         ext_bytes = len(ext.encode("utf-8"))
         max_base_bytes = max(1, MAX_FILENAME_BYTES - ext_bytes - RESERVED_SUFFIX_BYTES)
