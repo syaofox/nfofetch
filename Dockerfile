@@ -16,7 +16,7 @@ RUN pip install --upgrade pip && \
     pip install \
       "fastapi>=0.115.0" \
       "uvicorn[standard]>=0.30.0" \
-      "jinja2>=3.1.0" \
+      "jinja2>=3.1.0,<3.2.0" \
       "httpx>=0.27.0" \
       "selectolax>=0.3.0" \
       "pydantic>=2.0.0" \

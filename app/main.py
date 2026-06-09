@@ -46,7 +46,7 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 async def index(request: Request) -> HTMLResponse:
     """首页：渲染包含 HTMX 表单的页面。"""
     return templates.TemplateResponse(
-        "index.html", {"request": request, "version": VERSION}
+        request, "index.html", {"request": request, "version": VERSION}
     )
 
 
@@ -102,6 +102,7 @@ async def browse(
         entries = []
 
     return templates.TemplateResponse(
+        request,
         "partials/file_browser.html",
         {
             "request": request,
@@ -143,6 +144,7 @@ async def scrape_fetch(
         return await search_and_select(request, url)
 
     return templates.TemplateResponse(
+        request,
         "partials/scrape_preview.html",
         {
             "request": request,
@@ -170,6 +172,7 @@ async def search_and_select(
         error = str(exc)
 
     return templates.TemplateResponse(
+        request,
         "partials/search_results.html",
         {
             "request": request,
@@ -213,6 +216,7 @@ async def scrape(
         result = ScrapeResult(success=False, message=str(exc))
 
     return templates.TemplateResponse(
+        request,
         "partials/scrape_result.html",
         {
             "request": request,
