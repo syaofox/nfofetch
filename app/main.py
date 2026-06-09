@@ -233,8 +233,10 @@ async def api_get_settings() -> UserSettings:
 
 @app.post("/api/settings")
 async def api_update_settings(settings: UserSettings) -> dict[str, bool]:
-    """保存用户设置到 JSON 文件。"""
-    save_user_settings(settings)
+    """保存用户设置到 JSON 文件（只合并请求中携带的字段）。"""
+    current = load_user_settings()
+    updated = current.model_copy(update=settings.model_dump(exclude_unset=True))
+    save_user_settings(updated)
     return {"ok": True}
 
 

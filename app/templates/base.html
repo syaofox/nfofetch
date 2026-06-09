@@ -149,8 +149,10 @@
         }
       });
 
-      // 简单的服务器文件浏览器
+      // 简单的服务器文件浏览器（自动保存最后浏览路径）
       (function () {
+        var SETTINGS_URL = "/api/settings";
+
         function loadBrowser(path) {
           var params = new URLSearchParams();
           if (path) {
@@ -171,13 +173,34 @@
             });
         }
 
+        function saveBrowsePath(path) {
+          fetch(SETTINGS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ last_browse_path: path }),
+          }).catch(function () {});
+        }
+
         window.nfOpenFileBrowser = function () {
           var input = document.getElementById("video_path");
           var initial = input && input.value ? input.value : "";
-          loadBrowser(initial);
+          if (!initial) {
+            // 没有已选路径时，尝试从服务器恢复上次浏览位置
+            fetch(SETTINGS_URL)
+              .then(function (resp) { return resp.json(); })
+              .then(function (data) {
+                loadBrowser(data.last_browse_path || "");
+              })
+              .catch(function () {
+                loadBrowser("");
+              });
+          } else {
+            loadBrowser(initial);
+          }
         };
 
         window.nfBrowseTo = function (path) {
+          saveBrowsePath(path);
           loadBrowser(path);
         };
 
@@ -185,6 +208,11 @@
           var input = document.getElementById("video_path");
           if (input) {
             input.value = path;
+          }
+          // 保存选中文件所在目录
+          var idx = path.lastIndexOf("/");
+          if (idx !== -1) {
+            saveBrowsePath(path.substring(0, idx));
           }
           window.nfCloseFileBrowser();
         };
