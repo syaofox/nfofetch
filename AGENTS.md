@@ -258,6 +258,8 @@ nfofetch/
 | `NFOFETCH_JAVDB_COOKIE` | javdb Cookie（含 cf_clearance） | 无 |
 | `NFOFETCH_BROWSE_ROOT` | 文件浏览器根目录 | 当前工作目录 |
 | `NFOFETCH_SETTINGS_PATH` | 用户设置 JSON 文件路径 | `~/.config/nfofetch/settings.json` |
+| `NFOFETCH_HTTP_TIMEOUT` | 单个 HTTP 请求超时（秒） | 20 |
+| `NFOFETCH_BATCH_TIMEOUT` | extrafanart 批量下载总超时（秒） | 120 |
 
 ## 常用操作
 

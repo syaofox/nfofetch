@@ -213,6 +213,8 @@ async def scrape(
             fanart_url=fanart_url,
             rename_format=rename_format or None,
             download_concurrency=download_concurrency,
+            http_timeout=settings.http_timeout,
+            batch_timeout=settings.batch_timeout,
         )
     except Exception as exc:  # noqa: BLE001 - 用户侧希望看到原始错误
         result = ScrapeResult(success=False, message=str(exc))

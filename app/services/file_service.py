@@ -4,13 +4,14 @@ import json
 import os
 import re
 import subprocess
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, wait
 from pathlib import Path
 from typing import List, Optional
 
 import httpx
 
 from app.config import Settings
+from app.retry import retry_request
 from app.schemas import MovieMetadata, ScrapeResult
 
 # 支持的视频扩展名
@@ -216,6 +217,8 @@ def _write_nfo_and_images(
     poster_url: Optional[str] = None,
     fanart_url: Optional[str] = None,
     download_concurrency: int = 4,
+    http_timeout: int = 20,
+    batch_timeout: int = 120,
 ) -> tuple[Path, Optional[Path], Optional[Path], List[Path]]:
     """写入 movie.nfo 并下载图片资源，返回相关路径。"""
 
@@ -251,15 +254,18 @@ def _write_nfo_and_images(
                 os.environ.setdefault("HTTP_PROXY", settings.http_proxy)
                 os.environ.setdefault("HTTPS_PROXY", settings.http_proxy)
 
-            with httpx.Client(
-                headers={"User-Agent": settings.user_agent},
-                timeout=20.0,
-            ) as client:
-                with client.stream("GET", url) as resp:
-                    resp.raise_for_status()
-                    with dest.open("wb") as f:
-                        for chunk in resp.iter_bytes():
-                            f.write(chunk)
+            def _fetch() -> None:
+                with httpx.Client(
+                    headers={"User-Agent": settings.user_agent},
+                    timeout=http_timeout,
+                ) as client:
+                    with client.stream("GET", url) as resp:
+                        resp.raise_for_status()
+                        with dest.open("wb") as f:
+                            for chunk in resp.iter_bytes():
+                                f.write(chunk)
+
+            retry_request(_fetch, max_retries=1, base_delay=1.0)
             return True
         except Exception:
             return False
@@ -323,10 +329,13 @@ def _write_nfo_and_images(
             executor.submit(download_image, url, dest): dest
             for url, dest in download_tasks
         }
-        for future in as_completed(futures):
+        done_set, not_done = wait(futures, timeout=batch_timeout)
+        for future in done_set:
             dest = futures[future]
             if future.result():
                 extra_paths.append(dest)
+        for future in not_done:
+            future.cancel()
 
     return nfo_path, poster_path, fanart_path, extra_paths
 
@@ -342,6 +351,8 @@ def save_assets_for_existing_video(
     fanart_url: Optional[str] = None,
     rename_format: Optional[str] = None,
     download_concurrency: int = 4,
+    http_timeout: int = 20,
+    batch_timeout: int = 120,
 ) -> ScrapeResult:
     """针对已存在的视频文件，在同一目录下生成 NFO 和图片，不复制视频。
 
@@ -379,6 +390,8 @@ def save_assets_for_existing_video(
         poster_url=poster_url,
         fanart_url=fanart_url,
         download_concurrency=download_concurrency,
+        http_timeout=http_timeout,
+        batch_timeout=batch_timeout,
     )
 
     return ScrapeResult(

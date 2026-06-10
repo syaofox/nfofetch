@@ -8,6 +8,7 @@ import httpx
 from selectolax.parser import HTMLParser
 
 from app.config import Settings
+from app.retry import retry_request
 from app.schemas import Actor, MovieMetadata, SearchResult
 from app.scrapers.base import BaseScraper
 
@@ -63,20 +64,25 @@ class JavdbScraper(BaseScraper):
             os.environ.setdefault("HTTPS_PROXY", settings.http_proxy)
 
         # 优先使用 curl_cffi 模拟浏览器指纹，减少 Cloudflare 403 可能性。
-        if _HAS_CURL_CFFI:
-            resp = curl_requests.get(  # type: ignore[union-attr]
-                url,
-                headers=headers,
-                impersonate="chrome",
-                timeout=20.0,
-            )
-            resp.raise_for_status()
-            html = resp.text
-        else:
-            with httpx.Client(headers=headers, timeout=20.0) as client:
-                resp = client.get(url)
+        timeout = settings.http_timeout
+
+        def _request() -> str:
+            if _HAS_CURL_CFFI:
+                resp = curl_requests.get(  # type: ignore[union-attr]
+                    url,
+                    headers=headers,
+                    impersonate="chrome",
+                    timeout=timeout,
+                )
                 resp.raise_for_status()
-                html = resp.text
+                return resp.text
+            else:
+                with httpx.Client(headers=headers, timeout=timeout) as client:
+                    resp = client.get(url)
+                    resp.raise_for_status()
+                    return resp.text
+
+        html = retry_request(_request, max_retries=2)
         tree = HTMLParser(html)
         metadata = self._parse_metadata(tree, base_url=url)
         metadata.source_url = url  # type: ignore[assignment]
@@ -107,21 +113,25 @@ class JavdbScraper(BaseScraper):
             os.environ.setdefault("HTTP_PROXY", settings.http_proxy)
             os.environ.setdefault("HTTPS_PROXY", settings.http_proxy)
 
-        if _HAS_CURL_CFFI:
-            resp = curl_requests.get(  # type: ignore[union-attr]
-                search_url,
-                headers=headers,
-                impersonate="chrome",
-                timeout=20.0,
-            )
-            resp.raise_for_status()
-            html = resp.text
-        else:
-            with httpx.Client(headers=headers, timeout=20.0) as client:
-                resp = client.get(search_url)
-                resp.raise_for_status()
-                html = resp.text
+        timeout = settings.http_timeout
 
+        def _request() -> str:
+            if _HAS_CURL_CFFI:
+                resp = curl_requests.get(  # type: ignore[union-attr]
+                    search_url,
+                    headers=headers,
+                    impersonate="chrome",
+                    timeout=timeout,
+                )
+                resp.raise_for_status()
+                return resp.text
+            else:
+                with httpx.Client(headers=headers, timeout=timeout) as client:
+                    resp = client.get(search_url)
+                    resp.raise_for_status()
+                    return resp.text
+
+        html = retry_request(_request, max_retries=2)
         return self._parse_search_results(html, base_url=search_url)
 
     def _parse_metadata(self, tree: HTMLParser, base_url: str) -> MovieMetadata:

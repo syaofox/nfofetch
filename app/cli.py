@@ -42,6 +42,24 @@ def main(argv: list[str] | None = None) -> None:
         metavar="FMT",
         help=f"重命名格式，留空则不重命名。默认：{DEFAULT_RENAME_FORMAT}。占位符：id/year/date/actor/title/vr/resolution/idx",
     )
+    parser.add_argument(
+        "--download-concurrency",
+        type=int,
+        default=None,
+        help="extrafanart 并发下载数（默认 4）",
+    )
+    parser.add_argument(
+        "--http-timeout",
+        type=int,
+        default=None,
+        help="单个 HTTP 请求超时秒数（默认 20）",
+    )
+    parser.add_argument(
+        "--batch-timeout",
+        type=int,
+        default=None,
+        help="extrafanart 批量下载总超时秒数（默认 120）",
+    )
 
     args = parser.parse_args(argv)
 
@@ -60,6 +78,11 @@ def main(argv: list[str] | None = None) -> None:
         settings=settings,
         max_extra_images=settings.max_extra_images,
         rename_format=args.rename_format or None,
+        download_concurrency=args.download_concurrency
+        if args.download_concurrency is not None
+        else 4,
+        http_timeout=args.http_timeout if args.http_timeout is not None else 20,
+        batch_timeout=args.batch_timeout if args.batch_timeout is not None else 120,
     )
 
     print("刮削成功 ✅")
