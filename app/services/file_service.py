@@ -114,7 +114,7 @@ def _format_rename(
             try:
                 w_str, h_str = resolution.split("x", 1)
                 w, h = int(w_str), int(h_str)
-                vr_val = "180_LR" if w >= h else "360_TB"
+                vr_val = "180_LR" if w > h else "360_TB"
             except (ValueError, IndexError):
                 vr_val = "180_LR"
         else:
