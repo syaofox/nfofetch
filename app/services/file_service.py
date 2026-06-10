@@ -4,6 +4,7 @@ import json
 import os
 import re
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import List, Optional
 
@@ -214,6 +215,7 @@ def _write_nfo_and_images(
     max_extra_images: int,
     poster_url: Optional[str] = None,
     fanart_url: Optional[str] = None,
+    download_concurrency: int = 4,
 ) -> tuple[Path, Optional[Path], Optional[Path], List[Path]]:
     """写入 movie.nfo 并下载图片资源，返回相关路径。"""
 
@@ -289,7 +291,7 @@ def _write_nfo_and_images(
             fanart_path = fanart_path_candidate
             break
 
-    # 3. extrafanart/*
+    # 3. extrafanart/*（并发下载）
     extra_dir = movie_dir / "extrafanart"
     extra_dir.mkdir(exist_ok=True)
     used_urls: set[str] = set()
@@ -306,16 +308,25 @@ def _write_nfo_and_images(
     all_extra_sources.extend(str(u) for u in art_urls)
     all_extra_sources.extend(str(u) for u in poster_urls)
 
+    download_tasks: list[tuple[str, Path]] = []
     idx = 1
     for url in all_extra_sources:
         if url in used_urls:
             continue
         if idx > max_extra_images:
             break
-        dest = extra_dir / f"{idx:02d}.jpg"
-        if download_image(url, dest):
-            extra_paths.append(dest)
-            idx += 1
+        download_tasks.append((url, extra_dir / f"{idx:02d}.jpg"))
+        idx += 1
+
+    with ThreadPoolExecutor(max_workers=download_concurrency) as executor:
+        futures = {
+            executor.submit(download_image, url, dest): dest
+            for url, dest in download_tasks
+        }
+        for future in as_completed(futures):
+            dest = futures[future]
+            if future.result():
+                extra_paths.append(dest)
 
     return nfo_path, poster_path, fanart_path, extra_paths
 
@@ -330,6 +341,7 @@ def save_assets_for_existing_video(
     poster_url: Optional[str] = None,
     fanart_url: Optional[str] = None,
     rename_format: Optional[str] = None,
+    download_concurrency: int = 4,
 ) -> ScrapeResult:
     """针对已存在的视频文件，在同一目录下生成 NFO 和图片，不复制视频。
 
@@ -366,6 +378,7 @@ def save_assets_for_existing_video(
         max_extra_images=max_extra_images,
         poster_url=poster_url,
         fanart_url=fanart_url,
+        download_concurrency=download_concurrency,
     )
 
     return ScrapeResult(

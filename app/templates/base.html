@@ -234,19 +234,25 @@
           fetch(SETTINGS_URL)
             .then(function (resp) { return resp.json(); })
             .then(function (data) {
-              var input = document.getElementById("rename_format");
-              if (input && data.rename_format) {
-                input.value = data.rename_format;
+              var rf = document.getElementById("rename_format");
+              if (rf && data.rename_format) {
+                rf.value = data.rename_format;
+              }
+              var dc = document.getElementById("download_concurrency");
+              if (dc && data.download_concurrency) {
+                dc.value = data.download_concurrency;
               }
             })
             .catch(function () {});
         }
 
-        function saveSettings(value) {
+        function saveSettingsField(key, value) {
+          var body = {};
+          body[key] = value;
           fetch(SETTINGS_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ rename_format: value }),
+            body: JSON.stringify(body),
           }).catch(function () {});
         }
 
@@ -262,7 +268,11 @@
           var elt = evt.target;
           if (elt && elt.id === "rename_format") {
             clearTimeout(pendingTimer);
-            pendingTimer = setTimeout(function () { saveSettings(elt.value); }, 300);
+            pendingTimer = setTimeout(function () { saveSettingsField("rename_format", elt.value); }, 300);
+          }
+          if (elt && elt.id === "download_concurrency") {
+            clearTimeout(pendingTimer);
+            pendingTimer = setTimeout(function () { saveSettingsField("download_concurrency", parseInt(elt.value, 10) || 4); }, 300);
           }
         });
 
@@ -270,9 +280,13 @@
         document.body.addEventListener("htmx:beforeRequest", function (evt) {
           var elt = evt.detail && evt.detail.elt;
           if (!elt || elt.id !== "write-form") return;
-          var input = document.getElementById("rename_format");
-          if (input) {
-            saveSettings(input.value);
+          var rf = document.getElementById("rename_format");
+          if (rf) {
+            saveSettingsField("rename_format", rf.value);
+          }
+          var dc = document.getElementById("download_concurrency");
+          if (dc) {
+            saveSettingsField("download_concurrency", parseInt(dc.value, 10) || 4);
           }
         });
 

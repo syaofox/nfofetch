@@ -95,3 +95,4 @@ class UserSettings(BaseModel):
 
     rename_format: str = "[{actor}][{date}]{id}"
     last_browse_path: str = ""
+    download_concurrency: int = 4
