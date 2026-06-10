@@ -63,5 +63,9 @@ def build_movie_nfo(metadata: MovieMetadata) -> str:
     if metadata.posters:
         set_text(movie_el, "thumb", str(metadata.posters[0]))
 
+    # 嵌入原始站点 URL，用于重复刮削检测
+    if metadata.source_url:
+        set_text(movie_el, "source_url", str(metadata.source_url))
+
     xml_bytes = tostring(movie_el, encoding="utf-8")
     return xml_bytes.decode("utf-8")

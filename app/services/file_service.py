@@ -4,6 +4,7 @@ import json
 import os
 import re
 import subprocess
+import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, wait
 from pathlib import Path
 from typing import List, Optional
@@ -340,6 +341,20 @@ def _write_nfo_and_images(
     return nfo_path, poster_path, fanart_path, extra_paths
 
 
+def _check_reuse_existing(movie_dir: Path, source_url: str) -> bool:
+    """检查目录是否已有同源刮削记录。"""
+    nfo_path = movie_dir / "movie.nfo"
+    if not nfo_path.exists():
+        return False
+    try:
+        tree = ET.parse(nfo_path)
+        root = tree.getroot()
+        url_el = root.find("source_url")
+        return url_el is not None and url_el.text == source_url
+    except Exception:
+        return False
+
+
 def save_assets_for_existing_video(
     *,
     metadata: MovieMetadata,
@@ -364,7 +379,7 @@ def save_assets_for_existing_video(
     movie_dir = video_path.parent
     movie_dir.mkdir(parents=True, exist_ok=True)
 
-    # 重命名视频（若指定格式）
+    # 1. 重命名（始终执行，幂等设计）
     final_video_path = video_path
     if rename_format and rename_format.strip():
         fmt = rename_format.strip()
@@ -381,6 +396,34 @@ def save_assets_for_existing_video(
                 metadata=metadata,
             )
 
+    # 2. 去重检测：目录已有同源刮削记录 → 跳过 NFO / 图片写入
+    reuse = metadata.source_url is not None and _check_reuse_existing(
+        movie_dir, str(metadata.source_url)
+    )
+    if reuse:
+        nfo_path = movie_dir / "movie.nfo"
+        poster_path = movie_dir / "poster.jpg"
+        fanart_path = movie_dir / "fanart.jpg"
+        extra_dir = movie_dir / "extrafanart"
+        extra_images = (
+            sorted(str(p) for p in extra_dir.glob("*.jpg"))
+            if extra_dir.is_dir()
+            else []
+        )
+        return ScrapeResult(
+            success=True,
+            metadata=metadata,
+            movie_dir=str(movie_dir),
+            nfo_path=str(nfo_path),
+            video_path=str(final_video_path),
+            poster_path=str(poster_path) if poster_path.exists() else None,
+            fanart_path=str(fanart_path) if fanart_path.exists() else None,
+            extra_images=extra_images,
+            chosen_poster_url=poster_url,
+            chosen_fanart_url=fanart_url,
+        )
+
+    # 3. 正常写入 NFO + 图片
     nfo_path, poster_path, fanart_path, extra_paths = _write_nfo_and_images(
         movie_dir=movie_dir,
         nfo_text=nfo_text,
