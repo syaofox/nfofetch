@@ -1,6 +1,6 @@
 [project]
 name = "nfofetch"
-version = "0.2.2"
+version = "0.2.3"
 description = "FastAPI + HTMX 影片信息與圖片刮削器（Jellyfin NFO 生成，起始支持 javdb）"
 authors = [
     { name = "nfofetch-user", email = "user@example.com" },
