@@ -108,7 +108,17 @@ def _format_rename(
     if metadata.actors:
         actor_val = metadata.actors[0].name
     title_val = metadata.title or ""
-    vr_val = "180_LR" if is_vr else ""
+    vr_val = ""
+    if is_vr:
+        if resolution and "x" in resolution:
+            try:
+                w_str, h_str = resolution.split("x", 1)
+                w, h = int(w_str), int(h_str)
+                vr_val = "180_LR" if w >= h else "360_TB"
+            except (ValueError, IndexError):
+                vr_val = "180_LR"
+        else:
+            vr_val = "180_LR"
 
     result = format_str
     result = result.replace("{id}", id_val)
