@@ -234,6 +234,7 @@
       // 简单的服务器文件浏览器（自动保存最后浏览路径）
       (function () {
         var SETTINGS_URL = "/api/settings";
+        var _browseFocusName = "";
 
         function loadBrowser(path) {
           var params = new URLSearchParams();
@@ -248,6 +249,17 @@
               var container = document.getElementById("file-browser-container");
               if (container) {
                 container.innerHTML = html;
+              }
+              if (_browseFocusName) {
+                var items = container.querySelectorAll(".nf-file-browser-item");
+                var focusLower = _browseFocusName.toLowerCase();
+                for (var i = 0; i < items.length; i++) {
+                  if ((items[i].getAttribute("data-name") || "") === focusLower) {
+                    items[i].scrollIntoView({ block: "nearest" });
+                    break;
+                  }
+                }
+                _browseFocusName = "";
               }
             })
             .catch(function () {
@@ -284,6 +296,13 @@
         window.nfBrowseTo = function (path) {
           saveBrowsePath(path);
           loadBrowser(path);
+        };
+
+        window.nfBrowseUp = function (parentPath, currentPath) {
+          var parts = currentPath.split("/");
+          _browseFocusName = parts[parts.length - 1] || "";
+          saveBrowsePath(parentPath);
+          loadBrowser(parentPath);
         };
 
         window.nfSelectFile = function (path) {
