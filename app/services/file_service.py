@@ -8,7 +8,8 @@ import re
 import subprocess
 import threading
 import xml.etree.ElementTree as ET
-from concurrent.futures import ThreadPoolExecutor, wait
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from pathlib import Path
 from typing import List, Optional
 
@@ -17,6 +18,8 @@ import httpx
 from app.config import Settings
 from app.retry import retry_request
 from app.schemas import MovieMetadata, ScrapeResult
+
+ProgressCallback = Callable[[str, int, int, str], None]
 
 logger = logging.getLogger(__name__)
 
@@ -302,10 +305,16 @@ def _write_nfo_and_images(
     download_concurrency: int = 4,
     http_timeout: int = 20,
     batch_timeout: int = 120,
+    on_progress: ProgressCallback | None = None,
 ) -> tuple[Path, Optional[Path], Optional[Path], List[Path]]:
     """写入 movie.nfo 并下载图片资源，返回相关路径。"""
 
+    def _report(phase: str, current: int, total: int, detail: str) -> None:
+        if on_progress:
+            on_progress(phase, current, total, detail)
+
     # 写入 movie.nfo
+    _report("nfo", 0, 1, "正在写入 NFO 文件…")
     nfo_path = movie_dir / "movie.nfo"
     with nfo_path.open("w", encoding="utf-8") as f:
         f.write(nfo_text)
@@ -353,12 +362,14 @@ def _write_nfo_and_images(
             return False
 
     # 1. poster.jpg
+    _report("poster", 0, 1, "正在下载封面 poster.jpg…")
     if poster_urls:
         poster_path = movie_dir / "poster.jpg"
         if not download_image(str(poster_urls[0]), poster_path):
             poster_path = None
 
     # 2. fanart.jpg
+    _report("fanart", 0, 1, "正在下载背景 fanart.jpg…")
     fanart_candidates: List[str] = []
     if fanart_url:
         fanart_candidates.append(fanart_url)
@@ -410,18 +421,31 @@ def _write_nfo_and_images(
             download_tasks.append((url, dest))
         idx += 1
 
-    with ThreadPoolExecutor(max_workers=download_concurrency) as executor:
-        futures = {
-            executor.submit(download_image, url, dest): dest
-            for url, dest in download_tasks
-        }
-        done_set, not_done = wait(futures, timeout=batch_timeout)
-        for future in done_set:
-            dest = futures[future]
-            if future.result():
-                extra_paths.append(dest)
-        for future in not_done:
-            future.cancel()
+    total_tasks = len(download_tasks)
+    _report("extrafanart", 0, total_tasks, "正在下载剧照…")
+    if total_tasks > 0:
+        with ThreadPoolExecutor(max_workers=download_concurrency) as executor:
+            fs = {
+                executor.submit(download_image, url, dest): dest
+                for url, dest in download_tasks
+            }
+            completed = 0
+            try:
+                for future in as_completed(fs, timeout=batch_timeout):
+                    dest = fs[future]
+                    if future.result():
+                        extra_paths.append(dest)
+                    completed += 1
+                    _report(
+                        "extrafanart",
+                        completed,
+                        total_tasks,
+                        f"正在下载剧照 {completed}/{total_tasks}…",
+                    )
+            except TimeoutError:
+                for future in fs:
+                    if not future.done():
+                        future.cancel()
 
     return nfo_path, poster_path, fanart_path, extra_paths
 
@@ -453,6 +477,7 @@ def save_assets_for_existing_video(
     download_concurrency: int = 4,
     http_timeout: int = 20,
     batch_timeout: int = 120,
+    on_progress: ProgressCallback | None = None,
 ) -> ScrapeResult:
     """针对已存在的视频文件，在同一目录下生成 NFO 和图片，不复制视频。
 
@@ -488,6 +513,8 @@ def save_assets_for_existing_video(
             movie_dir, str(metadata.source_url)
         )
         if reuse:
+            if on_progress:
+                on_progress("reuse", 0, 1, "检测到已有同源刮削记录，跳过下载…")
             nfo_path = movie_dir / "movie.nfo"
             poster_path = movie_dir / "poster.jpg"
             fanart_path = movie_dir / "fanart.jpg"
@@ -522,6 +549,7 @@ def save_assets_for_existing_video(
             download_concurrency=download_concurrency,
             http_timeout=http_timeout,
             batch_timeout=batch_timeout,
+            on_progress=on_progress,
         )
 
     return ScrapeResult(

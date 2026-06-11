@@ -150,6 +150,87 @@
         }
       });
 
+      // 刮削进度轮询：劫持 write-form 提交，先获取 task_id 再提交，轮询进度
+      (function () {
+        var progressTimer = null;
+        var currentTaskId = null;
+
+        function pollProgress() {
+          if (!currentTaskId) return;
+          fetch("/api/scrape-task/" + currentTaskId)
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              var textEl = document.getElementById("nf-loading-text");
+              if (textEl) {
+                textEl.textContent = data.detail || "处理中…";
+                if (data.done) {
+                  textEl.textContent = "处理完成";
+                }
+              }
+              if (data.done) {
+                stopPolling();
+              }
+            })
+            .catch(function () {});
+        }
+
+        function startPolling(taskId) {
+          stopPolling();
+          currentTaskId = taskId;
+          var textEl = document.getElementById("nf-loading-text");
+          if (textEl) textEl.textContent = "正在连接…";
+          progressTimer = setInterval(pollProgress, 500);
+          pollProgress();
+        }
+
+        function stopPolling() {
+          if (progressTimer) {
+            clearInterval(progressTimer);
+            progressTimer = null;
+          }
+          currentTaskId = null;
+        }
+
+        function injectTaskIdAndSubmit(form, taskId) {
+          var input = document.createElement("input");
+          input.type = "hidden";
+          input.name = "task_id";
+          input.value = taskId;
+          form.appendChild(input);
+          htmx.trigger(form, "submit");
+        }
+
+        document.body.addEventListener("htmx:beforeRequest", function (evt) {
+          var elt = evt.detail && evt.detail.elt;
+          if (!elt || elt.id !== "write-form") return;
+          // 首次提交（尚无 task_id）→ 拦截，先创建任务再重试
+          if (!elt.querySelector("input[name='task_id']")) {
+            evt.preventDefault();
+            fetch("/api/scrape-task", { method: "POST" })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (data.task_id) {
+                  startPolling(data.task_id);
+                  injectTaskIdAndSubmit(elt, data.task_id);
+                }
+              })
+              .catch(function () {
+                htmx.trigger(elt, "submit");
+              });
+          }
+        });
+
+        document.body.addEventListener("htmx:afterRequest", function (evt) {
+          var elt = evt.detail && evt.detail.elt;
+          if (elt && elt.id === "write-form") {
+            // 移除临时注入的 task_id，避免下次提交残留
+            var ti = elt.querySelector("input[name='task_id']");
+            if (ti) ti.remove();
+            stopPolling();
+          }
+        });
+      })();
+
       // 简单的服务器文件浏览器（自动保存最后浏览路径）
       (function () {
         var SETTINGS_URL = "/api/settings";

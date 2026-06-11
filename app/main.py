@@ -3,7 +3,11 @@ import functools
 import logging
 import os
 import re
+import threading
+import time
+import uuid
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, Form, Request, Query
 from fastapi.responses import HTMLResponse
@@ -45,6 +49,29 @@ create_rate_limit_middleware(app)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+# 后台刮削任务进度存储（内存）
+scrape_tasks: dict[str, dict[str, Any]] = {}
+scrape_tasks_lock = threading.Lock()
+
+
+def _update_task(task_id: str, **kwargs: Any) -> None:
+    with scrape_tasks_lock:
+        if task_id in scrape_tasks:
+            scrape_tasks[task_id].update(kwargs)
+
+
+def _cleanup_stale_tasks(max_age: float = 300.0) -> None:
+    """移除超过 max_age 秒的已完成任务，防止内存泄漏。"""
+    now = time.monotonic()
+    stale = [
+        tid
+        for tid, t in scrape_tasks.items()
+        if t.get("done") and (now - t.get("created_at", 0)) > max_age
+    ]
+    for tid in stale:
+        with scrape_tasks_lock:
+            scrape_tasks.pop(tid, None)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -194,6 +221,23 @@ async def search_and_select(
     )
 
 
+@app.post("/api/scrape-task")
+async def create_scrape_task() -> dict[str, str]:
+    """创建刮削任务，返回 task_id。"""
+    _cleanup_stale_tasks()
+    task_id = str(uuid.uuid4())
+    scrape_tasks[task_id] = {
+        "phase": "preparing",
+        "current": 0,
+        "total": 0,
+        "detail": "正在准备…",
+        "done": False,
+        "error": None,
+        "created_at": time.monotonic(),
+    }
+    return {"task_id": task_id}
+
+
 @app.post("/scrape", response_class=HTMLResponse)
 async def scrape(
     request: Request,
@@ -203,9 +247,13 @@ async def scrape(
     fanart_url: str | None = Form(default=None),
     rename_format: str | None = Form(default=None),
     download_concurrency: int = Form(default=4),
+    task_id: str = Form(default=""),
 ) -> HTMLResponse:
-    """处理 HTMX 表单：刮削 javdb 并生成 NFO / 图片 / 影片目录。"""
+    """在线程池中执行刮削写入（阻塞），实时通过 task_id 更新进度。"""
     settings = get_settings()
+    if task_id:
+        _update_task(task_id, phase="preparing", current=0, total=0, detail="正在准备…")
+
     try:
         metadata = scrape_movie(url, settings=settings)
         nfo_text = build_movie_nfo(metadata)
@@ -214,7 +262,13 @@ async def scrape(
         if not vp.is_file():
             raise FileNotFoundError(f"视频文件不存在或不可读：{vp}")
 
-        # 在线程池中执行阻塞 I/O 操作，避免阻塞事件循环（Issue 7）
+        def on_progress(phase: str, current: int, total: int, detail: str) -> None:
+            if task_id:
+                _update_task(
+                    task_id, phase=phase, current=current, total=total, detail=detail
+                )
+
+        # 在线程池中执行阻塞 I/O，避免阻塞事件循环（Issue 7）
         loop = asyncio.get_running_loop()
         func = functools.partial(
             save_assets_for_existing_video,
@@ -229,10 +283,14 @@ async def scrape(
             download_concurrency=download_concurrency,
             http_timeout=settings.http_timeout,
             batch_timeout=settings.batch_timeout,
+            on_progress=on_progress,
         )
         result: ScrapeResult = await loop.run_in_executor(None, func)
     except Exception as exc:  # noqa: BLE001 - 用户侧希望看到原始错误
         result = ScrapeResult(success=False, message=str(exc))
+    finally:
+        if task_id:
+            _update_task(task_id, done=True)
 
     return templates.TemplateResponse(
         request,
@@ -257,6 +315,21 @@ async def api_update_settings(settings: UserSettings) -> dict[str, bool]:
     updated = current.model_copy(update=settings.model_dump(exclude_unset=True))
     save_user_settings(updated)
     return {"ok": True}
+
+
+@app.get("/api/scrape-task/{task_id}")
+async def get_scrape_task(task_id: str) -> dict[str, Any]:
+    """返回刮削任务当前进度。"""
+    task = scrape_tasks.get(task_id)
+    if task is None:
+        return {"error": "任务不存在", "done": True}
+    return {
+        "phase": task.get("phase", ""),
+        "current": task.get("current", 0),
+        "total": task.get("total", 0),
+        "detail": task.get("detail", ""),
+        "done": task.get("done", False),
+    }
 
 
 @app.get("/health", response_class=HTMLResponse)
