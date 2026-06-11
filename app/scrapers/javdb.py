@@ -229,9 +229,7 @@ class JavdbScraper(BaseScraper):
 
         m = re.search(r"([A-Za-z]{2,6})[-_]?(\d{2,8})", title)
         if m:
-            prefix = m.group(1).upper()
-            num = str(int(m.group(2)))
-            return f"{prefix}-{num}"
+            return f"{m.group(1).upper()}-{str(int(m.group(2))).zfill(3)}"
         return None
 
     def _parse_plot(self, tree: HTMLParser) -> Optional[str]:

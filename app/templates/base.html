@@ -242,9 +242,7 @@
           var text = input.value;
           var m = text.match(/([A-Za-z]{2,6})[-_]?(\d{2,8})/);
           if (m) {
-            var prefix = m[1].toUpperCase();
-            var num = parseInt(m[2], 10).toString();
-            input.value = prefix + "-" + num;
+            input.value = m[1].toUpperCase() + "-" + String(parseInt(m[2], 10)).padStart(3, "0");
           }
         };
       })();
