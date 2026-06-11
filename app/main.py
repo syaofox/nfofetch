@@ -1,3 +1,6 @@
+import asyncio
+import functools
+import logging
 import os
 import re
 from pathlib import Path
@@ -14,6 +17,8 @@ from app.services.file_service import VIDEO_EXTENSIONS, save_assets_for_existing
 from app.services.nfo_service import build_movie_nfo
 from app.services.scrape_service import is_url, scrape_movie, search_movie
 from app.services.settings_service import load_user_settings, save_user_settings
+
+logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -209,7 +214,10 @@ async def scrape(
         if not vp.is_file():
             raise FileNotFoundError(f"视频文件不存在或不可读：{vp}")
 
-        result: ScrapeResult = save_assets_for_existing_video(
+        # 在线程池中执行阻塞 I/O 操作，避免阻塞事件循环（Issue 7）
+        loop = asyncio.get_running_loop()
+        func = functools.partial(
+            save_assets_for_existing_video,
             metadata=metadata,
             nfo_text=nfo_text,
             video_path=vp,
@@ -222,6 +230,7 @@ async def scrape(
             http_timeout=settings.http_timeout,
             batch_timeout=settings.batch_timeout,
         )
+        result: ScrapeResult = await loop.run_in_executor(None, func)
     except Exception as exc:  # noqa: BLE001 - 用户侧希望看到原始错误
         result = ScrapeResult(success=False, message=str(exc))
 

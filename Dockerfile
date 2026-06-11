@@ -49,7 +49,12 @@ COPY --from=builder /install /usr/local
 COPY app app
 COPY pyproject.toml .
 
+# 入口脚本：启动时自动创建 /config、检查权限、设置 HOME
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 EXPOSE 8000
 
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 

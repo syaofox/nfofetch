@@ -6,14 +6,29 @@ from pathlib import Path
 from app.schemas import UserSettings
 
 _SETTINGS_PATH_ENV = "NFOFETCH_SETTINGS_PATH"
-_DEFAULT_SETTINGS_DIR = Path.home() / ".config" / "nfofetch"
+
+
+def _default_settings_dir() -> Path:
+    """获取默认设置目录，回退链确保 Docker 容器内也能正常工作。"""
+    try:
+        home = Path.home()
+        if str(home) != "~" and home.is_absolute():
+            return home / ".config" / "nfofetch"
+    except Exception:
+        pass
+    # 回退 1: HOME 环境变量
+    home_env = os.getenv("HOME")
+    if home_env:
+        return Path(home_env) / ".config" / "nfofetch"
+    # 回退 2: 当前工作目录
+    return Path.cwd() / ".config" / "nfofetch"
 
 
 def _settings_path() -> Path:
     env = os.getenv(_SETTINGS_PATH_ENV)
     if env:
         return Path(env)
-    return _DEFAULT_SETTINGS_DIR / "settings.json"
+    return _default_settings_dir() / "settings.json"
 
 
 def load_user_settings() -> UserSettings:

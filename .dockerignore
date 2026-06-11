@@ -1,0 +1,35 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Python 缓存与构建产物
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# 工具缓存
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# 编辑器/IDE
+.vscode/
+.idea/
+
+# 本地输出与媒体文件
+output/
+
+# 用户设置持久化（Docker 运行时挂载）
+config/
+
+# 文档（不需要在运行镜像中）
+*.md
+AGENTS.md
+
+# Docker 构建文件（不需要在镜像中）
+docker-compose.yml
+Dockerfile

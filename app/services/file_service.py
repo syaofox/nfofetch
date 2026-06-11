@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import fcntl
 import json
+import logging
 import os
 import re
 import subprocess
+import threading
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, wait
 from pathlib import Path
@@ -14,6 +17,57 @@ import httpx
 from app.config import Settings
 from app.retry import retry_request
 from app.schemas import MovieMetadata, ScrapeResult
+
+logger = logging.getLogger(__name__)
+
+# 目录级文件锁的锁对象（用于线程安全设置代理环境变量）
+_proxy_env_lock = threading.Lock()
+
+# 临时文件前缀，用于两阶段重命名
+_TEMP_PREFIX = "__nfofetch_tmp_"
+
+
+class _DirectoryLock:
+    """目录级文件锁，防止并发刮削写入同一目录（Issue 4）。
+
+    使用 POSIX fcntl.flock 实现进程级互斥，对同一目录的并发操作会排队等待。
+    """
+
+    def __init__(self, directory: Path) -> None:
+        self._lock_file = directory / ".nfofetch.lock"
+        self._fd: int | None = None
+
+    def __enter__(self) -> _DirectoryLock:
+        self._lock_file.parent.mkdir(parents=True, exist_ok=True)
+        self._fd = self._lock_file.open("w")
+        fcntl.flock(self._fd.fileno(), fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        if self._fd is not None:
+            fcntl.flock(self._fd.fileno(), fcntl.LOCK_UN)
+            self._fd.close()
+            self._fd = None
+
+
+def _set_proxy_env(http_proxy: str | None) -> None:
+    """线程安全地设置 HTTP 代理环境变量（Issue 6）。"""
+    if not http_proxy:
+        return
+    with _proxy_env_lock:
+        os.environ.setdefault("HTTP_PROXY", http_proxy)
+        os.environ.setdefault("HTTPS_PROXY", http_proxy)
+
+
+def _cleanup_orphaned_temps(movie_dir: Path) -> None:
+    """清理上次崩溃遗留的 __nfofetch_tmp_ 临时文件（Issue 5）。"""
+    for p in movie_dir.glob(f"{_TEMP_PREFIX}*"):
+        try:
+            p.unlink()
+            logger.warning("清理残留临时文件: %s", p)
+        except OSError:
+            pass
+
 
 # 支持的视频扩展名
 VIDEO_EXTENSIONS = (
@@ -191,6 +245,8 @@ def _rename_videos_in_dir(
         return {}
 
     is_vr = _is_vr(metadata)
+    # 清理上次崩溃遗留的临时文件
+    _cleanup_orphaned_temps(movie_dir)
     # 两阶段重命名：先到临时名，再到最终名，避免冲突
     temp_renames: list[tuple[Path, Path]] = []
     resolutions: list[str] = []
@@ -204,7 +260,7 @@ def _rename_videos_in_dir(
         ext_bytes = len(ext.encode("utf-8"))
         max_base_bytes = max(1, MAX_FILENAME_BYTES - ext_bytes - RESERVED_SUFFIX_BYTES)
         base_name = _truncate_to_bytes(base_name, max_base_bytes)
-        temp_path = movie_dir / f"__nfofetch_tmp_{i}{ext}"
+        temp_path = movie_dir / f"{_TEMP_PREFIX}{i}{ext}"
         temp_renames.append((old_path, temp_path))
 
     # 执行临时重命名
@@ -276,10 +332,8 @@ def _write_nfo_and_images(
 
     def download_image(url: str, dest: Path) -> bool:
         try:
-            # httpx 1.x 不再支持 proxies 关键字，这里通过环境变量传递代理。
-            if settings.http_proxy:
-                os.environ.setdefault("HTTP_PROXY", settings.http_proxy)
-                os.environ.setdefault("HTTPS_PROXY", settings.http_proxy)
+            # httpx 1.x 通过环境变量传递代理（线程安全设置）
+            _set_proxy_env(settings.http_proxy)
 
             def _fetch() -> None:
                 with httpx.Client(
@@ -405,63 +459,65 @@ def save_assets_for_existing_video(
     movie_dir = video_path.parent
     movie_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. 重命名（始终执行，幂等设计）
-    final_video_path = video_path
-    if rename_format and rename_format.strip():
-        fmt = rename_format.strip()
-        try:
-            if "{idx}" in fmt:
-                renames = _rename_videos_in_dir(movie_dir, metadata, fmt)
-                final_video_path = renames.get(video_path, video_path)
-            else:
-                final_video_path = _rename_single_video(video_path, metadata, fmt)
-        except OSError as e:
+    # 目录级文件锁，防止并发刮削同一目录（Issue 4）
+    with _DirectoryLock(movie_dir):
+        # 1. 重命名（始终执行，幂等设计）
+        final_video_path = video_path
+        if rename_format and rename_format.strip():
+            fmt = rename_format.strip()
+            try:
+                if "{idx}" in fmt:
+                    renames = _rename_videos_in_dir(movie_dir, metadata, fmt)
+                    final_video_path = renames.get(video_path, video_path)
+                else:
+                    final_video_path = _rename_single_video(video_path, metadata, fmt)
+            except OSError as e:
+                return ScrapeResult(
+                    success=False,
+                    message=f"重命名失败：{e}",
+                    metadata=metadata,
+                )
+
+        # 2. 去重检测：目录已有同源刮削记录 → 跳过 NFO / 图片写入
+        reuse = metadata.source_url is not None and _check_reuse_existing(
+            movie_dir, str(metadata.source_url)
+        )
+        if reuse:
+            nfo_path = movie_dir / "movie.nfo"
+            poster_path = movie_dir / "poster.jpg"
+            fanart_path = movie_dir / "fanart.jpg"
+            extra_dir = movie_dir / "extrafanart"
+            extra_images = (
+                sorted(str(p) for p in extra_dir.glob("*.jpg"))
+                if extra_dir.is_dir()
+                else []
+            )
             return ScrapeResult(
-                success=False,
-                message=f"重命名失败：{e}",
+                success=True,
                 metadata=metadata,
+                movie_dir=str(movie_dir),
+                nfo_path=str(nfo_path),
+                video_path=str(final_video_path),
+                poster_path=str(poster_path) if poster_path.exists() else None,
+                fanart_path=str(fanart_path) if fanart_path.exists() else None,
+                extra_images=extra_images,
+                chosen_poster_url=poster_url,
+                chosen_fanart_url=fanart_url,
             )
 
-    # 2. 去重检测：目录已有同源刮削记录 → 跳过 NFO / 图片写入
-    reuse = metadata.source_url is not None and _check_reuse_existing(
-        movie_dir, str(metadata.source_url)
-    )
-    if reuse:
-        nfo_path = movie_dir / "movie.nfo"
-        poster_path = movie_dir / "poster.jpg"
-        fanart_path = movie_dir / "fanart.jpg"
-        extra_dir = movie_dir / "extrafanart"
-        extra_images = (
-            sorted(str(p) for p in extra_dir.glob("*.jpg"))
-            if extra_dir.is_dir()
-            else []
-        )
-        return ScrapeResult(
-            success=True,
+        # 3. 正常写入 NFO + 图片
+        nfo_path, poster_path, fanart_path, extra_paths = _write_nfo_and_images(
+            movie_dir=movie_dir,
+            nfo_text=nfo_text,
             metadata=metadata,
-            movie_dir=str(movie_dir),
-            nfo_path=str(nfo_path),
-            video_path=str(final_video_path),
-            poster_path=str(poster_path) if poster_path.exists() else None,
-            fanart_path=str(fanart_path) if fanart_path.exists() else None,
-            extra_images=extra_images,
-            chosen_poster_url=poster_url,
-            chosen_fanart_url=fanart_url,
+            settings=settings,
+            max_extra_images=max_extra_images,
+            poster_url=poster_url,
+            fanart_url=fanart_url,
+            download_concurrency=download_concurrency,
+            http_timeout=http_timeout,
+            batch_timeout=batch_timeout,
         )
-
-    # 3. 正常写入 NFO + 图片
-    nfo_path, poster_path, fanart_path, extra_paths = _write_nfo_and_images(
-        movie_dir=movie_dir,
-        nfo_text=nfo_text,
-        metadata=metadata,
-        settings=settings,
-        max_extra_images=max_extra_images,
-        poster_url=poster_url,
-        fanart_url=fanart_url,
-        download_concurrency=download_concurrency,
-        http_timeout=http_timeout,
-        batch_timeout=batch_timeout,
-    )
 
     return ScrapeResult(
         success=True,
