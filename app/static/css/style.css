@@ -365,6 +365,15 @@
   filter: brightness(0.97);
 }
 
+.nf-file-browser-filter {
+  margin-bottom: 0.5rem;
+}
+
+.nf-file-browser-search {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .nf-file-browser-list {
   max-height: 260px;
   overflow-y: auto;

@@ -23,11 +23,21 @@
     </button>
   </div>
 
+  <div class="nf-file-browser-filter">
+    <input
+      type="text"
+      class="nf-input nf-file-browser-search"
+      placeholder="搜索过滤..."
+      oninput="window.nfFilterBrowser(this)"
+    />
+  </div>
+
   <div class="nf-file-browser-list">
     {% for entry in entries %}
       <button
         type="button"
         class="nf-file-browser-item {% if entry.is_dir %}nf-file-browser-dir{% else %}nf-file-browser-file{% endif %}"
+        data-name="{{ entry.name | lower }}"
         onclick="{% if entry.is_dir %}window.nfBrowseTo('{{ entry.path }}'){% else %}window.nfSelectFile('{{ entry.path }}'){% endif %}"
       >
         <span class="nf-file-browser-item-name">{{ entry.name }}</span>
@@ -36,8 +46,11 @@
         </span>
       </button>
     {% else %}
-      <div class="nf-file-browser-empty">此目录下没有可显示的文件或子目录。</div>
+      <div class="nf-file-browser-empty nf-file-browser-empty-default">此目录下没有可显示的文件或子目录。</div>
     {% endfor %}
+    {% if entries %}
+      <div class="nf-file-browser-empty nf-file-browser-empty-filter" style="display:none">未匹配到任何文件或目录。</div>
+    {% endif %}
   </div>
 </div>
 

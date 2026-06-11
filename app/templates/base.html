@@ -310,6 +310,24 @@
           window.nfCloseFileBrowser();
         };
 
+        window.nfFilterBrowser = function (input) {
+          var q = input.value.toLowerCase();
+          var list = document.querySelector(".nf-file-browser-list");
+          if (!list) return;
+          var items = list.querySelectorAll(".nf-file-browser-item");
+          var empty = list.querySelector(".nf-file-browser-empty");
+          var visible = 0;
+          for (var i = 0; i < items.length; i++) {
+            var name = items[i].getAttribute("data-name") || "";
+            var match = !q || name.indexOf(q) !== -1;
+            items[i].style.display = match ? "" : "none";
+            if (match) visible++;
+          }
+          if (empty) {
+            empty.style.display = visible === 0 ? "" : "none";
+          }
+        };
+
         window.nfCloseFileBrowser = function () {
           var container = document.getElementById("file-browser-container");
           if (container) {
