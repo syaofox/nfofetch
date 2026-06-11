@@ -104,9 +104,7 @@ def _format_rename(
     id_val = metadata.number or ""
     year_val = str(metadata.year) if metadata.year else ""
     date_val = metadata.premiered or metadata.releasedate or ""
-    actor_val = ""
-    if metadata.actors:
-        actor_val = metadata.actors[0].name
+    actor_val = "、".join(a.name for a in metadata.actors)
     title_val = metadata.title or ""
     vr_val = ""
     if is_vr:
