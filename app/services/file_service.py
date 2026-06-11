@@ -349,6 +349,7 @@ def _write_nfo_and_images(
             retry_request(_fetch, max_retries=1, base_delay=1.0)
             return True
         except Exception:
+            dest.unlink(missing_ok=True)
             return False
 
     # 1. poster.jpg
@@ -402,7 +403,11 @@ def _write_nfo_and_images(
             continue
         if idx > max_extra_images:
             break
-        download_tasks.append((url, extra_dir / f"{idx:02d}.jpg"))
+        dest = extra_dir / f"{idx:02d}.jpg"
+        if dest.exists() and dest.stat().st_size > 0:
+            extra_paths.append(dest)
+        else:
+            download_tasks.append((url, dest))
         idx += 1
 
     with ThreadPoolExecutor(max_workers=download_concurrency) as executor:

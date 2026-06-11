@@ -463,6 +463,8 @@ class JavdbScraper(BaseScraper):
                     if url and url not in art:
                         art.append(url)
 
+        posters.sort()
+        art.sort()
         return posters, art
 
     # ---- 通用辅助 ----
