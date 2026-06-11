@@ -37,7 +37,7 @@
       <button
         type="button"
         class="nf-file-browser-item {% if entry.is_dir %}nf-file-browser-dir{% else %}nf-file-browser-file{% endif %}"
-        data-name="{{ entry.name | lower }}"
+        data-name="{{ entry.name_lower }}"
         onclick="{% if entry.is_dir %}window.nfBrowseTo('{{ entry.path }}'){% else %}window.nfSelectFile('{{ entry.path }}'){% endif %}"
       >
         <span class="nf-file-browser-item-name">{{ entry.name }}</span>

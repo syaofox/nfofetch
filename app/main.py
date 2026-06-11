@@ -127,6 +127,7 @@ async def browse(
             entries.append(
                 {
                     "name": child.name + ("/" if child.is_dir() else ""),
+                    "name_lower": child.name.lower(),
                     "path": str(child),
                     "is_dir": child.is_dir(),
                 }
