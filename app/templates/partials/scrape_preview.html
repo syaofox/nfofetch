@@ -129,7 +129,7 @@
                       type="radio"
                       name="poster_url"
                       value="{{ img_url }}"
-                      {% if loop.first %}checked{% endif %}
+                      {% if loop.index == 2 %}checked{% endif %}
                     />
                     作为封面 poster
                   </label>
@@ -138,6 +138,7 @@
                       type="radio"
                       name="fanart_url"
                       value="{{ img_url }}"
+                      {% if loop.first %}checked{% endif %}
                     />
                     作为背景 fanart
                   </label>
