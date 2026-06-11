@@ -206,9 +206,20 @@
         };
 
         window.nfSelectFile = function (path) {
-          var input = document.getElementById("video_path");
-          if (input) {
-            input.value = path;
+          var pathInput = document.getElementById("video_path");
+          if (pathInput) {
+            pathInput.value = path;
+          }
+          // 提取文件名（不含扩展名）→ 填入搜索框
+          var parts = path.split("/");
+          var filename = parts[parts.length - 1] || "";
+          var dotIdx = filename.lastIndexOf(".");
+          if (dotIdx !== -1) {
+            filename = filename.substring(0, dotIdx);
+          }
+          var urlInput = document.getElementById("url");
+          if (urlInput && filename) {
+            urlInput.value = filename;
           }
           // 保存选中文件所在目录
           var idx = path.lastIndexOf("/");

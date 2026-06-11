@@ -117,6 +117,7 @@ async def browse(
 async def scrape_fetch(
     request: Request,
     url: str = Form(...),
+    video_path: str | None = Form(default=None),
 ) -> HTMLResponse:
     """仅刮削元数据和图片，不写入磁盘。返回预览供用户选择后点击「写入」。
 
@@ -141,7 +142,7 @@ async def scrape_fetch(
         except Exception as exc:  # noqa: BLE001
             error = str(exc)
     else:
-        return await search_and_select(request, url)
+        return await search_and_select(request, url, video_path=video_path)
 
     return templates.TemplateResponse(
         request,
@@ -152,6 +153,7 @@ async def scrape_fetch(
             "poster_candidates": poster_candidates,
             "error": error,
             "url": url,
+            "video_path": video_path,
         },
     )
 
@@ -160,6 +162,7 @@ async def scrape_fetch(
 async def search_and_select(
     request: Request,
     query: str = Form(...),
+    video_path: str | None = None,
 ) -> HTMLResponse:
     """搜索影片并显示结果列表供用户选择。"""
     settings = get_settings()
@@ -179,6 +182,7 @@ async def search_and_select(
             "results": results,
             "error": error,
             "query": query,
+            "video_path": video_path,
         },
     )
 

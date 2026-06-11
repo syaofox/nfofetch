@@ -1,20 +1,47 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <section class="nf-card">
-    <h2 class="nf-card-title">影片刮削</h2>
-    <p class="nf-card-desc">
-      输入影片番号（如 IPVR-335）或 javdb 页面 URL 进行搜索刮削。提交后会在该视频所在目录下生成
-      Jellyfin 兼容的 <code>movie.nfo</code> 和图片。
-    </p>
+  <form
+    id="scrape-form"
+    hx-post="/scrape/fetch"
+    hx-target="#result"
+    hx-swap="innerHTML"
+    class="nf-form"
+  >
+    <section class="nf-card">
+      <h2 class="nf-card-title">第 1 步：选择视频文件</h2>
+      <p class="nf-card-desc">
+        浏览并选中要写入 NFO 的目标视频文件，NFO 和图片将生成到该文件所在目录。
+      </p>
 
-    <form
-      id="scrape-form"
-      hx-post="/scrape/fetch"
-      hx-target="#result"
-      hx-swap="innerHTML"
-      class="nf-form"
-    >
+      <div class="nf-form-group">
+        <label for="video_path" class="nf-label">服务器本地视频路径</label>
+        <div class="nf-input-with-button">
+          <input
+            type="text"
+            id="video_path"
+            name="video_path"
+            placeholder="/path/to/your/movie.mp4"
+            class="nf-input"
+          />
+          <button
+            type="button"
+            class="nf-button nf-button-secondary"
+            onclick="window.nfOpenFileBrowser()"
+          >
+            浏览…
+          </button>
+        </div>
+        <div id="file-browser-container"></div>
+      </div>
+    </section>
+
+    <section class="nf-card">
+      <h2 class="nf-card-title">第 2 步：刮削搜索</h2>
+      <p class="nf-card-desc">
+        输入影片番号（如 IPVR-335）或 javdb 页面 URL 进行搜索刮削。选择视频文件后，文件名会自动填入搜索框。
+      </p>
+
       <div class="nf-form-group">
         <label for="url" class="nf-label">影片番号或 URL</label>
         <input
@@ -25,18 +52,23 @@
           placeholder="例如：IPVR-335 或 https://javdb.com/v/82ebmO"
           class="nf-input"
         />
+        <p class="nf-hint">
+          输入番号将搜索相关影片，输入 URL 将直接刮削。
+        </p>
       </div>
 
-      <p class="nf-hint">
-        输入番号将搜索相关影片，输入 URL 将直接刮削。
-      </p>
-
-      <button id="scrape-button" type="submit" class="nf-button">开始刮削</button>
-    </form>
-  </section>
+      <button
+        id="scrape-button"
+        type="submit"
+        class="nf-button"
+        style="margin-top: 0.5rem;"
+      >
+        开始刮削
+      </button>
+    </section>
+  </form>
 
   <section id="result" class="nf-result">
     <!-- HTMX 将在这里渲染刮削结果 -->
   </section>
 {% endblock %}
-
