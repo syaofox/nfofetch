@@ -16,7 +16,25 @@ from app.retry import retry_request
 from app.schemas import MovieMetadata, ScrapeResult
 
 # 支持的视频扩展名
-VIDEO_EXTENSIONS = (".mp4", ".mkv", ".avi", ".wmv", ".mov", ".webm", ".m4v", ".flv")
+VIDEO_EXTENSIONS = (
+    ".mp4",
+    ".mkv",
+    ".avi",
+    ".wmv",
+    ".mov",
+    ".webm",
+    ".m4v",
+    ".flv",
+    ".ts",
+    ".m2ts",
+    ".mpg",
+    ".mpeg",
+    ".vob",
+    ".3gp",
+    ".ogm",
+    ".divx",
+    ".f4v",
+)
 
 # 文件名中不允许的字符（Windows/Linux 通用）
 _FILENAME_UNSAFE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
