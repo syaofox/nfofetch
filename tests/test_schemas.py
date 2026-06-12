@@ -1,0 +1,77 @@
+from __future__ import annotations
+
+from pydantic import HttpUrl
+
+from app.schemas import Actor, MovieMetadata, ScrapeResult, SearchResult, UserSettings
+
+
+def _url(s: str) -> HttpUrl:
+    return HttpUrl(s)
+
+
+class TestActor:
+    def test_minimal(self) -> None:
+        actor = Actor(name="田中丽奈")
+        assert actor.name == "田中丽奈"
+        assert actor.role is None
+        assert actor.thumb is None
+
+    def test_full(self) -> None:
+        actor = Actor(
+            name="田中丽奈", role="主演", thumb=_url("https://example.com/thumb.jpg")
+        )
+        assert actor.role == "主演"
+
+
+class TestMovieMetadata:
+    def test_minimal(self) -> None:
+        m = MovieMetadata(title="Test")
+        assert m.title == "Test"
+        assert m.number is None
+        assert m.genres == []
+        assert m.actors == []
+        assert m.posters == []
+        assert m.art == []
+
+    def test_with_posters(self, sample_movie_metadata: MovieMetadata) -> None:
+        assert len(sample_movie_metadata.posters) == 2
+        assert (
+            str(sample_movie_metadata.posters[0]) == "https://example.com/poster1.jpg"
+        )
+
+    def test_rating_range(self) -> None:
+        m = MovieMetadata(title="Test", rating=9.9)
+        assert m.rating == 9.9
+
+
+class TestSearchResult:
+    def test_minimal(self) -> None:
+        r = SearchResult(title="Test", url="https://example.com/v/abc")
+        assert r.number is None
+        assert r.poster_url is None
+
+    def test_full(self) -> None:
+        r = SearchResult(
+            title="ABP-123 Test",
+            number="ABP-123",
+            url="https://example.com/v/abc",
+            poster_url="https://example.com/poster.jpg",
+            date="2024-01-15",
+        )
+        assert r.number == "ABP-123"
+
+
+class TestScrapeResult:
+    def test_defaults(self) -> None:
+        r = ScrapeResult()
+        assert r.success is True
+        assert r.message is None
+        assert r.extra_images == []
+
+
+class TestUserSettings:
+    def test_defaults(self) -> None:
+        s = UserSettings()
+        assert s.rename_format == "[{actor}][{date}]{id}"
+        assert s.last_browse_path == ""
+        assert s.download_concurrency == 4
