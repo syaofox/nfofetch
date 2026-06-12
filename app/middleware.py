@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 import time
 from typing import Callable
 
@@ -12,21 +13,32 @@ LOCK_DURATION = 30.0
 
 class RequestLock:
     def __init__(self) -> None:
+        self._lock = threading.Lock()
         self._locks: dict[str, float] = {}
+
+    def _cleanup(self) -> None:
+        now = time.monotonic()
+        stale = [k for k, v in self._locks.items() if now - v >= LOCK_DURATION]
+        for k in stale:
+            self._locks.pop(k, None)
 
     def is_locked(self, key: str) -> bool:
         now = time.monotonic()
-        if key in self._locks:
-            if now - self._locks[key] < LOCK_DURATION:
-                return True
-            del self._locks[key]
-        return False
+        with self._lock:
+            if key in self._locks:
+                if now - self._locks[key] < LOCK_DURATION:
+                    return True
+                del self._locks[key]
+            return False
 
     def lock(self, key: str) -> None:
-        self._locks[key] = time.monotonic()
+        with self._lock:
+            self._locks[key] = time.monotonic()
+            self._cleanup()
 
     def unlock(self, key: str) -> None:
-        self._locks.pop(key, None)
+        with self._lock:
+            self._locks.pop(key, None)
 
 
 _request_lock = RequestLock()

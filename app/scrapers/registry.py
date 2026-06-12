@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from typing import List
-
 from app.scrapers.base import BaseScraper
 from app.scrapers.javdb import JavdbScraper
 
 
-SCRAPERS: List[BaseScraper] = [
+SCRAPERS: list[BaseScraper] = [
     JavdbScraper(),
 ]
 
@@ -20,7 +18,7 @@ def get_scraper(url: str) -> BaseScraper:
     for scraper in SCRAPERS:
         if scraper.supports(url):
             return scraper
-    return SCRAPERS[0]
+    raise NoSupportedScraperError(f"没有找到能处理该 URL 的 scraper: {url}")
 
 
 def get_default_scraper() -> BaseScraper:

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import functools
 import logging
@@ -263,6 +265,12 @@ async def scrape(
         if not vp.is_file():
             raise FileNotFoundError(f"视频文件不存在或不可读：{vp}")
 
+        base_dir = Path(os.getenv("NFOFETCH_BROWSE_ROOT", os.getcwd())).resolve()
+        try:
+            vp.resolve().relative_to(base_dir)
+        except ValueError:
+            raise PermissionError(f"视频路径超出允许范围：{vp}")
+
         def on_progress(phase: str, current: int, total: int, detail: str) -> None:
             if task_id:
                 _update_task(
@@ -313,6 +321,8 @@ async def api_get_settings() -> UserSettings:
 async def api_update_settings(settings: UserSettings) -> dict[str, bool]:
     """保存用户设置到 JSON 文件（只合并请求中携带的字段）。"""
     current = load_user_settings()
+    # 注意：exclude_unset=True 意味着前端传 false 的 bool 字段会被忽略，
+    # 导致用户无法关闭开关。当前 UserSettings 无 bool 字段，暂无此问题。
     updated = current.model_copy(update=settings.model_dump(exclude_unset=True))
     save_user_settings(updated)
     return {"ok": True}

@@ -17,11 +17,6 @@ dependencies = [
     "curl-cffi>=0.14.0",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "ruff>=0.6.0",
-]
-
 [dependency-groups]
 dev = [
     "mypy>=2.1.0",

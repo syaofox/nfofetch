@@ -1,17 +1,16 @@
 from __future__ import annotations
 
+import atexit
 import fcntl
 import json
 import logging
 import os
 import re
 import subprocess
-import threading
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from pathlib import Path
-from typing import List, Optional
 
 import httpx
 
@@ -22,9 +21,6 @@ from app.schemas import MovieMetadata, ScrapeResult
 ProgressCallback = Callable[[str, int, int, str], None]
 
 logger = logging.getLogger(__name__)
-
-# 目录级文件锁的锁对象（用于线程安全设置代理环境变量）
-_proxy_env_lock = threading.Lock()
 
 # 临时文件前缀，用于两阶段重命名
 _TEMP_PREFIX = "__nfofetch_tmp_"
@@ -53,24 +49,25 @@ class _DirectoryLock:
             self._fd = None
 
 
-def _set_proxy_env(http_proxy: str | None) -> None:
-    """线程安全地设置 HTTP 代理环境变量（Issue 6）。"""
-    if not http_proxy:
-        return
-    with _proxy_env_lock:
-        os.environ.setdefault("HTTP_PROXY", http_proxy)
-        os.environ.setdefault("HTTPS_PROXY", http_proxy)
-
-
 def _cleanup_orphaned_temps(movie_dir: Path) -> None:
-    """清理上次崩溃遗留的 __nfofetch_tmp_ 临时文件（Issue 5）。"""
-    for p in movie_dir.glob(f"{_TEMP_PREFIX}*"):
+    """清理指定目录下残留的 __nfofetch_tmp_ 临时文件。"""
+    for p in movie_dir.rglob(f"{_TEMP_PREFIX}*"):
         try:
             p.unlink()
             logger.warning("清理残留临时文件: %s", p)
         except OSError:
             pass
 
+
+def _cleanup_all_orphaned_temps() -> None:
+    """启动时扫描整个 BROWSE_ROOT，清理残留临时文件。"""
+    browse_root = Path(os.getenv("NFOFETCH_BROWSE_ROOT", os.getcwd())).resolve()
+    if browse_root.is_dir():
+        _cleanup_orphaned_temps(browse_root)
+
+
+_cleanup_all_orphaned_temps()
+atexit.register(_cleanup_all_orphaned_temps)
 
 # 支持的视频扩展名
 VIDEO_EXTENSIONS = (
@@ -187,7 +184,7 @@ def _format_rename(
             try:
                 w_str, h_str = resolution.split("x", 1)
                 w, h = int(w_str), int(h_str)
-                vr_val = "180_LR" if w > h else "360_TB"
+                vr_val = "180_LR" if w >= h else "360_TB"
             except (ValueError, IndexError):
                 vr_val = "180_LR"
         else:
@@ -300,13 +297,13 @@ def _write_nfo_and_images(
     metadata: MovieMetadata,
     settings: Settings,
     max_extra_images: int,
-    poster_url: Optional[str] = None,
-    fanart_url: Optional[str] = None,
+    poster_url: str | None = None,
+    fanart_url: str | None = None,
     download_concurrency: int = 4,
     http_timeout: int = 20,
     batch_timeout: int = 120,
     on_progress: ProgressCallback | None = None,
-) -> tuple[Path, Optional[Path], Optional[Path], List[Path]]:
+) -> tuple[Path, Path | None, Path | None, list[Path]]:
     """写入 movie.nfo 并下载图片资源，返回相关路径。"""
 
     def _report(phase: str, current: int, total: int, detail: str) -> None:
@@ -320,12 +317,12 @@ def _write_nfo_and_images(
         f.write(nfo_text)
 
     # 下载图片
-    poster_path: Optional[Path] = None
-    fanart_path: Optional[Path] = None
-    extra_paths: List[Path] = []
+    poster_path: Path | None = None
+    fanart_path: Path | None = None
+    extra_paths: list[Path] = []
 
     # 构造候选 URL 列表（用户选择优先，其次为元数据中的顺序）
-    poster_urls: List[str] = []
+    poster_urls: list[str] = []
     if poster_url:
         poster_urls.append(poster_url)
     for u in metadata.posters:
@@ -333,7 +330,7 @@ def _write_nfo_and_images(
         if s not in poster_urls:
             poster_urls.append(s)
 
-    art_urls: List[str] = []
+    art_urls: list[str] = []
     for u in metadata.art:
         s = str(u)
         if s not in art_urls:
@@ -341,14 +338,18 @@ def _write_nfo_and_images(
 
     def download_image(url: str, dest: Path) -> bool:
         try:
-            # httpx 1.x 通过环境变量传递代理（线程安全设置）
-            _set_proxy_env(settings.http_proxy)
+            client_kwargs: dict = {
+                "headers": {"User-Agent": settings.user_agent},
+                "timeout": http_timeout,
+            }
+            if settings.http_proxy:
+                client_kwargs["proxies"] = {
+                    "http://": settings.http_proxy,
+                    "https://": settings.http_proxy,
+                }
 
             def _fetch() -> None:
-                with httpx.Client(
-                    headers={"User-Agent": settings.user_agent},
-                    timeout=http_timeout,
-                ) as client:
+                with httpx.Client(**client_kwargs) as client:
                     with client.stream("GET", url) as resp:
                         resp.raise_for_status()
                         with dest.open("wb") as f:
@@ -357,7 +358,8 @@ def _write_nfo_and_images(
 
             retry_request(_fetch, max_retries=1, base_delay=1.0)
             return True
-        except Exception:
+        except Exception as exc:
+            logger.warning("下载失败: %s - %s", url, exc)
             dest.unlink(missing_ok=True)
             return False
 
@@ -370,7 +372,7 @@ def _write_nfo_and_images(
 
     # 2. fanart.jpg
     _report("fanart", 0, 1, "正在下载背景 fanart.jpg…")
-    fanart_candidates: List[str] = []
+    fanart_candidates: list[str] = []
     if fanart_url:
         fanart_candidates.append(fanart_url)
     if art_urls:
@@ -403,7 +405,7 @@ def _write_nfo_and_images(
     if fanart_url:
         used_urls.add(fanart_url)
 
-    all_extra_sources: List[str] = []
+    all_extra_sources: list[str] = []
     all_extra_sources.extend(str(u) for u in art_urls)
     all_extra_sources.extend(str(u) for u in poster_urls)
 
@@ -471,9 +473,9 @@ def save_assets_for_existing_video(
     video_path: Path,
     settings: Settings,
     max_extra_images: int = 8,
-    poster_url: Optional[str] = None,
-    fanart_url: Optional[str] = None,
-    rename_format: Optional[str] = None,
+    poster_url: str | None = None,
+    fanart_url: str | None = None,
+    rename_format: str | None = None,
     download_concurrency: int = 4,
     http_timeout: int = 20,
     batch_timeout: int = 120,

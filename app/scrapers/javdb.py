@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import os
-from typing import List, Optional
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -28,110 +26,84 @@ class JavdbScraper(BaseScraper):
     """
 
     name = "javdb"
+    MIRROR_DOMAIN = "javdb565.com"
 
     def supports(self, url: str) -> bool:
         parsed = urlparse(url)
         host = parsed.netloc.lower()
         return "javdb" in host and parsed.path.startswith("/v/")
 
+    def _request_page(
+        self, url: str, settings: Settings, timeout: int | None = None
+    ) -> str:
+        headers = {
+            "User-Agent": settings.user_agent,
+            "Referer": f"{urlparse(url).scheme}://{urlparse(url).netloc}/",
+            "Accept": (
+                "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                "image/avif,image/webp,image/apng,*/*;q=0.8"
+            ),
+            "Accept-Language": "zh-CN,zh;q=0.7,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+        }
+        if settings.javdb_cookie:
+            headers["Cookie"] = settings.javdb_cookie
+
+        timeout_val = timeout or settings.http_timeout
+        proxy = settings.http_proxy
+
+        def _request() -> str:
+            if _HAS_CURL_CFFI:
+                kwargs = {}
+                if proxy:
+                    kwargs["proxy"] = proxy
+                resp = curl_requests.get(  # type: ignore[union-attr]
+                    url,
+                    headers=headers,
+                    impersonate="chrome",
+                    timeout=timeout_val,
+                    **kwargs,
+                )
+                resp.raise_for_status()
+                return resp.text
+            else:
+                client_kwargs = {"headers": headers, "timeout": timeout_val}
+                if proxy:
+                    client_kwargs["proxies"] = {
+                        "http://": proxy,
+                        "https://": proxy,
+                    }
+                with httpx.Client(**client_kwargs) as client:
+                    resp = client.get(url)
+                    resp.raise_for_status()
+                    return resp.text
+
+        return retry_request(_request, max_retries=2)
+
     def scrape(self, url: str, settings: Settings) -> MovieMetadata:
         parsed = urlparse(url)
         # 如果用户用了主域名 javdb.com，尝试改成当前常见镜像域名，减少被墙/403 概率。
         host = parsed.netloc.lower()
         if host == "javdb.com":
-            url = parsed._replace(netloc="javdb565.com").geturl()
-            parsed = urlparse(url)
+            url = parsed._replace(netloc=self.MIRROR_DOMAIN).geturl()
 
-        headers = {
-            "User-Agent": settings.user_agent,
-            "Referer": f"{parsed.scheme}://{parsed.netloc}/",
-            "Accept": (
-                "text/html,application/xhtml+xml,application/xml;q=0.9,"
-                "image/avif,image/webp,image/apng,*/*;q=0.8"
-            ),
-            "Accept-Language": "zh-CN,zh;q=0.7,en;q=0.5",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Connection": "keep-alive",
-            "Upgrade-Insecure-Requests": "1",
-        }
-
-        # 如果通过环境变量配置了 javdb Cookie，这里会原样带上。
-        if settings.javdb_cookie:
-            headers["Cookie"] = settings.javdb_cookie
-        # 代理通过环境变量传递，curl_cffi / httpx 都能识别。
-        if settings.http_proxy:
-            os.environ.setdefault("HTTP_PROXY", settings.http_proxy)
-            os.environ.setdefault("HTTPS_PROXY", settings.http_proxy)
-
-        # 优先使用 curl_cffi 模拟浏览器指纹，减少 Cloudflare 403 可能性。
-        timeout = settings.http_timeout
-
-        def _request() -> str:
-            if _HAS_CURL_CFFI:
-                resp = curl_requests.get(  # type: ignore[union-attr]
-                    url,
-                    headers=headers,
-                    impersonate="chrome",
-                    timeout=timeout,
-                )
-                resp.raise_for_status()
-                return resp.text
-            else:
-                with httpx.Client(headers=headers, timeout=timeout) as client:
-                    resp = client.get(url)
-                    resp.raise_for_status()
-                    return resp.text
-
-        html = retry_request(_request, max_retries=2)
+        html = self._request_page(url, settings)
         tree = HTMLParser(html)
         metadata = self._parse_metadata(tree, base_url=url)
         metadata.source_url = url  # type: ignore[assignment]
         return metadata
 
-    def search(self, query: str, settings: Settings) -> List[SearchResult]:
+    def search(self, query: str, settings: Settings) -> list[SearchResult]:
         """搜索影片，支持番号或标题搜索。"""
         import urllib.parse
 
-        search_url = f"https://javdb565.com/search?q={urllib.parse.quote(query)}&f=all"
+        search_url = (
+            f"https://{self.MIRROR_DOMAIN}/search?q={urllib.parse.quote(query)}&f=all"
+        )
 
-        headers = {
-            "User-Agent": settings.user_agent,
-            "Referer": "https://javdb565.com/",
-            "Accept": (
-                "text/html,application/xhtml+xml,application/xml;q=0.9,"
-                "image/avif,image/webp,image/apng,*/*;q=0.8"
-            ),
-            "Accept-Language": "zh-CN,zh;q=0.7,en;q=0.5",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Connection": "keep-alive",
-            "Upgrade-Insecure-Requests": "1",
-        }
-
-        if settings.javdb_cookie:
-            headers["Cookie"] = settings.javdb_cookie
-        if settings.http_proxy:
-            os.environ.setdefault("HTTP_PROXY", settings.http_proxy)
-            os.environ.setdefault("HTTPS_PROXY", settings.http_proxy)
-
-        timeout = settings.http_timeout
-
-        def _request() -> str:
-            if _HAS_CURL_CFFI:
-                resp = curl_requests.get(  # type: ignore[union-attr]
-                    search_url,
-                    headers=headers,
-                    impersonate="chrome",
-                    timeout=timeout,
-                )
-                resp.raise_for_status()
-                return resp.text
-            else:
-                with httpx.Client(headers=headers, timeout=timeout) as client:
-                    resp = client.get(search_url)
-                    resp.raise_for_status()
-                    return resp.text
-
-        html = retry_request(_request, max_retries=2)
+        html = self._request_page(search_url, settings)
         return self._parse_search_results(html, base_url=search_url)
 
     def _parse_metadata(self, tree: HTMLParser, base_url: str) -> MovieMetadata:
@@ -173,7 +145,7 @@ class JavdbScraper(BaseScraper):
 
     # ---- 字段解析辅助方法 ----
 
-    def _parse_title(self, tree: HTMLParser) -> Optional[str]:
+    def _parse_title(self, tree: HTMLParser) -> str | None:
         # 当前 javdb 详情页结构：
         # <div class="video-detail">
         #   <h2 class="title is-4">
@@ -200,7 +172,7 @@ class JavdbScraper(BaseScraper):
         node = tree.css_first("h2")
         return node.text(strip=True) if node else None
 
-    def _parse_number(self, tree: HTMLParser) -> Optional[str]:
+    def _parse_number(self, tree: HTMLParser) -> str | None:
         # 当前结构：
         # <div class="panel-block first-block">
         #   <strong>番號:</strong>
@@ -232,7 +204,7 @@ class JavdbScraper(BaseScraper):
             return f"{m.group(1).upper()}-{str(int(m.group(2))).zfill(3)}"
         return None
 
-    def _parse_plot(self, tree: HTMLParser) -> Optional[str]:
+    def _parse_plot(self, tree: HTMLParser) -> str | None:
         # 简介区域
         for sel in [
             "div.description",
@@ -245,7 +217,7 @@ class JavdbScraper(BaseScraper):
                 return node.text(strip=True)
         return None
 
-    def _parse_dates(self, tree: HTMLParser) -> tuple[Optional[int], Optional[str]]:
+    def _parse_dates(self, tree: HTMLParser) -> tuple[int | None, str | None]:
         # 当前结构：
         # <div class="panel-block">
         #   <strong>日期:</strong>
@@ -254,7 +226,7 @@ class JavdbScraper(BaseScraper):
         # 兼容老结构中的「發行日期/发行日期/上市日期」文案。
         import re
 
-        date_text: Optional[str] = None
+        date_text: str | None = None
         for node in tree.css("div.panel-block, div.panel-item, tr"):
             text = node.text(strip=True)
             if (
@@ -269,7 +241,7 @@ class JavdbScraper(BaseScraper):
                     date_text = m.group(1)
                     break
 
-        year: Optional[int] = None
+        year: int | None = None
         if date_text:
             try:
                 year = int(date_text.split("-")[0])
@@ -277,7 +249,7 @@ class JavdbScraper(BaseScraper):
                 year = None
         return year, date_text
 
-    def _parse_runtime(self, tree: HTMLParser) -> Optional[int]:
+    def _parse_runtime(self, tree: HTMLParser) -> int | None:
         import re
 
         for node in tree.css("div.panel-block, div.panel-item, tr"):
@@ -291,8 +263,8 @@ class JavdbScraper(BaseScraper):
                         continue
         return None
 
-    def _parse_genres(self, tree: HTMLParser) -> List[str]:
-        genres: List[str] = []
+    def _parse_genres(self, tree: HTMLParser) -> list[str]:
+        genres: list[str] = []
         # 优先从「類別」信息块提取：
         # <div class="panel-block">
         #   <strong>類別:</strong>
@@ -322,8 +294,8 @@ class JavdbScraper(BaseScraper):
                     genres.append(text)
         return genres
 
-    def _parse_actors(self, tree: HTMLParser, base_url: str) -> List[Actor]:
-        actors: List[Actor] = []
+    def _parse_actors(self, tree: HTMLParser, base_url: str) -> list[Actor]:
+        actors: list[Actor] = []
         # 当前结构：
         # <div class="panel-block">
         #   <strong>演員:</strong>
@@ -347,7 +319,7 @@ class JavdbScraper(BaseScraper):
 
     def _parse_companies(
         self, tree: HTMLParser
-    ) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    ) -> tuple[str | None, str | None, str | None]:
         studio = label = series = None
         # 当前结构：
         # <div class="panel-block"><strong>片商:</strong><span class="value"><a>IDEA POCKET</a></span></div>
@@ -369,15 +341,15 @@ class JavdbScraper(BaseScraper):
 
     def _parse_directors_and_rating(
         self, tree: HTMLParser
-    ) -> tuple[List[str], Optional[float]]:
+    ) -> tuple[list[str], float | None]:
         """解析导演和评分信息。
 
         - 导演：优先从「導演 / 导演 / Director」信息块中读取 a 标签文本；
         - 评分：从包含「評分 / 评分」的块中提取第一个数字（支持小数）。
         """
 
-        directors: List[str] = []
-        rating: Optional[float] = None
+        directors: list[str] = []
+        rating: float | None = None
 
         # 导演
         for block in tree.css("nav.movie-panel-info div.panel-block"):
@@ -413,9 +385,9 @@ class JavdbScraper(BaseScraper):
 
     def _parse_images(
         self, tree: HTMLParser, base_url: str
-    ) -> tuple[List[str], List[str]]:
-        posters: List[str] = []
-        art: List[str] = []
+    ) -> tuple[list[str], list[str]]:
+        posters: list[str] = []
+        art: list[str] = []
 
         # 封面：视频详情页大图
         # <div class="column column-video-cover">
@@ -469,7 +441,7 @@ class JavdbScraper(BaseScraper):
 
     # ---- 通用辅助 ----
 
-    def _get_img_url(self, node, base_url: str) -> Optional[str]:
+    def _get_img_url(self, node, base_url: str) -> str | None:
         for attr in ("data-src", "src"):
             val = node.attributes.get(attr)
             if val:
@@ -482,17 +454,10 @@ class JavdbScraper(BaseScraper):
             return f"{parsed.scheme}:{url}"
         return urljoin(base_url, url)
 
-    def _extract_value_after_label(self, text: str) -> Optional[str]:
-        # 移除常见 label 之后取余下文本
-        for label in ["片商", "Studio", "發行", "发行", "Label", "系列", "Series"]:
-            if label in text:
-                return text.split(label, 1)[-1].strip(" ：: ")
-        return None
-
-    def _parse_search_results(self, html: str, base_url: str) -> List[SearchResult]:
+    def _parse_search_results(self, html: str, base_url: str) -> list[SearchResult]:
         """解析搜索结果页面，返回搜索结果列表。"""
         tree = HTMLParser(html)
-        results: List[SearchResult] = []
+        results: list[SearchResult] = []
 
         for item in tree.css("div.movie-list div.item"):
             link = item.css_first("a.box")

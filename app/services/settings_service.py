@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import os
+import threading
 from pathlib import Path
 
 from app.schemas import UserSettings
+
+
+_settings_lock = threading.Lock()
 
 _SETTINGS_PATH_ENV = "NFOFETCH_SETTINGS_PATH"
 
@@ -35,7 +39,10 @@ def load_user_settings() -> UserSettings:
     path = _settings_path()
     if path.exists():
         try:
-            return UserSettings.model_validate_json(path.read_text(encoding="utf-8"))
+            with _settings_lock:
+                return UserSettings.model_validate_json(
+                    path.read_text(encoding="utf-8")
+                )
         except Exception:
             pass
     return UserSettings()
@@ -43,5 +50,6 @@ def load_user_settings() -> UserSettings:
 
 def save_user_settings(settings: UserSettings) -> None:
     path = _settings_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(settings.model_dump_json(indent=2), encoding="utf-8")
+    with _settings_lock:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(settings.model_dump_json(indent=2), encoding="utf-8")

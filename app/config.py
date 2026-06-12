@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Optional
 
 
 @dataclass
@@ -20,8 +19,8 @@ class Settings:
     """
 
     user_agent: str
-    http_proxy: Optional[str]
-    javdb_cookie: Optional[str]
+    http_proxy: str | None
+    javdb_cookie: str | None
     max_extra_images: int
     http_timeout: int
     batch_timeout: int

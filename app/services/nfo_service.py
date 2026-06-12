@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from xml.etree.ElementTree import Element, SubElement, tostring
+from xml.etree.ElementTree import Element, SubElement, indent, tostring
 
 from app.schemas import MovieMetadata
 
@@ -67,5 +67,6 @@ def build_movie_nfo(metadata: MovieMetadata) -> str:
     if metadata.source_url:
         set_text(movie_el, "source_url", str(metadata.source_url))
 
+    indent(movie_el)
     xml_bytes = tostring(movie_el, encoding="utf-8")
     return xml_bytes.decode("utf-8")
