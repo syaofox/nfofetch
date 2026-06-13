@@ -130,6 +130,7 @@ def _download_image_with_crop(
         tmp_path = Path(tmp.name)
     try:
         if not _download_image(url, tmp_path, settings, http_timeout=http_timeout):
+            tmp_path.unlink(missing_ok=True)
             return False
         _crop_image(tmp_path, crop_direction)
         shutil.move(str(tmp_path), str(dest))
@@ -145,23 +146,20 @@ def _atomic_write_text(path: Path, content: str) -> None:
 
     避免进程崩溃时残留不完整的文件。
     """
-    fd, tmp_path_str = tempfile.mkstemp(
+    with tempfile.NamedTemporaryFile(
         suffix=".tmp",
         prefix="__nfofetch_",
         dir=path.parent,
-        text=True,
-    )
-    tmp_path = Path(tmp_path_str)
+        delete=False,
+        mode="w",
+        encoding="utf-8",
+    ) as f:
+        tmp_path = Path(f.name)
+        f.write(content)
     try:
-        with open(fd, "w", encoding="utf-8") as f:
-            f.write(content)
-        os.replace(tmp_path_str, str(path))
+        os.replace(str(tmp_path), str(path))
     except BaseException:
         tmp_path.unlink(missing_ok=True)
-        try:
-            os.close(fd)
-        except OSError:
-            pass
         raise
 
 
