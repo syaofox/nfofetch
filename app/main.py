@@ -249,6 +249,7 @@ async def scrape(
     poster_url: str | None = Form(default=None),
     fanart_url: str | None = Form(default=None),
     rename_format: str | None = Form(default=None),
+    rename_dir: str | None = Form(default=None),
     download_concurrency: int = Form(default=4),
     task_id: str = Form(default=""),
 ) -> HTMLResponse:
@@ -289,6 +290,7 @@ async def scrape(
             poster_url=poster_url,
             fanart_url=fanart_url,
             rename_format=rename_format or None,
+            rename_dir=rename_dir or None,
             download_concurrency=download_concurrency,
             http_timeout=settings.http_timeout,
             batch_timeout=settings.batch_timeout,

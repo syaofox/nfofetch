@@ -378,6 +378,10 @@
               if (rf && data.rename_format) {
                 rf.value = data.rename_format;
               }
+              var rd = document.getElementById("rename_dir");
+              if (rd && data.rename_dir) {
+                rd.value = data.rename_dir;
+              }
               var dc = document.getElementById("download_concurrency");
               if (dc && data.download_concurrency) {
                 dc.value = data.download_concurrency;
@@ -410,6 +414,10 @@
             clearTimeout(pendingTimer);
             pendingTimer = setTimeout(function () { saveSettingsField("rename_format", elt.value); }, 300);
           }
+          if (elt && elt.id === "rename_dir") {
+            clearTimeout(pendingTimer);
+            pendingTimer = setTimeout(function () { saveSettingsField("rename_dir", elt.value); }, 300);
+          }
           if (elt && elt.id === "download_concurrency") {
             clearTimeout(pendingTimer);
             pendingTimer = setTimeout(function () { saveSettingsField("download_concurrency", parseInt(elt.value, 10) || 4); }, 300);
@@ -423,6 +431,10 @@
           var rf = document.getElementById("rename_format");
           if (rf) {
             saveSettingsField("rename_format", rf.value);
+          }
+          var rd = document.getElementById("rename_dir");
+          if (rd) {
+            saveSettingsField("rename_dir", rd.value);
           }
           var dc = document.getElementById("download_concurrency");
           if (dc) {

@@ -92,5 +92,6 @@ class UserSettings(BaseModel):
     """用户偏好设置，持久化到 JSON 文件。"""
 
     rename_format: str = "[{actor}][{date}]{id}"
+    rename_dir: str = ""
     last_browse_path: str = ""
     download_concurrency: int = 4

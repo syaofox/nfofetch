@@ -181,6 +181,24 @@
       </div>
 
       <div class="nf-form-group nf-write-section">
+        <label for="rename_dir" class="nf-label">文件夹重命名格式（可选）</label>
+        <input
+          type="text"
+          id="rename_dir"
+          name="rename_dir"
+          placeholder="[{actor}][{date}]{id}"
+          value=""
+          class="nf-input"
+        />
+        <p class="nf-hint">
+          留空则不改文件夹名。占位符：<code>{id}</code>番号、
+          <code>{year}</code>年份、<code>{date}</code>发行日期、
+          <code>{actor}</code>演员、<code>{title}</code>标题、
+          <code>{vr}</code>VR 视频、<code>{resolution}</code>视频分辨率。
+        </p>
+      </div>
+
+      <div class="nf-form-group nf-write-section">
         <label class="nf-label">剧照下载设置</label>
         <div class="nf-inline-fields">
           <div class="nf-inline-field">

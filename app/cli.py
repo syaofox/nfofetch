@@ -43,6 +43,12 @@ def main(argv: list[str] | None = None) -> None:
         help=f"重命名格式，留空则不重命名。默认：{DEFAULT_RENAME_FORMAT}。占位符：id/year/date/actor/title/vr/resolution/idx",
     )
     parser.add_argument(
+        "--rename-dir",
+        default=None,
+        metavar="FMT",
+        help="视频所在文件夹重命名格式，留空则不改名。占位符：id/year/date/actor/title/vr/resolution",
+    )
+    parser.add_argument(
         "--download-concurrency",
         type=int,
         default=None,
@@ -78,6 +84,7 @@ def main(argv: list[str] | None = None) -> None:
         settings=settings,
         max_extra_images=settings.max_extra_images,
         rename_format=args.rename_format or None,
+        rename_dir=args.rename_dir or None,
         download_concurrency=args.download_concurrency
         if args.download_concurrency is not None
         else 4,

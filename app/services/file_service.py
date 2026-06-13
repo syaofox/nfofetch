@@ -203,6 +203,34 @@ def _format_rename(
     return _sanitize_filename_part(result)
 
 
+def _format_dir_rename(
+    metadata: MovieMetadata,
+    is_vr: bool,
+    format_str: str,
+    resolution: str = "",
+) -> str:
+    """根据格式字符串生成新文件夹名。"""
+    id_val = metadata.number or ""
+    year_val = str(metadata.year) if metadata.year else ""
+    date_val = metadata.premiered or metadata.releasedate or ""
+    actor_val = "、".join(a.name for a in metadata.actors)
+    title_val = metadata.title or ""
+    vr_val = ""
+    if is_vr:
+        vr_val = "180_LR"
+
+    result = format_str
+    result = result.replace("{id}", id_val)
+    result = result.replace("{year}", year_val)
+    result = result.replace("{date}", date_val)
+    result = result.replace("{actor}", actor_val)
+    result = result.replace("{title}", title_val)
+    result = result.replace("{vr}", vr_val)
+    result = result.replace("{resolution}", resolution)
+
+    return _sanitize_filename_part(result)
+
+
 def _rename_single_video(
     video_path: Path,
     metadata: MovieMetadata,
@@ -466,6 +494,29 @@ def _check_reuse_existing(movie_dir: Path, source_url: str) -> bool:
         return False
 
 
+def _rename_directory(
+    movie_dir: Path,
+    metadata: MovieMetadata,
+    video_path: Path,
+    format_str: str,
+) -> tuple[Path, Path]:
+    """重命名视频所在文件夹，返回 (新目录, 更新后的视频路径)。"""
+    is_vr = _is_vr(metadata)
+    resolution = _get_video_resolution(video_path)
+    new_dir_name = _format_dir_rename(
+        metadata, is_vr, format_str, resolution=resolution
+    )
+    parent = movie_dir.parent
+    new_dir = parent / new_dir_name
+    if new_dir == movie_dir:
+        return movie_dir, video_path
+    if new_dir.exists():
+        raise OSError(f"目标文件夹已存在：{new_dir_name}")
+    movie_dir.rename(new_dir)
+    new_video_path = new_dir / video_path.name
+    return new_dir, new_video_path
+
+
 def save_assets_for_existing_video(
     *,
     metadata: MovieMetadata,
@@ -476,6 +527,7 @@ def save_assets_for_existing_video(
     poster_url: str | None = None,
     fanart_url: str | None = None,
     rename_format: str | None = None,
+    rename_dir: str | None = None,
     download_concurrency: int = 4,
     http_timeout: int = 20,
     batch_timeout: int = 120,
@@ -484,7 +536,8 @@ def save_assets_for_existing_video(
     """针对已存在的视频文件，在同一目录下生成 NFO 和图片，不复制视频。
 
     - movie_dir 使用现有视频文件的父目录；
-    - 若提供 rename_format：含 {idx} 时重命名同目录下所有视频，不含则仅重命名选中的视频。
+    - 若提供 rename_format：含 {idx} 时重命名同目录下所有视频，不含则仅重命名选中的视频；
+    - 若提供 rename_dir：重命名视频所在文件夹。
     """
 
     video_path = video_path.resolve()
@@ -493,7 +546,7 @@ def save_assets_for_existing_video(
 
     # 目录级文件锁，防止并发刮削同一目录（Issue 4）
     with _DirectoryLock(movie_dir):
-        # 1. 重命名（始终执行，幂等设计）
+        # 1. 重命名视频文件（始终执行，幂等设计）
         final_video_path = video_path
         if rename_format and rename_format.strip():
             fmt = rename_format.strip()
@@ -510,7 +563,24 @@ def save_assets_for_existing_video(
                     metadata=metadata,
                 )
 
-        # 2. 去重检测：目录已有同源刮削记录 → 跳过 NFO / 图片写入
+        # 2. 重命名文件夹（在视频重命名之后、NFO 写入之前执行）
+        if rename_dir and rename_dir.strip():
+            fmt_dir = rename_dir.strip()
+            try:
+                movie_dir, final_video_path = _rename_directory(
+                    movie_dir,
+                    metadata,
+                    final_video_path,
+                    fmt_dir,
+                )
+            except OSError as e:
+                return ScrapeResult(
+                    success=False,
+                    message=f"文件夹重命名失败：{e}",
+                    metadata=metadata,
+                )
+
+        # 3. 去重检测：目录已有同源刮削记录 → 跳过 NFO / 图片写入
         reuse = metadata.source_url is not None and _check_reuse_existing(
             movie_dir, str(metadata.source_url)
         )
@@ -539,7 +609,7 @@ def save_assets_for_existing_video(
                 chosen_fanart_url=fanart_url,
             )
 
-        # 3. 正常写入 NFO + 图片
+        # 4. 正常写入 NFO + 图片
         nfo_path, poster_path, fanart_path, extra_paths = _write_nfo_and_images(
             movie_dir=movie_dir,
             nfo_text=nfo_text,
