@@ -83,6 +83,8 @@ VIDEO_EXTENSIONS = (
 
 # 文件名中不允许的字符（Windows/Linux 通用）
 _FILENAME_UNSAFE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+# 空括号对（占位符为空时留下）
+_EMPTY_BRACKETS = re.compile(r"\[\s*\]")
 
 # 默认重命名格式
 DEFAULT_RENAME_FORMAT = "[{actor}][{date}]{id}"
@@ -110,6 +112,12 @@ def _is_vr(metadata: MovieMetadata) -> bool:
 def _sanitize_filename_part(s: str) -> str:
     """将字符串清理为安全的文件名片段。"""
     s = _FILENAME_UNSAFE.sub("_", s)
+    # 反复清除占位符为空后留下的空括号对，如 []、[  ]
+    while True:
+        new_s = _EMPTY_BRACKETS.sub("", s)
+        if new_s == s:
+            break
+        s = new_s
     return s.strip(" .") or "_"
 
 

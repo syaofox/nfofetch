@@ -159,7 +159,7 @@ class TestFormatRename:
         result = _format_rename(
             meta, idx=1, is_vr=False, format_str="[{actor}][{year}]{id}"
         )
-        assert result == "[][]"
+        assert result == "_"
 
 
 class TestCleanupOrphanedTemps:
