@@ -75,7 +75,7 @@ def _crop_image(image_path: Path, direction: str) -> None:
 def _download_image(
     url: str, dest: Path, settings: Settings, http_timeout: int = 20
 ) -> bool:
-    """下载单张图片到目标路径。"""
+    """下载单张图片到目标路径（原子写入）。"""
     try:
         client_kwargs: dict = {
             "headers": {"User-Agent": settings.user_agent},
@@ -87,19 +87,28 @@ def _download_image(
                 "https://": settings.http_proxy,
             }
 
+        with tempfile.NamedTemporaryFile(
+            suffix=".tmp", prefix="__nfofetch_", dir=dest.parent, delete=False
+        ) as tmp:
+            tmp_path = Path(tmp.name)
+
         def _fetch() -> None:
             with httpx.Client(**client_kwargs) as client:
                 with client.stream("GET", url) as resp:
                     resp.raise_for_status()
-                    with dest.open("wb") as f:
+                    with tmp_path.open("wb") as f:
                         for chunk in resp.iter_bytes():
                             f.write(chunk)
 
-        retry_request(_fetch, max_retries=1, base_delay=1.0)
+        try:
+            retry_request(_fetch, max_retries=1, base_delay=1.0)
+            shutil.move(str(tmp_path), str(dest))
+        except Exception:
+            tmp_path.unlink(missing_ok=True)
+            raise
         return True
     except Exception as exc:
         logger.warning("下载失败: %s - %s", url, exc)
-        dest.unlink(missing_ok=True)
         return False
 
 
