@@ -3,7 +3,6 @@ from __future__ import annotations
 import fcntl
 import json
 import logging
-import os
 import re
 import shutil
 import subprocess
@@ -88,7 +87,7 @@ def _download_image(
             }
 
         with tempfile.NamedTemporaryFile(
-            suffix=".tmp", prefix="__nfofetch_", dir=dest.parent, delete=False
+            suffix=".tmp", prefix="__nfofetch_", delete=False
         ) as tmp:
             tmp_path = Path(tmp.name)
 
@@ -149,7 +148,6 @@ def _atomic_write_text(path: Path, content: str) -> None:
     with tempfile.NamedTemporaryFile(
         suffix=".tmp",
         prefix="__nfofetch_",
-        dir=path.parent,
         delete=False,
         mode="w",
         encoding="utf-8",
@@ -157,7 +155,7 @@ def _atomic_write_text(path: Path, content: str) -> None:
         tmp_path = Path(f.name)
         f.write(content)
     try:
-        os.replace(str(tmp_path), str(path))
+        shutil.move(str(tmp_path), str(path))
     except BaseException:
         tmp_path.unlink(missing_ok=True)
         raise
