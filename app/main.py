@@ -182,7 +182,7 @@ async def scrape_fetch(
                     seen.add(s)
                     poster_candidates.append(s)
             if search_poster_url and search_poster_url not in seen:
-                poster_candidates.insert(0, search_poster_url)
+                poster_candidates.append(search_poster_url)
                 seen.add(search_poster_url)
         except Exception as exc:  # noqa: BLE001
             error = str(exc)
