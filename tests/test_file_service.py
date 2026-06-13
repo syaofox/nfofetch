@@ -5,6 +5,7 @@ from pathlib import Path
 from app.schemas import Actor, MovieMetadata
 from app.services.file_service import (
     _cleanup_orphaned_temps,
+    _format_dir_rename,
     _format_rename,
     _is_vr,
     _sanitize_filename_part,
@@ -97,6 +98,59 @@ class TestFormatRename:
         assert result == "田中丽奈"
 
     def test_multiple_actors(self) -> None:
+        meta = MovieMetadata(
+            title="Test",
+            number="ABP-123",
+            actors=[Actor(name="田中丽奈"), Actor(name="佐藤健")],
+        )
+        result = _format_rename(meta, idx=1, is_vr=False, format_str="{actor}")
+        assert result == "田中丽奈、佐藤健"
+
+    def test_actor_limit_count(self) -> None:
+        meta = MovieMetadata(
+            title="Test",
+            number="ABP-123",
+            actors=[
+                Actor(name="田中丽奈"),
+                Actor(name="佐藤健"),
+                Actor(name="桥本环奈"),
+            ],
+        )
+        result = _format_rename(meta, idx=1, is_vr=False, format_str="{actor:2}")
+        assert result == "田中丽奈、佐藤健"
+
+    def test_actor_limit_exceeds_count(self) -> None:
+        meta = MovieMetadata(
+            title="Test",
+            number="ABP-123",
+            actors=[Actor(name="田中丽奈"), Actor(name="佐藤健")],
+        )
+        result = _format_rename(meta, idx=1, is_vr=False, format_str="{actor:5}")
+        assert result == "田中丽奈、佐藤健"
+
+    def test_actor_limit_zero(self) -> None:
+        meta = MovieMetadata(
+            title="Test",
+            number="ABP-123",
+            actors=[Actor(name="田中丽奈"), Actor(name="佐藤健")],
+        )
+        result = _format_rename(meta, idx=1, is_vr=False, format_str="{actor:0}")
+        assert result == "_"
+
+    def test_actor_dir_rename_limit(self) -> None:
+        meta = MovieMetadata(
+            title="Test",
+            number="ABP-123",
+            actors=[
+                Actor(name="田中丽奈"),
+                Actor(name="佐藤健"),
+                Actor(name="桥本环奈"),
+            ],
+        )
+        result = _format_dir_rename(meta, is_vr=False, format_str="{actor:2}")
+        assert result == "田中丽奈、佐藤健"
+
+    def test_actor_no_limit_still_works(self) -> None:
         meta = MovieMetadata(
             title="Test",
             number="ABP-123",

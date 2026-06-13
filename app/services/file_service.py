@@ -193,7 +193,16 @@ def _format_rename(
     result = result.replace("{id}", id_val)
     result = result.replace("{year}", year_val)
     result = result.replace("{date}", date_val)
-    result = result.replace("{actor}", actor_val)
+    actors_all = metadata.actors
+    result = re.sub(
+        r"\{actor(?::(\d+))?\}",
+        lambda m: (
+            "、".join(a.name for a in actors_all[: int(m.group(1))])
+            if m.group(1)
+            else actor_val
+        ),
+        result,
+    )
     result = result.replace("{title}", title_val)
     result = result.replace("{vr}", vr_val)
     result = result.replace("{resolution}", resolution)
@@ -222,7 +231,16 @@ def _format_dir_rename(
     result = result.replace("{id}", id_val)
     result = result.replace("{year}", year_val)
     result = result.replace("{date}", date_val)
-    result = result.replace("{actor}", actor_val)
+    actors_all = metadata.actors
+    result = re.sub(
+        r"\{actor(?::(\d+))?\}",
+        lambda m: (
+            "、".join(a.name for a in actors_all[: int(m.group(1))])
+            if m.group(1)
+            else actor_val
+        ),
+        result,
+    )
     result = result.replace("{title}", title_val)
     result = result.replace("{vr}", vr_val)
     result = result.replace("{resolution}", resolution)
