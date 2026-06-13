@@ -61,6 +61,37 @@ def _crop_image(image_path: Path, direction: str) -> None:
     )
 
 
+def _download_image(
+    url: str, dest: Path, settings: Settings, http_timeout: int = 20
+) -> bool:
+    """下载单张图片到目标路径。"""
+    try:
+        client_kwargs: dict = {
+            "headers": {"User-Agent": settings.user_agent},
+            "timeout": http_timeout,
+        }
+        if settings.http_proxy:
+            client_kwargs["proxies"] = {
+                "http://": settings.http_proxy,
+                "https://": settings.http_proxy,
+            }
+
+        def _fetch() -> None:
+            with httpx.Client(**client_kwargs) as client:
+                with client.stream("GET", url) as resp:
+                    resp.raise_for_status()
+                    with dest.open("wb") as f:
+                        for chunk in resp.iter_bytes():
+                            f.write(chunk)
+
+        retry_request(_fetch, max_retries=1, base_delay=1.0)
+        return True
+    except Exception as exc:
+        logger.warning("下载失败: %s - %s", url, exc)
+        dest.unlink(missing_ok=True)
+        return False
+
+
 # 临时文件前缀，用于两阶段重命名
 _TEMP_PREFIX = "__nfofetch_tmp_"
 
@@ -397,11 +428,20 @@ def _write_nfo_and_images(
         if on_progress:
             on_progress(phase, current, total, detail)
 
-    # 写入 movie.nfo
-    _report("nfo", 0, 1, "正在写入 NFO 文件…")
+    # 写入 movie.nfo（内容无变化时跳过）
     nfo_path = movie_dir / "movie.nfo"
-    with nfo_path.open("w", encoding="utf-8") as f:
-        f.write(nfo_text)
+    if nfo_path.exists():
+        existing = nfo_path.read_text(encoding="utf-8")
+        if existing == nfo_text:
+            _report("nfo", 0, 1, "NFO 文件无变化，跳过写入…")
+        else:
+            _report("nfo", 0, 1, "正在写入 NFO 文件…")
+            with nfo_path.open("w", encoding="utf-8") as f:
+                f.write(nfo_text)
+    else:
+        _report("nfo", 0, 1, "正在写入 NFO 文件…")
+        with nfo_path.open("w", encoding="utf-8") as f:
+            f.write(nfo_text)
 
     # 下载图片
     poster_path: Path | None = None
@@ -424,67 +464,52 @@ def _write_nfo_and_images(
             art_urls.append(s)
 
     def download_image(url: str, dest: Path) -> bool:
-        try:
-            client_kwargs: dict = {
-                "headers": {"User-Agent": settings.user_agent},
-                "timeout": http_timeout,
-            }
-            if settings.http_proxy:
-                client_kwargs["proxies"] = {
-                    "http://": settings.http_proxy,
-                    "https://": settings.http_proxy,
-                }
-
-            def _fetch() -> None:
-                with httpx.Client(**client_kwargs) as client:
-                    with client.stream("GET", url) as resp:
-                        resp.raise_for_status()
-                        with dest.open("wb") as f:
-                            for chunk in resp.iter_bytes():
-                                f.write(chunk)
-
-            retry_request(_fetch, max_retries=1, base_delay=1.0)
-            return True
-        except Exception as exc:
-            logger.warning("下载失败: %s - %s", url, exc)
-            dest.unlink(missing_ok=True)
-            return False
+        return _download_image(url, dest, settings, http_timeout=http_timeout)
 
     # 1. poster.jpg
-    _report("poster", 0, 1, "正在下载封面 poster.jpg…")
-    if poster_urls:
-        poster_path = movie_dir / "poster.jpg"
+    poster_path = movie_dir / "poster.jpg"
+    if poster_path.exists() and poster_path.stat().st_size > 0:
+        _report("poster", 0, 1, "封面已存在，跳过下载…")
+    elif poster_urls:
+        _report("poster", 0, 1, "正在下载封面 poster.jpg…")
         if download_image(str(poster_urls[0]), poster_path):
             if crop_direction != "none":
                 _crop_image(poster_path, crop_direction)
         else:
             poster_path = None
+    else:
+        poster_path = None
 
     # 2. fanart.jpg
-    _report("fanart", 0, 1, "正在下载背景 fanart.jpg…")
-    fanart_candidates: list[str] = []
-    if fanart_url:
-        fanart_candidates.append(fanart_url)
-    if art_urls:
-        fanart_candidates.append(str(art_urls[0]))
-    if poster_urls:
-        fanart_candidates.append(str(poster_urls[0]))
+    fanart_path = movie_dir / "fanart.jpg"
+    if fanart_path.exists() and fanart_path.stat().st_size > 0:
+        _report("fanart", 0, 1, "背景已存在，跳过下载…")
+    else:
+        _report("fanart", 0, 1, "正在下载背景 fanart.jpg…")
+        fanart_candidates: list[str] = []
+        if fanart_url:
+            fanart_candidates.append(fanart_url)
+        if art_urls:
+            fanart_candidates.append(str(art_urls[0]))
+        if poster_urls:
+            fanart_candidates.append(str(poster_urls[0]))
 
-    # 去重保持顺序
-    _seen: set[str] = set()
-    fanart_candidates = [
-        u for u in fanart_candidates if not (u in _seen or _seen.add(u))
-    ]
+        _seen: set[str] = set()
+        fanart_candidates = [
+            u for u in fanart_candidates if not (u in _seen or _seen.add(u))
+        ]
 
-    for url in fanart_candidates:
-        fanart_path_candidate = movie_dir / "fanart.jpg"
-        if download_image(url, fanart_path_candidate):
-            fanart_path = fanart_path_candidate
-            break
+        for url in fanart_candidates:
+            if download_image(url, fanart_path):
+                break
+        else:
+            fanart_path = None
 
     # 3. extrafanart/*（并发下载）
     extra_dir = movie_dir / "extrafanart"
     extra_dir.mkdir(exist_ok=True)
+    for p in sorted(extra_dir.glob("*.jpg"))[max_extra_images:]:
+        p.unlink()
     used_urls: set[str] = set()
     if poster_urls:
         used_urls.add(str(poster_urls[0]))
@@ -542,18 +567,27 @@ def _write_nfo_and_images(
     return nfo_path, poster_path, fanart_path, extra_paths
 
 
-def _check_reuse_existing(movie_dir: Path, source_url: str) -> bool:
-    """检查目录是否已有同源刮削记录。"""
+def _check_reuse_existing(
+    movie_dir: Path, source_url: str | None, number: str | None
+) -> bool:
+    """检查目录是否已有同源或同番号刮削记录。"""
     nfo_path = movie_dir / "movie.nfo"
     if not nfo_path.exists():
         return False
     try:
         tree = ET.parse(nfo_path)
         root = tree.getroot()
-        url_el = root.find("source_url")
-        return url_el is not None and url_el.text == source_url
+        if source_url:
+            url_el = root.find("source_url")
+            if url_el is not None and url_el.text == source_url:
+                return True
+        if number:
+            id_el = root.find("id")
+            if id_el is not None and id_el.text == number:
+                return True
     except Exception:
-        return False
+        pass
+    return False
 
 
 def _rename_directory(
@@ -644,8 +678,10 @@ def save_assets_for_existing_video(
                 )
 
         # 3. 去重检测：目录已有同源刮削记录 → 跳过 NFO / 图片写入
-        reuse = metadata.source_url is not None and _check_reuse_existing(
-            movie_dir, str(metadata.source_url)
+        reuse = _check_reuse_existing(
+            movie_dir,
+            str(metadata.source_url) if metadata.source_url else None,
+            metadata.number,
         )
         if reuse:
             if on_progress:
@@ -659,6 +695,34 @@ def save_assets_for_existing_video(
                 if extra_dir.is_dir()
                 else []
             )
+
+            # 补充下载缺失的图片（用户可能手动删除了）
+            if not poster_path.exists() or poster_path.stat().st_size == 0:
+                dl_url = poster_url or (
+                    str(metadata.posters[0]) if metadata.posters else None
+                )
+                if dl_url:
+                    if on_progress:
+                        on_progress("poster", 0, 1, "封面缺失，正在补充下载…")
+                    if _download_image(
+                        dl_url, poster_path, settings, http_timeout=http_timeout
+                    ):
+                        if crop_direction != "none":
+                            _crop_image(poster_path, crop_direction)
+
+            if not fanart_path.exists() or fanart_path.stat().st_size == 0:
+                dl_url = (
+                    fanart_url
+                    or (str(metadata.art[0]) if metadata.art else None)
+                    or (str(metadata.posters[0]) if metadata.posters else None)
+                )
+                if dl_url:
+                    if on_progress:
+                        on_progress("fanart", 0, 1, "背景缺失，正在补充下载…")
+                    _download_image(
+                        dl_url, fanart_path, settings, http_timeout=http_timeout
+                    )
+
             return ScrapeResult(
                 success=True,
                 metadata=metadata,
