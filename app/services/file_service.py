@@ -4,7 +4,9 @@ import fcntl
 import json
 import logging
 import re
+import shutil
 import subprocess
+import tempfile
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
@@ -97,6 +99,34 @@ def _download_image(
     except Exception as exc:
         logger.warning("下载失败: %s - %s", url, exc)
         dest.unlink(missing_ok=True)
+        return False
+
+
+def _download_image_with_crop(
+    url: str,
+    dest: Path,
+    settings: Settings,
+    crop_direction: str = "none",
+    http_timeout: int = 20,
+) -> bool:
+    """下载图片，需要裁切时先下载到临时文件再裁切后移动到目标路径。
+
+    避免在目标目录产生未裁切的临时文件。
+    """
+    if crop_direction == "none":
+        return _download_image(url, dest, settings, http_timeout=http_timeout)
+
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        tmp_path = Path(tmp.name)
+    try:
+        if not _download_image(url, tmp_path, settings, http_timeout=http_timeout):
+            return False
+        _crop_image(tmp_path, crop_direction)
+        shutil.move(str(tmp_path), str(dest))
+        return True
+    except Exception as exc:
+        logger.warning("下载/裁切失败: %s - %s", url, exc)
+        tmp_path.unlink(missing_ok=True)
         return False
 
 
@@ -480,9 +510,14 @@ def _write_nfo_and_images(
         _report("poster", 0, 1, "封面已存在，跳过下载…")
     elif poster_urls:
         _report("poster", 0, 1, "正在下载封面 poster.jpg…")
-        if download_image(str(poster_urls[0]), poster_path):
-            if crop_direction != "none":
-                _crop_image(poster_path, crop_direction)
+        if _download_image_with_crop(
+            str(poster_urls[0]),
+            poster_path,
+            settings,
+            crop_direction=crop_direction,
+            http_timeout=http_timeout,
+        ):
+            pass
         else:
             poster_path = None
     else:
@@ -715,11 +750,13 @@ def save_assets_for_existing_video(
                 if dl_url:
                     if on_progress:
                         on_progress("poster", 0, 1, "封面缺失，正在补充下载…")
-                    if _download_image(
-                        dl_url, poster_path, settings, http_timeout=http_timeout
-                    ):
-                        if crop_direction != "none":
-                            _crop_image(poster_path, crop_direction)
+                    _download_image_with_crop(
+                        dl_url,
+                        poster_path,
+                        settings,
+                        crop_direction=crop_direction,
+                        http_timeout=http_timeout,
+                    )
 
             if not fanart_path.exists() or fanart_path.stat().st_size == 0:
                 dl_url = (
