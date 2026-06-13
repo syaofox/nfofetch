@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import atexit
 import fcntl
 import json
 import logging
-import os
 import re
 import subprocess
 import xml.etree.ElementTree as ET
@@ -51,23 +49,16 @@ class _DirectoryLock:
 
 def _cleanup_orphaned_temps(movie_dir: Path) -> None:
     """清理指定目录下残留的 __nfofetch_tmp_ 临时文件。"""
-    for p in movie_dir.rglob(f"{_TEMP_PREFIX}*"):
-        try:
-            p.unlink()
-            logger.warning("清理残留临时文件: %s", p)
-        except OSError:
-            pass
+    try:
+        for p in movie_dir.rglob(f"{_TEMP_PREFIX}*"):
+            try:
+                p.unlink()
+                logger.warning("清理残留临时文件: %s", p)
+            except OSError:
+                pass
+    except PermissionError:
+        logger.warning("无法扫描 %s（权限不足），跳过临时文件清理", movie_dir)
 
-
-def _cleanup_all_orphaned_temps() -> None:
-    """启动时扫描整个 BROWSE_ROOT，清理残留临时文件。"""
-    browse_root = Path(os.getenv("NFOFETCH_BROWSE_ROOT", os.getcwd())).resolve()
-    if browse_root.is_dir():
-        _cleanup_orphaned_temps(browse_root)
-
-
-_cleanup_all_orphaned_temps()
-atexit.register(_cleanup_all_orphaned_temps)
 
 # 支持的视频扩展名
 VIDEO_EXTENSIONS = (
