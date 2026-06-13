@@ -24,7 +24,8 @@ logger = logging.getLogger(__name__)
 def _crop_image(image_path: Path, direction: str) -> None:
     """将图片按 2:3 竖版比例裁切（仅对非 none 方向生效），保留指定水平区域。
 
-    当原图已是竖版（宽高比 ≤ 2:3）时，裁切不改变图像。
+    始终保留原图全高，将宽度按 2:3 比例裁切，确保 direction 决定保留左/中/右区域。
+    若原图宽度不足以达到 2:3，则保持原图不裁切。
     """
     if direction == "none":
         return
@@ -34,11 +35,16 @@ def _crop_image(image_path: Path, direction: str) -> None:
     w, h = img.size
 
     target_ratio = 2.0 / 3.0
-    target_w = w
-    target_h = int(target_w / target_ratio)
-    if target_h > h:
-        target_h = h
-        target_w = int(target_h * target_ratio)
+    target_h = h
+    target_w = int(target_h * target_ratio)
+
+    if target_w > w:
+        logger.warning(
+            "图片宽度 %d 不足以裁切成 2:3（需要 %d），跳过裁切",
+            w,
+            target_w,
+        )
+        return
 
     if direction == "left":
         x = 0
@@ -47,7 +53,7 @@ def _crop_image(image_path: Path, direction: str) -> None:
     else:
         x = (w - target_w) // 2
 
-    y = (h - target_h) // 2
+    y = 0
     cropped = img.crop((x, y, x + target_w, y + target_h))
     cropped.save(image_path)
     logger.info(

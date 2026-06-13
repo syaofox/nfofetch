@@ -320,3 +320,39 @@ class TestCropImage:
         mid_x, mid_y = c.width // 2, c.height // 2
         r, g, b = c.getpixel((mid_x, mid_y))
         assert b > 200, f"Expected blue center, got ({r},{g},{b})"
+
+    def test_portrait_left_picks_green_region(self, tmp_path: Path) -> None:
+        from PIL import Image
+
+        p = tmp_path / "test.jpg"
+        img = Image.new("RGB", (1200, 1200), (200, 200, 200))
+        for x in range(500):
+            for y in range(1200):
+                img.putpixel((x, y), (0, 255, 0))
+        for x in range(700, 1200):
+            for y in range(1200):
+                img.putpixel((x, y), (0, 0, 255))
+        img.save(str(p))
+        _crop_image(p, "left")
+        c = Image.open(str(p))
+        mid_x, mid_y = c.width // 2, c.height // 2
+        r, g, b = c.getpixel((mid_x, mid_y))
+        assert g > 200, f"Expected green center, got ({r},{g},{b})"
+
+    def test_portrait_right_picks_blue_region(self, tmp_path: Path) -> None:
+        from PIL import Image
+
+        p = tmp_path / "test.jpg"
+        img = Image.new("RGB", (1200, 1200), (200, 200, 200))
+        for x in range(500):
+            for y in range(1200):
+                img.putpixel((x, y), (0, 255, 0))
+        for x in range(700, 1200):
+            for y in range(1200):
+                img.putpixel((x, y), (0, 0, 255))
+        img.save(str(p))
+        _crop_image(p, "right")
+        c = Image.open(str(p))
+        mid_x, mid_y = c.width // 2, c.height // 2
+        r, g, b = c.getpixel((mid_x, mid_y))
+        assert b > 200, f"Expected blue center, got ({r},{g},{b})"
