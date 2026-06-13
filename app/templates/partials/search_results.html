@@ -22,6 +22,9 @@
             >
               <input type="hidden" name="url" value="{{ item.url }}" />
               <input type="hidden" name="video_path" value="{{ video_path or '' }}" />
+              {% if item.poster_url %}
+                <input type="hidden" name="search_poster_url" value="{{ item.poster_url }}" />
+              {% endif %}
               <button type="submit" class="nf-search-item-btn">
                 {% if item.poster_url %}
                   <img src="{{ item.poster_url }}" alt="{{ item.title }}" class="nf-search-item-poster" />

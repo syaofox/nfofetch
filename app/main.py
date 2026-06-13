@@ -159,6 +159,7 @@ async def scrape_fetch(
     request: Request,
     url: str = Form(...),
     video_path: str | None = Form(default=None),
+    search_poster_url: str | None = Form(default=None),
 ) -> HTMLResponse:
     """仅刮削元数据和图片，不写入磁盘。返回预览供用户选择后点击「写入」。
 
@@ -180,6 +181,9 @@ async def scrape_fetch(
                 if s not in seen:
                     seen.add(s)
                     poster_candidates.append(s)
+            if search_poster_url and search_poster_url not in seen:
+                poster_candidates.insert(0, search_poster_url)
+                seen.add(search_poster_url)
         except Exception as exc:  # noqa: BLE001
             error = str(exc)
     else:
