@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 import time
+from collections.abc import Awaitable
 from typing import Callable
 
 from fastapi import FastAPI, Request, Response
@@ -57,7 +58,7 @@ def get_client_ip(request: Request) -> str:
 def create_rate_limit_middleware(app: FastAPI) -> None:
     @app.middleware("http")
     async def rate_limit_middleware(
-        request: Request, call_next: Callable[[Request], Response]
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         if request.url.path not in LOCKED_ENDPOINTS:
             return await call_next(request)

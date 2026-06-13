@@ -15,7 +15,7 @@ try:  # 尝试使用 curl_cffi 来模拟浏览器指纹，绕过 Cloudflare
 
     _HAS_CURL_CFFI = True
 except Exception:  # pragma: no cover - 运行环境未安装 curl_cffi 时兜底
-    curl_requests = None  # type: ignore[assignment]
+    curl_requests = None  # type: ignore[assignment, misc]
     _HAS_CURL_CFFI = False
 
 
@@ -64,7 +64,7 @@ class JavdbScraper(BaseScraper):
                     headers=headers,
                     impersonate="chrome",
                     timeout=timeout_val,
-                    **kwargs,
+                    **kwargs,  # type: ignore[arg-type]
                 )
                 resp.raise_for_status()
                 return resp.text
@@ -75,7 +75,7 @@ class JavdbScraper(BaseScraper):
                         "http://": proxy,
                         "https://": proxy,
                     }
-                with httpx.Client(**client_kwargs) as client:
+                with httpx.Client(**client_kwargs) as client:  # type: ignore[arg-type]
                     resp = client.get(url)
                     resp.raise_for_status()
                     return resp.text
@@ -139,8 +139,8 @@ class JavdbScraper(BaseScraper):
             series=series,
             directors=directors,
             rating=rating,
-            posters=posters,
-            art=art,
+            posters=posters,  # type: ignore[arg-type]
+            art=art,  # type: ignore[arg-type]
         )
 
     # ---- 字段解析辅助方法 ----

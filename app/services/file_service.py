@@ -10,6 +10,8 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from pathlib import Path
 
+from io import TextIOWrapper
+
 import httpx
 
 from app.config import Settings
@@ -110,7 +112,7 @@ class _DirectoryLock:
 
     def __init__(self, directory: Path) -> None:
         self._lock_file = directory / ".nfofetch.lock"
-        self._fd: int | None = None
+        self._fd: TextIOWrapper | None = None
 
     def __enter__(self) -> _DirectoryLock:
         self._lock_file.parent.mkdir(parents=True, exist_ok=True)
@@ -501,9 +503,12 @@ def _write_nfo_and_images(
             fanart_candidates.append(str(poster_urls[0]))
 
         _seen: set[str] = set()
-        fanart_candidates = [
-            u for u in fanart_candidates if not (u in _seen or _seen.add(u))
-        ]
+        deduped: list[str] = []
+        for c in fanart_candidates:
+            if c not in _seen:
+                _seen.add(c)
+                deduped.append(c)
+        fanart_candidates = deduped
 
         for url in fanart_candidates:
             if download_image(url, fanart_path):
@@ -743,7 +748,7 @@ def save_assets_for_existing_video(
             )
 
         # 4. 正常写入 NFO + 图片
-        nfo_path, poster_path, fanart_path, extra_paths = _write_nfo_and_images(
+        nfo_path, poster_path, fanart_path, extra_paths = _write_nfo_and_images(  # type: ignore[assignment]
             movie_dir=movie_dir,
             nfo_text=nfo_text,
             metadata=metadata,
