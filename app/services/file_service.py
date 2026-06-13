@@ -3,6 +3,7 @@ from __future__ import annotations
 import fcntl
 import json
 import logging
+import os
 import re
 import shutil
 import subprocess
@@ -130,8 +131,33 @@ def _download_image_with_crop(
         return False
 
 
-# 临时文件前缀，用于两阶段重命名
-_TEMP_PREFIX = "__nfofetch_tmp_"
+def _atomic_write_text(path: Path, content: str) -> None:
+    """原子写入文本文件：先写临时文件，再 rename 覆盖目标。
+
+    避免进程崩溃时残留不完整的文件。
+    """
+    fd, tmp_path_str = tempfile.mkstemp(
+        suffix=".tmp",
+        prefix="__nfofetch_",
+        dir=path.parent,
+        text=True,
+    )
+    tmp_path = Path(tmp_path_str)
+    try:
+        with open(fd, "w", encoding="utf-8") as f:
+            f.write(content)
+        os.replace(tmp_path_str, str(path))
+    except BaseException:
+        tmp_path.unlink(missing_ok=True)
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        raise
+
+
+# 临时文件前缀，用于原子写入等
+_TEMP_PREFIX = "__nfofetch_"
 
 
 class _DirectoryLock:
@@ -158,7 +184,7 @@ class _DirectoryLock:
 
 
 def _cleanup_orphaned_temps(movie_dir: Path) -> None:
-    """清理指定目录下残留的 __nfofetch_tmp_ 临时文件。"""
+    """清理指定目录下残留的 __nfofetch_ 临时文件。"""
     try:
         for p in movie_dir.rglob(f"{_TEMP_PREFIX}*"):
             try:
@@ -466,7 +492,7 @@ def _write_nfo_and_images(
         if on_progress:
             on_progress(phase, current, total, detail)
 
-    # 写入 movie.nfo（内容无变化时跳过）
+    # 写入 movie.nfo（原子写入，避免崩溃残留不完整文件）
     nfo_path = movie_dir / "movie.nfo"
     if nfo_path.exists():
         existing = nfo_path.read_text(encoding="utf-8")
@@ -474,12 +500,10 @@ def _write_nfo_and_images(
             _report("nfo", 0, 1, "NFO 文件无变化，跳过写入…")
         else:
             _report("nfo", 0, 1, "正在写入 NFO 文件…")
-            with nfo_path.open("w", encoding="utf-8") as f:
-                f.write(nfo_text)
+            _atomic_write_text(nfo_path, nfo_text)
     else:
         _report("nfo", 0, 1, "正在写入 NFO 文件…")
-        with nfo_path.open("w", encoding="utf-8") as f:
-            f.write(nfo_text)
+        _atomic_write_text(nfo_path, nfo_text)
 
     # 下载图片
     poster_path: Path | None = None
