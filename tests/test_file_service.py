@@ -5,6 +5,7 @@ from pathlib import Path
 from app.schemas import Actor, MovieMetadata
 from app.services.file_service import (
     _cleanup_orphaned_temps,
+    _crop_image,
     _format_dir_rename,
     _format_rename,
     _is_vr,
@@ -234,3 +235,88 @@ class TestCleanupOrphanedTemps:
 
         _cleanup_orphaned_temps(tmp_path)
         assert normal_file.exists()
+
+
+class TestCropImage:
+    def test_none_returns_unchanged(self, tmp_path: Path) -> None:
+        from PIL import Image
+
+        p = tmp_path / "test.jpg"
+        Image.new("RGB", (1200, 800)).save(str(p))
+        _crop_image(p, "none")
+        assert Image.open(str(p)).size == (1200, 800)
+
+    def test_left_crops_landscape(self, tmp_path: Path) -> None:
+        from PIL import Image
+
+        p = tmp_path / "test.jpg"
+        img = Image.new("RGB", (1200, 800))
+        img.save(str(p))
+        _crop_image(p, "left")
+        w, h = Image.open(str(p)).size
+        assert w < 1200
+        assert h == 800
+
+    def test_right_crops_landscape(self, tmp_path: Path) -> None:
+        from PIL import Image
+
+        p = tmp_path / "test.jpg"
+        Image.new("RGB", (1200, 800)).save(str(p))
+        _crop_image(p, "right")
+        w, h = Image.open(str(p)).size
+        assert w < 1200
+        assert h == 800
+
+    def test_center_crops_landscape(self, tmp_path: Path) -> None:
+        from PIL import Image
+
+        p = tmp_path / "test.jpg"
+        Image.new("RGB", (1200, 800)).save(str(p))
+        _crop_image(p, "center")
+        w, h = Image.open(str(p)).size
+        assert w < 1200
+        assert h == 800
+
+    def test_portrait_unchanged(self, tmp_path: Path) -> None:
+        from PIL import Image
+
+        p = tmp_path / "test.jpg"
+        Image.new("RGB", (800, 1200)).save(str(p))
+        _crop_image(p, "left")
+        assert Image.open(str(p)).size == (800, 1200)
+
+    def test_left_picks_green_region(self, tmp_path: Path) -> None:
+        from PIL import Image
+
+        p = tmp_path / "test.jpg"
+        img = Image.new("RGB", (1200, 800), (200, 200, 200))
+        for x in range(400):
+            for y in range(800):
+                img.putpixel((x, y), (0, 255, 0))
+        for x in range(800, 1200):
+            for y in range(800):
+                img.putpixel((x, y), (0, 0, 255))
+        img.save(str(p))
+        _crop_image(p, "left")
+        c = Image.open(str(p))
+        mid_x, mid_y = c.width // 2, c.height // 2
+        r, g, b = c.getpixel((mid_x, mid_y))
+        assert g > 200, f"Expected green center, got ({r},{g},{b})"
+
+    def test_right_picks_blue_region(self, tmp_path: Path) -> None:
+        from PIL import Image
+
+        p = tmp_path / "test.jpg"
+        img = Image.new("RGB", (1200, 800), (200, 200, 200))
+        for x in range(400):
+            for y in range(800):
+                img.putpixel((x, y), (0, 255, 0))
+        for x in range(800, 1200):
+            for y in range(800):
+                img.putpixel((x, y), (0, 0, 255))
+        img.save(str(p))
+        _crop_image(p, "right")
+        c = Image.open(str(p))
+        mid_x, mid_y = c.width // 2, c.height // 2
+        r, g, b = c.getpixel((mid_x, mid_y))
+        assert b > 200, f"Expected blue center, got ({r},{g},{b})"

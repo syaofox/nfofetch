@@ -24,7 +24,11 @@ from app.services.nfo_service import build_movie_nfo
 from app.services.scrape_service import is_url, scrape_movie, search_movie
 from app.services.settings_service import load_user_settings, save_user_settings
 
-logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
+_log_level = os.getenv("NFOFETCH_LOG_LEVEL", "WARNING").upper()
+logging.basicConfig(
+    level=getattr(logging, _log_level, logging.WARNING),
+    format="%(levelname)s: %(message)s",
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -248,6 +252,7 @@ async def scrape(
     video_path: str = Form(...),
     poster_url: str | None = Form(default=None),
     fanart_url: str | None = Form(default=None),
+    crop_direction: str = Form(default="none"),
     rename_format: str | None = Form(default=None),
     rename_dir: str | None = Form(default=None),
     download_concurrency: int = Form(default=4),
@@ -289,6 +294,7 @@ async def scrape(
             max_extra_images=settings.max_extra_images,
             poster_url=poster_url,
             fanart_url=fanart_url,
+            crop_direction=crop_direction,
             rename_format=rename_format or None,
             rename_dir=rename_dir or None,
             download_concurrency=download_concurrency,

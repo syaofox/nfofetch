@@ -153,6 +153,26 @@
         {% endif %}
       {% endif %}
 
+      {% if poster_candidates %}
+        <div class="nf-form-group nf-write-section">
+          <p class="nf-hint">裁切方向（仅对封面 poster 生效）：</p>
+          <div class="nf-inline-fields">
+            <label class="nf-label-inline nf-crop-label">
+              <input type="radio" name="crop_direction" value="none" checked /> 不裁切
+            </label>
+            <label class="nf-label-inline nf-crop-label">
+              <input type="radio" name="crop_direction" value="left" /> 左
+            </label>
+            <label class="nf-label-inline nf-crop-label">
+              <input type="radio" name="crop_direction" value="center" /> 中
+            </label>
+            <label class="nf-label-inline nf-crop-label">
+              <input type="radio" name="crop_direction" value="right" /> 右
+            </label>
+          </div>
+        </div>
+      {% endif %}
+
       <div class="nf-form-group nf-write-section">
         <input type="hidden" name="video_path" value="{{ video_path or '' }}" />
         {% if video_path %}

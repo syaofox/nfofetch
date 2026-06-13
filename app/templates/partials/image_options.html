@@ -45,6 +45,24 @@
         </div>
       {% endfor %}
     </div>
+
+    <div class="nf-form-group nf-write-section" style="margin-top:12px">
+      <p class="nf-hint">裁切方向（仅对封面 poster 生效）：</p>
+      <div class="nf-inline-fields">
+        <label class="nf-label-inline nf-crop-label">
+          <input type="radio" name="crop_direction" value="none" checked /> 不裁切
+        </label>
+        <label class="nf-label-inline nf-crop-label">
+          <input type="radio" name="crop_direction" value="left" /> 左
+        </label>
+        <label class="nf-label-inline nf-crop-label">
+          <input type="radio" name="crop_direction" value="center" /> 中
+        </label>
+        <label class="nf-label-inline nf-crop-label">
+          <input type="radio" name="crop_direction" value="right" /> 右
+        </label>
+      </div>
+    </div>
   </div>
 {% else %}
   {% if not error %}

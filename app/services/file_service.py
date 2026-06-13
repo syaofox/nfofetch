@@ -20,6 +20,47 @@ ProgressCallback = Callable[[str, int, int, str], None]
 
 logger = logging.getLogger(__name__)
 
+
+def _crop_image(image_path: Path, direction: str) -> None:
+    """将图片按 2:3 竖版比例裁切（仅对非 none 方向生效），保留指定水平区域。
+
+    当原图已是竖版（宽高比 ≤ 2:3）时，裁切不改变图像。
+    """
+    if direction == "none":
+        return
+    from PIL import Image
+
+    img = Image.open(image_path)
+    w, h = img.size
+
+    target_ratio = 2.0 / 3.0
+    target_w = w
+    target_h = int(target_w / target_ratio)
+    if target_h > h:
+        target_h = h
+        target_w = int(target_h * target_ratio)
+
+    if direction == "left":
+        x = 0
+    elif direction == "right":
+        x = w - target_w
+    else:
+        x = (w - target_w) // 2
+
+    y = (h - target_h) // 2
+    cropped = img.crop((x, y, x + target_w, y + target_h))
+    cropped.save(image_path)
+    logger.info(
+        "裁切 poster: %s -> %dx%d（direction=%s, 原图 %dx%d）",
+        image_path.name,
+        cropped.width,
+        cropped.height,
+        direction,
+        w,
+        h,
+    )
+
+
 # 临时文件前缀，用于两阶段重命名
 _TEMP_PREFIX = "__nfofetch_tmp_"
 
@@ -344,6 +385,7 @@ def _write_nfo_and_images(
     max_extra_images: int,
     poster_url: str | None = None,
     fanart_url: str | None = None,
+    crop_direction: str = "none",
     download_concurrency: int = 4,
     http_timeout: int = 20,
     batch_timeout: int = 120,
@@ -412,7 +454,10 @@ def _write_nfo_and_images(
     _report("poster", 0, 1, "正在下载封面 poster.jpg…")
     if poster_urls:
         poster_path = movie_dir / "poster.jpg"
-        if not download_image(str(poster_urls[0]), poster_path):
+        if download_image(str(poster_urls[0]), poster_path):
+            if crop_direction != "none":
+                _crop_image(poster_path, crop_direction)
+        else:
             poster_path = None
 
     # 2. fanart.jpg
@@ -543,6 +588,7 @@ def save_assets_for_existing_video(
     max_extra_images: int = 8,
     poster_url: str | None = None,
     fanart_url: str | None = None,
+    crop_direction: str = "none",
     rename_format: str | None = None,
     rename_dir: str | None = None,
     download_concurrency: int = 4,
@@ -635,6 +681,7 @@ def save_assets_for_existing_video(
             max_extra_images=max_extra_images,
             poster_url=poster_url,
             fanart_url=fanart_url,
+            crop_direction=crop_direction,
             download_concurrency=download_concurrency,
             http_timeout=http_timeout,
             batch_timeout=batch_timeout,

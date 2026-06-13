@@ -22,6 +22,7 @@ RUN pip install --upgrade pip && \
       "pydantic>=2.0.0" \
       "python-multipart>=0.0.9" \
       "curl-cffi>=0.14.0" \
+      "Pillow>=10.0.0" \
       --prefix=/install
 
 

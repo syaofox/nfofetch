@@ -25,6 +25,8 @@ services:
       # - NFOFETCH_HTTP_TIMEOUT=20
       # 可选：extrafanart 批量下载总超时秒数（超时后已完成的继续保存）
       # - NFOFETCH_BATCH_TIMEOUT=120
+      # 可选：日志等级（DEBUG / INFO / WARNING / ERROR）
+      - NFOFETCH_LOG_LEVEL=INFO
     volumes:
       # 挂载媒体库所在目录到容器内部，供浏览和写 NFO/图片（NFO 会生成在视频同目录）
       - /mnt/dnas/data/adult/vr/jvr/_single/_未分类:/data/media

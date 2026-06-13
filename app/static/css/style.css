@@ -150,6 +150,15 @@
   width: 5rem;
 }
 
+.nf-crop-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
 .nf-hint {
   margin: 0;
   font-size: 0.8rem;
