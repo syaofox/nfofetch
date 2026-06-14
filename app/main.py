@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import functools
 import logging
 import os
@@ -18,7 +19,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.config import get_settings
 from app.middleware import create_rate_limit_middleware
-from app.schemas import ScrapeResult, UserSettings
+from app.schemas import MovieMetadata, ScrapeResult, UserSettings
 from app.services.file_service import VIDEO_EXTENSIONS, save_assets_for_existing_video
 from app.services.nfo_service import build_movie_nfo
 from app.services.scrape_service import is_url, scrape_movie, search_movie
@@ -174,6 +175,7 @@ async def scrape_fetch(
     metadata = None
     poster_candidates: list[str] = []
 
+    metadata_b64: str | None = None
     if is_url(url):
         try:
             metadata = scrape_movie(url, settings=settings)
@@ -186,6 +188,9 @@ async def scrape_fetch(
             if search_poster_url and search_poster_url not in seen:
                 poster_candidates.append(search_poster_url)
                 seen.add(search_poster_url)
+            metadata_b64 = base64.b64encode(
+                metadata.model_dump_json().encode()
+            ).decode()
         except Exception as exc:  # noqa: BLE001
             error = str(exc)
     else:
@@ -197,6 +202,7 @@ async def scrape_fetch(
         {
             "request": request,
             "metadata": metadata,
+            "metadata_b64": metadata_b64,
             "poster_candidates": poster_candidates,
             "error": error,
             "url": url,
@@ -263,14 +269,23 @@ async def scrape(
     rename_dir: str | None = Form(default=None),
     download_concurrency: int = Form(default=4),
     task_id: str = Form(default=""),
+    metadata_b64: str | None = Form(default=None),
 ) -> HTMLResponse:
-    """在线程池中执行刮削写入（阻塞），实时通过 task_id 更新进度。"""
+    """在线程池中执行刮削写入（阻塞），实时通过 task_id 更新进度。
+
+    优先使用前端传回的 metadata_b64（预览时已抓取），避免重复 HTTP 请求。
+    """
     settings = get_settings()
     if task_id:
         _update_task(task_id, phase="preparing", current=0, total=0, detail="正在准备…")
 
     try:
-        metadata = scrape_movie(url, settings=settings)
+        if metadata_b64:
+            metadata = MovieMetadata.model_validate_json(
+                base64.b64decode(metadata_b64.encode()).decode()
+            )
+        else:
+            metadata = scrape_movie(url, settings=settings)
         nfo_text = build_movie_nfo(metadata)
 
         vp = Path(video_path).expanduser()

@@ -107,6 +107,9 @@
       class="nf-form"
     >
       <input type="hidden" name="url" value="{{ url }}" />
+      {% if metadata_b64 %}
+        <input type="hidden" name="metadata_b64" value="{{ metadata_b64 }}" />
+      {% endif %}
 
       {% if poster_candidates %}
         <div class="nf-form-group">
