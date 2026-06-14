@@ -121,23 +121,25 @@ async def browse(
 
     entries: list[dict[str, str | bool]] = []
     try:
-        for child in sorted(
-            current.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())
-        ):
-            if child.name.startswith("."):
-                continue
-            if not (child.is_dir() or child.is_file()):
-                continue
-            if child.is_file() and child.suffix.lower() not in VIDEO_EXTENSIONS:
-                continue
-            entries.append(
-                {
-                    "name": child.name + ("/" if child.is_dir() else ""),
-                    "name_lower": child.name.lower(),
-                    "path": str(child),
-                    "is_dir": child.is_dir(),
-                }
-            )
+        with os.scandir(current) as it:
+            # os.scandir 一次系统调用带回文件类型，避免每个文件多次 stat
+            for entry in sorted(it, key=lambda e: (not e.is_dir(), e.name.lower())):
+                if entry.name.startswith("."):
+                    continue
+                is_dir = entry.is_dir()
+                is_file = entry.is_file()
+                if not (is_dir or is_file):
+                    continue
+                if is_file and Path(entry.name).suffix.lower() not in VIDEO_EXTENSIONS:
+                    continue
+                entries.append(
+                    {
+                        "name": entry.name + ("/" if is_dir else ""),
+                        "name_lower": entry.name.lower(),
+                        "path": entry.path,
+                        "is_dir": is_dir,
+                    }
+                )
     except OSError:
         # 目录不可读时，返回空列表
         entries = []

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import fcntl
+import functools
 import json
 import logging
+import os
 import re
 import shutil
 import subprocess
@@ -11,8 +12,6 @@ import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from pathlib import Path
-
-from io import TextIOWrapper
 
 import httpx
 
@@ -165,33 +164,10 @@ def _atomic_write_text(path: Path, content: str) -> None:
 _TEMP_PREFIX = "__nfofetch_"
 
 
-class _DirectoryLock:
-    """目录级文件锁，防止并发刮削写入同一目录（Issue 4）。
-
-    使用 POSIX fcntl.flock 实现进程级互斥，对同一目录的并发操作会排队等待。
-    """
-
-    def __init__(self, directory: Path) -> None:
-        self._lock_file = directory / ".nfofetch.lock"
-        self._fd: TextIOWrapper | None = None
-
-    def __enter__(self) -> _DirectoryLock:
-        self._lock_file.parent.mkdir(parents=True, exist_ok=True)
-        self._fd = self._lock_file.open("w")
-        fcntl.flock(self._fd.fileno(), fcntl.LOCK_EX)
-        return self
-
-    def __exit__(self, *args: object) -> None:
-        if self._fd is not None:
-            fcntl.flock(self._fd.fileno(), fcntl.LOCK_UN)
-            self._fd.close()
-            self._fd = None
-
-
 def _cleanup_orphaned_temps(movie_dir: Path) -> None:
     """清理指定目录下残留的 __nfofetch_ 临时文件。"""
     try:
-        for p in movie_dir.rglob(f"{_TEMP_PREFIX}*"):
+        for p in movie_dir.glob(f"{_TEMP_PREFIX}*"):
             try:
                 p.unlink()
                 logger.warning("清理残留临时文件: %s", p)
@@ -274,8 +250,12 @@ def _truncate_to_bytes(s: str, max_bytes: int) -> str:
     return b.decode("utf-8", errors="replace")
 
 
+@functools.lru_cache(maxsize=256)
 def _get_video_resolution(video_path: Path) -> str:
-    """通过 ffprobe 获取视频分辨率（宽x高），失败返回空字符串。"""
+    """通过 ffprobe 获取视频分辨率（宽x高），失败返回空字符串。
+
+    结果被 LRU 缓存，避免同一文件在重命名过程中重复调用 ffprobe。
+    """
     try:
         result = subprocess.run(
             [
@@ -419,26 +399,35 @@ def _rename_videos_in_dir(
     format_str: str,
 ) -> dict[Path, Path]:
     """重命名目录下所有视频文件，返回 旧路径 -> 新路径 映射。"""
-    video_files = sorted(
-        [
-            p
-            for p in movie_dir.iterdir()
-            if p.is_file() and p.suffix.lower() in VIDEO_EXTENSIONS
-        ],
-        key=lambda p: p.name.lower(),
-    )
+    video_files: list[Path] = []
+    try:
+        with os.scandir(movie_dir) as it:
+            for entry in sorted(it, key=lambda e: e.name.lower()):
+                if (
+                    entry.is_file()
+                    and Path(entry.name).suffix.lower() in VIDEO_EXTENSIONS
+                ):
+                    video_files.append(movie_dir / entry.name)
+    except OSError:
+        pass
     if not video_files:
         return {}
 
     is_vr = _is_vr(metadata)
     # 清理上次崩溃遗留的临时文件
     _cleanup_orphaned_temps(movie_dir)
+
+    # 并发获取所有视频分辨率（FUSE 文件系统下网络 RTT 并行化）
+    n_files = len(video_files)
+    resolutions: list[str] = []
+    if n_files > 0:
+        with ThreadPoolExecutor(max_workers=min(n_files, 4)) as executor:
+            resolutions = list(executor.map(_get_video_resolution, video_files))
+
     # 两阶段重命名：先到临时名，再到最终名，避免冲突
     temp_renames: list[tuple[Path, Path]] = []
-    resolutions: list[str] = []
     for i, old_path in enumerate(video_files, start=1):
-        resolution = _get_video_resolution(old_path)
-        resolutions.append(resolution)
+        resolution = resolutions[i - 1] if resolutions else ""
         base_name = _format_rename(
             metadata, i, is_vr, format_str, resolution=resolution
         )
@@ -476,6 +465,15 @@ def _rename_videos_in_dir(
     return result
 
 
+def _scan_dir_names(movie_dir: Path) -> set[str]:
+    """一次性扫描目录，返回文件名集合，避免多次 stat。"""
+    try:
+        with os.scandir(movie_dir) as it:
+            return {e.name for e in it}
+    except OSError:
+        return set()
+
+
 def _write_nfo_and_images(
     *,
     movie_dir: Path,
@@ -497,9 +495,12 @@ def _write_nfo_and_images(
         if on_progress:
             on_progress(phase, current, total, detail)
 
+    # 一次性扫描目录文件列表，后续检查不再走网络 stat
+    existing_names = _scan_dir_names(movie_dir)
+
     # 写入 movie.nfo（原子写入，避免崩溃残留不完整文件）
     nfo_path = movie_dir / "movie.nfo"
-    if nfo_path.exists():
+    if nfo_path.name in existing_names:
         existing = nfo_path.read_text(encoding="utf-8")
         if existing == nfo_text:
             _report("nfo", 0, 1, "NFO 文件无变化，跳过写入…")
@@ -535,28 +536,45 @@ def _write_nfo_and_images(
 
     # 1. poster.jpg
     poster_path = movie_dir / "poster.jpg"
-    if poster_path.exists() and poster_path.stat().st_size > 0:
-        _report("poster", 0, 1, "封面已存在，跳过下载…")
-    elif poster_urls:
-        _report("poster", 0, 1, "正在下载封面 poster.jpg…")
-        if _download_image_with_crop(
-            str(poster_urls[0]),
-            poster_path,
-            settings,
-            crop_direction=crop_direction,
-            http_timeout=http_timeout,
-        ):
+    poster_needs_download = True
+    if poster_path.name in existing_names:
+        try:
+            if poster_path.stat().st_size > 0:
+                _report("poster", 0, 1, "封面已存在，跳过下载…")
+                poster_needs_download = False
+        except OSError:
             pass
+
+    if poster_needs_download:
+        if poster_urls:
+            _report("poster", 0, 1, "正在下载封面 poster.jpg…")
+            if not _download_image_with_crop(
+                str(poster_urls[0]),
+                poster_path,
+                settings,
+                crop_direction=crop_direction,
+                http_timeout=http_timeout,
+            ):
+                poster_path = None
         else:
             poster_path = None
-    else:
-        poster_path = None
 
     # 2. fanart.jpg
     fanart_path = movie_dir / "fanart.jpg"
-    if fanart_path.exists() and fanart_path.stat().st_size > 0:
-        _report("fanart", 0, 1, "背景已存在，跳过下载…")
+    if fanart_path.name in existing_names:
+        try:
+            st = fanart_path.stat()
+            fanart_ok = st.st_size > 0
+        except OSError:
+            fanart_ok = False
+        if fanart_ok:
+            _report("fanart", 0, 1, "背景已存在，跳过下载…")
+        else:
+            fanart_path = None
     else:
+        fanart_path = None
+
+    if fanart_path is None:
         _report("fanart", 0, 1, "正在下载背景 fanart.jpg…")
         fanart_candidates: list[str] = []
         if fanart_url:
@@ -574,6 +592,7 @@ def _write_nfo_and_images(
                 deduped.append(c)
         fanart_candidates = deduped
 
+        fanart_path = movie_dir / "fanart.jpg"
         for url in fanart_candidates:
             if download_image(url, fanart_path):
                 break
@@ -583,8 +602,14 @@ def _write_nfo_and_images(
     # 3. extrafanart/*（并发下载）
     extra_dir = movie_dir / "extrafanart"
     extra_dir.mkdir(exist_ok=True)
-    for p in sorted(extra_dir.glob("*.jpg"))[max_extra_images:]:
+    # 一次性扫描 extrafanart 目录，避免多次 stat
+    extra_names = _scan_dir_names(extra_dir)
+    existing_extras = sorted(
+        extra_dir / n for n in extra_names if Path(n).suffix.lower() == ".jpg"
+    )
+    for p in existing_extras[max_extra_images:]:
         p.unlink()
+
     used_urls: set[str] = set()
     if poster_urls:
         used_urls.add(str(poster_urls[0]))
@@ -607,10 +632,16 @@ def _write_nfo_and_images(
         if idx > max_extra_images:
             break
         dest = extra_dir / f"{idx:02d}.jpg"
-        if dest.exists() and dest.stat().st_size > 0:
-            extra_paths.append(dest)
-        else:
-            download_tasks.append((url, dest))
+        if dest.name in extra_names:
+            try:
+                st = dest.stat()
+                if st.st_size > 0:
+                    extra_paths.append(dest)
+                    idx += 1
+                    continue
+            except OSError:
+                pass
+        download_tasks.append((url, dest))
         idx += 1
 
     total_tasks = len(download_tasks)
@@ -643,12 +674,22 @@ def _write_nfo_and_images(
 
 
 def _check_reuse_existing(
-    movie_dir: Path, source_url: str | None, number: str | None
+    movie_dir: Path,
+    source_url: str | None,
+    number: str | None,
+    existing_names: set[str] | None = None,
 ) -> bool:
-    """检查目录是否已有同源或同番号刮削记录。"""
+    """检查目录是否已有同源或同番号刮削记录。
+
+    若提供 existing_names（预先扫描的文件名集合），跳过独立的 exists() 调用。
+    """
+    if existing_names is not None:
+        if "movie.nfo" not in existing_names:
+            return False
+    else:
+        if not (movie_dir / "movie.nfo").exists():
+            return False
     nfo_path = movie_dir / "movie.nfo"
-    if not nfo_path.exists():
-        return False
     try:
         tree = ET.parse(nfo_path)
         root = tree.getroot()
@@ -716,118 +757,134 @@ def save_assets_for_existing_video(
     movie_dir = video_path.parent
     movie_dir.mkdir(parents=True, exist_ok=True)
 
-    # 目录级文件锁，防止并发刮削同一目录（Issue 4）
-    with _DirectoryLock(movie_dir):
-        # 1. 重命名视频文件（始终执行，幂等设计）
-        final_video_path = video_path
-        if rename_format and rename_format.strip():
-            fmt = rename_format.strip()
-            try:
-                if "{idx}" in fmt:
-                    renames = _rename_videos_in_dir(movie_dir, metadata, fmt)
-                    final_video_path = renames.get(video_path, video_path)
-                else:
-                    final_video_path = _rename_single_video(video_path, metadata, fmt)
-            except OSError as e:
-                return ScrapeResult(
-                    success=False,
-                    message=f"重命名失败：{e}",
-                    metadata=metadata,
-                )
-
-        # 2. 重命名文件夹（在视频重命名之后、NFO 写入之前执行）
-        if rename_dir and rename_dir.strip():
-            fmt_dir = rename_dir.strip()
-            try:
-                movie_dir, final_video_path = _rename_directory(
-                    movie_dir,
-                    metadata,
-                    final_video_path,
-                    fmt_dir,
-                )
-            except OSError as e:
-                return ScrapeResult(
-                    success=False,
-                    message=f"文件夹重命名失败：{e}",
-                    metadata=metadata,
-                )
-
-        # 3. 去重检测：目录已有同源刮削记录 → 跳过 NFO / 图片写入
-        reuse = _check_reuse_existing(
-            movie_dir,
-            str(metadata.source_url) if metadata.source_url else None,
-            metadata.number,
-        )
-        if reuse:
-            if on_progress:
-                on_progress("reuse", 0, 1, "检测到已有同源刮削记录，跳过下载…")
-            nfo_path = movie_dir / "movie.nfo"
-            poster_path = movie_dir / "poster.jpg"
-            fanart_path = movie_dir / "fanart.jpg"
-            extra_dir = movie_dir / "extrafanart"
-            extra_images = (
-                sorted(str(p) for p in extra_dir.glob("*.jpg"))
-                if extra_dir.is_dir()
-                else []
-            )
-
-            # 补充下载缺失的图片（用户可能手动删除了）
-            if not poster_path.exists() or poster_path.stat().st_size == 0:
-                dl_url = poster_url or (
-                    str(metadata.posters[0]) if metadata.posters else None
-                )
-                if dl_url:
-                    if on_progress:
-                        on_progress("poster", 0, 1, "封面缺失，正在补充下载…")
-                    _download_image_with_crop(
-                        dl_url,
-                        poster_path,
-                        settings,
-                        crop_direction=crop_direction,
-                        http_timeout=http_timeout,
-                    )
-
-            if not fanart_path.exists() or fanart_path.stat().st_size == 0:
-                dl_url = (
-                    fanart_url
-                    or (str(metadata.art[0]) if metadata.art else None)
-                    or (str(metadata.posters[0]) if metadata.posters else None)
-                )
-                if dl_url:
-                    if on_progress:
-                        on_progress("fanart", 0, 1, "背景缺失，正在补充下载…")
-                    _download_image(
-                        dl_url, fanart_path, settings, http_timeout=http_timeout
-                    )
-
+    # 1. 重命名视频文件（始终执行，幂等设计）
+    final_video_path = video_path
+    if rename_format and rename_format.strip():
+        fmt = rename_format.strip()
+        try:
+            if "{idx}" in fmt:
+                renames = _rename_videos_in_dir(movie_dir, metadata, fmt)
+                final_video_path = renames.get(video_path, video_path)
+            else:
+                final_video_path = _rename_single_video(video_path, metadata, fmt)
+        except OSError as e:
             return ScrapeResult(
-                success=True,
+                success=False,
+                message=f"重命名失败：{e}",
                 metadata=metadata,
-                movie_dir=str(movie_dir),
-                nfo_path=str(nfo_path),
-                video_path=str(final_video_path),
-                poster_path=str(poster_path) if poster_path.exists() else None,
-                fanart_path=str(fanart_path) if fanart_path.exists() else None,
-                extra_images=extra_images,
-                chosen_poster_url=poster_url,
-                chosen_fanart_url=fanart_url,
             )
 
-        # 4. 正常写入 NFO + 图片
-        nfo_path, poster_path, fanart_path, extra_paths = _write_nfo_and_images(  # type: ignore[assignment]
-            movie_dir=movie_dir,
-            nfo_text=nfo_text,
-            metadata=metadata,
-            settings=settings,
-            max_extra_images=max_extra_images,
-            poster_url=poster_url,
-            fanart_url=fanart_url,
-            crop_direction=crop_direction,
-            download_concurrency=download_concurrency,
-            http_timeout=http_timeout,
-            batch_timeout=batch_timeout,
-            on_progress=on_progress,
+    # 2. 重命名文件夹（在视频重命名之后、NFO 写入之前执行）
+    if rename_dir and rename_dir.strip():
+        fmt_dir = rename_dir.strip()
+        try:
+            movie_dir, final_video_path = _rename_directory(
+                movie_dir,
+                metadata,
+                final_video_path,
+                fmt_dir,
+            )
+        except OSError as e:
+            return ScrapeResult(
+                success=False,
+                message=f"文件夹重命名失败：{e}",
+                metadata=metadata,
+            )
+
+    # 3. 去重检测：目录已有同源刮削记录 → 跳过 NFO / 图片写入
+    # 在重命名之后、写入之前一次性扫描目录，后续不再走网络 stat
+    existing_names = _scan_dir_names(movie_dir)
+    reuse = _check_reuse_existing(
+        movie_dir,
+        str(metadata.source_url) if metadata.source_url else None,
+        metadata.number,
+        existing_names=existing_names,
+    )
+    if reuse:
+        if on_progress:
+            on_progress("reuse", 0, 1, "检测到已有同源刮削记录，跳过下载…")
+        nfo_path = movie_dir / "movie.nfo"
+        poster_path = movie_dir / "poster.jpg"
+        fanart_path = movie_dir / "fanart.jpg"
+        extra_dir = movie_dir / "extrafanart"
+        extra_images = (
+            sorted(str(p) for p in extra_dir.glob("*.jpg"))
+            if extra_dir.is_dir()
+            else []
         )
+
+        # 补充下载缺失的图片（用户可能手动删除了）
+        # 先用 existing_names 判断存在性，避免网络 stat
+        poster_needs_download = True
+        if "poster.jpg" in existing_names:
+            try:
+                poster_needs_download = poster_path.stat().st_size == 0
+            except OSError:
+                poster_needs_download = True
+
+        if poster_needs_download:
+            dl_url = poster_url or (
+                str(metadata.posters[0]) if metadata.posters else None
+            )
+            if dl_url:
+                if on_progress:
+                    on_progress("poster", 0, 1, "封面缺失，正在补充下载…")
+                _download_image_with_crop(
+                    dl_url,
+                    poster_path,
+                    settings,
+                    crop_direction=crop_direction,
+                    http_timeout=http_timeout,
+                )
+
+        fanart_needs_download = True
+        if "fanart.jpg" in existing_names:
+            try:
+                fanart_needs_download = fanart_path.stat().st_size == 0
+            except OSError:
+                fanart_needs_download = True
+
+        if fanart_needs_download:
+            dl_url = (
+                fanart_url
+                or (str(metadata.art[0]) if metadata.art else None)
+                or (str(metadata.posters[0]) if metadata.posters else None)
+            )
+            if dl_url:
+                if on_progress:
+                    on_progress("fanart", 0, 1, "背景缺失，正在补充下载…")
+                _download_image(
+                    dl_url, fanart_path, settings, http_timeout=http_timeout
+                )
+
+        return ScrapeResult(
+            success=True,
+            metadata=metadata,
+            movie_dir=str(movie_dir),
+            nfo_path=str(nfo_path),
+            video_path=str(final_video_path),
+            poster_path=str(poster_path) if poster_path.exists() else None,
+            fanart_path=str(fanart_path) if fanart_path.exists() else None,
+            extra_images=extra_images,
+            chosen_poster_url=poster_url,
+            chosen_fanart_url=fanart_url,
+        )
+
+    # 4. 正常写入 NFO + 图片
+    nfo_path, poster_path, fanart_path, extra_paths = _write_nfo_and_images(  # type: ignore[assignment]
+        movie_dir=movie_dir,
+        nfo_text=nfo_text,
+        metadata=metadata,
+        settings=settings,
+        max_extra_images=max_extra_images,
+        poster_url=poster_url,
+        fanart_url=fanart_url,
+        crop_direction=crop_direction,
+        download_concurrency=download_concurrency,
+        http_timeout=http_timeout,
+        batch_timeout=batch_timeout,
+        on_progress=on_progress,
+    )
 
     return ScrapeResult(
         success=True,
