@@ -347,6 +347,10 @@
           }
         };
 
+        window.nfRefreshBrowser = function (path) {
+          loadBrowser(path);
+        };
+
         window.nfCloseFileBrowser = function () {
           var container = document.getElementById("file-browser-container");
           if (container) {
