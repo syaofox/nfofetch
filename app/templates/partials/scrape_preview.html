@@ -249,8 +249,21 @@
         {% else %}
           <p class="nf-hint">点击下方按钮将 NFO 写入到视频所在目录（无图片可选时将使用默认顺序）。</p>
         {% endif %}
-        <button type="submit" id="write-button" class="nf-button nf-button-write">写入</button>
       </div>
     </form>
+    <div class="nf-sticky-fab">
+      <button
+        type="submit"
+        id="write-button"
+        class="nf-button nf-button-write"
+        form="write-form"
+        title="写入 NFO 与图片"
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"/>
+          <polygon points="18 2 22 6 12 16 8 16 8 12 18 2"/>
+        </svg>
+      </button>
+    </div>
   </div>
 {% endif %}

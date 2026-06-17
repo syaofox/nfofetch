@@ -79,11 +79,9 @@
             btn.innerText = "处理中…";
           }
         } else if (elt.id === "write-form") {
-          var btn = elt.querySelector("#write-button");
+          var btn = document.getElementById("write-button");
           if (btn instanceof HTMLButtonElement) {
             btn.disabled = true;
-            btn.dataset.originalText = btn.innerText;
-            btn.innerText = "写入中…";
           }
         } else if (elt.classList.contains("nf-search-item-form")) {
           var btn = elt.querySelector(".nf-search-item-btn");
@@ -103,10 +101,9 @@
             btn.innerText = btn.dataset.originalText || "开始刮削";
           }
         } else if (elt.id === "write-form") {
-          var btn = elt.querySelector("#write-button");
+          var btn = document.getElementById("write-button");
           if (btn instanceof HTMLButtonElement) {
             btn.disabled = false;
-            btn.innerText = btn.dataset.originalText || "写入";
           }
         } else if (elt.classList.contains("nf-search-item-form")) {
           var btn = elt.querySelector(".nf-search-item-btn");

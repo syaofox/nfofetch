@@ -451,7 +451,7 @@
   color: #6b7280;
 }
 
-/* 写入区域分隔与按钮 */
+/* 写入区域分隔 */
 .nf-write-section {
   margin-top: 0.5rem;
 }
@@ -462,10 +462,47 @@
   border-top: 1px solid #e5e7eb;
 }
 
+/* 粘性浮动写入按钮 (FAB) */
+.nf-sticky-fab {
+  position: sticky;
+  bottom: 24px;
+  z-index: 50;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
 .nf-button-write {
-  margin-top: 0.5rem;
-  padding: 0.7rem 1.5rem;
-  font-size: 1rem;
+  pointer-events: auto;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  color: #f9fafb;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.nf-button-write:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
+}
+
+.nf-button-write:active {
+  transform: scale(0.95);
+}
+
+.nf-button-write:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* 搜索结果 */
