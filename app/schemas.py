@@ -94,4 +94,6 @@ class UserSettings(BaseModel):
     rename_format: str = "[{actor}][{date}]{id}"
     rename_dir: str = ""
     last_browse_path: str = ""
+    sort_by: str = "name"
+    sort_order: str = "asc"
     download_concurrency: int = 4

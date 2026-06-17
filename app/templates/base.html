@@ -231,16 +231,20 @@
         });
       })();
 
-      // 简单的服务器文件浏览器（自动保存最后浏览路径）
+      // 简单的服务器文件浏览器（自动保存最后浏览路径、排序偏好）
       (function () {
         var SETTINGS_URL = "/api/settings";
         var _browseFocusName = "";
+        var _sortBy = "name";
+        var _sortOrder = "asc";
 
         function loadBrowser(path) {
           var params = new URLSearchParams();
           if (path) {
             params.set("path", path);
           }
+          params.set("sort_by", _sortBy);
+          params.set("sort_order", _sortOrder);
           fetch("/browse?" + params.toString())
             .then(function (resp) {
               return resp.text();
@@ -275,14 +279,36 @@
           }).catch(function () {});
         }
 
+        function saveSortSettings() {
+          fetch(SETTINGS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sort_by: _sortBy, sort_order: _sortOrder }),
+          }).catch(function () {});
+        }
+
+        window.nfSetSort = function (sortBy) {
+          if (_sortBy === sortBy) {
+            _sortOrder = (_sortOrder === "asc") ? "desc" : "asc";
+          } else {
+            _sortBy = sortBy;
+            _sortOrder = "asc";
+          }
+          saveSortSettings();
+          var dirEl = document.querySelector(".nf-file-browser-path");
+          loadBrowser(dirEl ? dirEl.textContent.trim() : "");
+        };
+
         window.nfOpenFileBrowser = function () {
           var input = document.getElementById("video_path");
           var initial = input && input.value ? input.value : "";
           if (!initial) {
-            // 没有已选路径时，尝试从服务器恢复上次浏览位置
+            // 没有已选路径时，尝试从服务器恢复上次浏览位置和排序偏好
             fetch(SETTINGS_URL)
               .then(function (resp) { return resp.json(); })
               .then(function (data) {
+                if (data.sort_by) _sortBy = data.sort_by;
+                if (data.sort_order) _sortOrder = data.sort_order;
                 loadBrowser(data.last_browse_path || "");
               })
               .catch(function () {

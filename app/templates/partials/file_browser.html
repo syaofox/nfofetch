@@ -30,6 +30,24 @@
     </button>
   </div>
 
+  <div class="nf-file-browser-sort">
+    <button
+      type="button"
+      class="nf-button nf-button-secondary nf-sort-btn{% if sort_by == 'name' %} nf-sort-btn-active{% endif %}"
+      onclick="window.nfSetSort('name')"
+    >文件名{% if sort_by == 'name' %}{% if sort_order == 'desc' %} ↓{% else %} ↑{% endif %}{% endif %}</button>
+    <button
+      type="button"
+      class="nf-button nf-button-secondary nf-sort-btn{% if sort_by == 'natural' %} nf-sort-btn-active{% endif %}"
+      onclick="window.nfSetSort('natural')"
+    >自然排序{% if sort_by == 'natural' %}{% if sort_order == 'desc' %} ↓{% else %} ↑{% endif %}{% endif %}</button>
+    <button
+      type="button"
+      class="nf-button nf-button-secondary nf-sort-btn{% if sort_by == 'mtime' %} nf-sort-btn-active{% endif %}"
+      onclick="window.nfSetSort('mtime')"
+    >修改时间{% if sort_by == 'mtime' %}{% if sort_order == 'desc' %} ↓{% else %} ↑{% endif %}{% endif %}</button>
+  </div>
+
   <div class="nf-file-browser-filter">
     <input
       type="text"

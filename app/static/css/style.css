@@ -374,6 +374,23 @@
   filter: brightness(0.97);
 }
 
+.nf-file-browser-sort {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.nf-sort-btn {
+  font-size: 0.8rem !important;
+  padding: 0.35rem 0.7rem !important;
+}
+
+.nf-sort-btn-active {
+  background: #2563eb !important;
+  color: #f9fafb !important;
+}
+
 .nf-file-browser-filter {
   margin-bottom: 0.5rem;
 }

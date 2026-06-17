@@ -89,10 +89,40 @@ async def index(request: Request) -> HTMLResponse:
     )
 
 
+def _natural_sort_key(s: str) -> tuple[Any, ...]:
+    """将字符串拆分为文本和数字部分，用于自然排序（\"movie 2\" < \"movie 10\"）。"""
+    parts = re.split(r"(\d+)", s.lower())
+    return tuple((0, int(part)) if part.isdigit() else (1, part) for part in parts)
+
+
+def _sort_browser_entries(
+    entries: list[dict[str, Any]],
+    sort_by: str,
+    sort_order: str,
+) -> None:
+    """对文件浏览器条目排序，目录始终排在文件前。"""
+    reverse = sort_order == "desc"
+
+    def _sort_key(e: dict[str, Any]) -> Any:
+        if sort_by == "natural":
+            return _natural_sort_key(e["name"].rstrip("/"))
+        if sort_by == "mtime":
+            return e.get("mtime", 0.0)
+        return e["name_lower"]
+
+    entries.sort(key=_sort_key, reverse=reverse)
+    # 稳定排序保证目录在前（不改变同组内排好的顺序）
+    entries.sort(key=lambda e: 0 if e["is_dir"] else 1)
+
+
 @app.get("/browse", response_class=HTMLResponse)
 async def browse(
     request: Request,
     path: str | None = Query(default=None, description="要浏览的起始路径"),
+    sort_by: str = Query(
+        default="name", description="排序方式：name / natural / mtime"
+    ),
+    sort_order: str = Query(default="asc", description="排序方向：asc / desc"),
 ) -> HTMLResponse:
     """简单的服务器文件浏览：用于选择本地视频文件路径。
 
@@ -120,11 +150,10 @@ async def browse(
     if current != base_dir:
         parent_dir = str(current.parent)
 
-    entries: list[dict[str, str | bool]] = []
+    entries: list[dict[str, Any]] = []
     try:
         with os.scandir(current) as it:
-            # os.scandir 一次系统调用带回文件类型，避免每个文件多次 stat
-            for entry in sorted(it, key=lambda e: (not e.is_dir(), e.name.lower())):
+            for entry in it:
                 if entry.name.startswith("."):
                     continue
                 is_dir = entry.is_dir()
@@ -133,17 +162,23 @@ async def browse(
                     continue
                 if is_file and Path(entry.name).suffix.lower() not in VIDEO_EXTENSIONS:
                     continue
-                entries.append(
-                    {
-                        "name": entry.name + ("/" if is_dir else ""),
-                        "name_lower": entry.name.lower(),
-                        "path": entry.path,
-                        "is_dir": is_dir,
-                    }
-                )
+                entry_dict: dict[str, Any] = {
+                    "name": entry.name + ("/" if is_dir else ""),
+                    "name_lower": entry.name.lower(),
+                    "path": entry.path,
+                    "is_dir": is_dir,
+                }
+                if sort_by == "mtime":
+                    try:
+                        entry_dict["mtime"] = entry.stat().st_mtime
+                    except OSError:
+                        entry_dict["mtime"] = 0.0
+                entries.append(entry_dict)
     except OSError:
         # 目录不可读时，返回空列表
         entries = []
+
+    _sort_browser_entries(entries, sort_by, sort_order)
 
     return templates.TemplateResponse(
         request,
@@ -153,6 +188,8 @@ async def browse(
             "current_dir": str(current),
             "parent_dir": parent_dir,
             "entries": entries,
+            "sort_by": sort_by,
+            "sort_order": sort_order,
         },
     )
 
