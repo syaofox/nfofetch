@@ -300,7 +300,9 @@ class TestCropImage:
         _crop_image(p, "left")
         c = Image.open(str(p))
         mid_x, mid_y = c.width // 2, c.height // 2
-        r, g, b = c.getpixel((mid_x, mid_y))
+        pixel = c.getpixel((mid_x, mid_y))
+        assert isinstance(pixel, tuple)
+        r, g, b = pixel
         assert g > 200, f"Expected green center, got ({r},{g},{b})"
 
     def test_right_picks_blue_region(self, tmp_path: Path) -> None:
@@ -318,7 +320,9 @@ class TestCropImage:
         _crop_image(p, "right")
         c = Image.open(str(p))
         mid_x, mid_y = c.width // 2, c.height // 2
-        r, g, b = c.getpixel((mid_x, mid_y))
+        pixel = c.getpixel((mid_x, mid_y))
+        assert isinstance(pixel, tuple)
+        r, g, b = pixel
         assert b > 200, f"Expected blue center, got ({r},{g},{b})"
 
     def test_portrait_left_picks_green_region(self, tmp_path: Path) -> None:
@@ -336,7 +340,9 @@ class TestCropImage:
         _crop_image(p, "left")
         c = Image.open(str(p))
         mid_x, mid_y = c.width // 2, c.height // 2
-        r, g, b = c.getpixel((mid_x, mid_y))
+        pixel = c.getpixel((mid_x, mid_y))
+        assert isinstance(pixel, tuple)
+        r, g, b = pixel
         assert g > 200, f"Expected green center, got ({r},{g},{b})"
 
     def test_portrait_right_picks_blue_region(self, tmp_path: Path) -> None:
@@ -354,5 +360,7 @@ class TestCropImage:
         _crop_image(p, "right")
         c = Image.open(str(p))
         mid_x, mid_y = c.width // 2, c.height // 2
-        r, g, b = c.getpixel((mid_x, mid_y))
+        pixel = c.getpixel((mid_x, mid_y))
+        assert isinstance(pixel, tuple)
+        r, g, b = pixel
         assert b > 200, f"Expected blue center, got ({r},{g},{b})"
