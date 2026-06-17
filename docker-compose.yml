@@ -19,8 +19,10 @@ services:
       # - NFOFETCH_HTTP_PROXY=http://127.0.0.1:7890
       # javdb Cookie（在宿主机上配置真实值，避免写死在镜像中）
       # - NFOFETCH_JAVDB_COOKIE="theme=auto; "
-      # 可选：一次性扫描的最大额外图片数量，避免某些视频目录下图片过多导致扫描过慢
-      - NFOFETCH_MAX_EXTRA_IMAGES=99
+      # 可选：javdb 镜像域名，默认 javdb565.com。镜像变动时无需改代码。
+      # - NFOFETCH_JAVDB_MIRROR=javdb565.com
+      # 可选：extrafanart 最大保存数量，设为 0 完全禁用（默认 8）
+      - NFOFETCH_MAX_EXTRA_IMAGES=8
       # 可选：单个 HTTP 请求超时秒数
       # - NFOFETCH_HTTP_TIMEOUT=20
       # 可选：extrafanart 批量下载总超时秒数（超时后已完成的继续保存）
