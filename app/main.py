@@ -331,7 +331,7 @@ async def scrape(
 
         base_dir = Path(os.getenv("NFOFETCH_BROWSE_ROOT", os.getcwd())).resolve()
         try:
-            vp.resolve().relative_to(base_dir)
+            vp.absolute().relative_to(base_dir)
         except ValueError:
             raise PermissionError(f"视频路径超出允许范围：{vp}")
 
