@@ -88,9 +88,8 @@ def _download_image(
                 "https://": settings.http_proxy,
             }
 
-        dst_dir = dest.parent
         with tempfile.NamedTemporaryFile(
-            suffix=".tmp", prefix=_TEMP_PREFIX, delete=False, dir=str(dst_dir)
+            suffix=".tmp", prefix=_TEMP_PREFIX, delete=False
         ) as tmp:
             tmp_path = Path(tmp.name)
 
@@ -128,9 +127,8 @@ def _download_image_with_crop(
     if crop_direction == "none":
         return _download_image(url, dest, settings, http_timeout=http_timeout)
 
-    dst_dir = dest.parent
     with tempfile.NamedTemporaryFile(
-        suffix=".jpg", prefix=_TEMP_PREFIX, delete=False, dir=str(dst_dir)
+        suffix=".jpg", prefix=_TEMP_PREFIX, delete=False
     ) as tmp:
         tmp_path = Path(tmp.name)
     try:
@@ -148,19 +146,17 @@ def _download_image_with_crop(
 
 @retry_on_oserror(max_retries=1, base_delay=1.0)
 def _atomic_write_text(path: Path, content: str) -> None:
-    """原子写入文本文件：先写临时文件（目标目录下），再 rename 覆盖目标。
+    """原子写入文本文件：先写系统临时文件，再 rename 覆盖目标。
 
-    临时文件放在目标目录同文件系统，确保 shutil.move 使用原子 rename。
+    临时文件放在系统临时目录（/tmp），避免网盘同步工具误上传。
     网络文件系统下支持自动重试一次。
     """
-    dst_dir = path.parent
     with tempfile.NamedTemporaryFile(
         suffix=".tmp",
         prefix=_TEMP_PREFIX,
         delete=False,
         mode="w",
         encoding="utf-8",
-        dir=str(dst_dir),
     ) as f:
         tmp_path = Path(f.name)
         f.write(content)

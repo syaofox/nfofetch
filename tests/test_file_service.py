@@ -381,13 +381,13 @@ class TestAtomicWriteText:
         _atomic_write_text(dest, "hello world")
         assert dest.read_text(encoding="utf-8") == "hello world"
 
-    def test_temp_file_in_same_directory(self, tmp_path: Path) -> None:
+    def test_no_temp_leak_in_target_dir(self, tmp_path: Path) -> None:
         nested = tmp_path / "nested"
         nested.mkdir()
         dest = nested / "test.txt"
         _atomic_write_text(dest, "content")
         assert dest.read_text(encoding="utf-8") == "content"
-        # 验证没有临时文件残留
+        # 临时文件在系统 /tmp，不会残留在目标目录
         temps = list(tmp_path.rglob("._nfofetch_*"))
         assert len(temps) == 0
 
