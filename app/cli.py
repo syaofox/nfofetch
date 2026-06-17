@@ -6,10 +6,8 @@ from pathlib import Path
 from app.config import get_settings
 from app.services.nfo_service import build_movie_nfo
 from app.services.scrape_service import scrape_movie
-from app.services.file_service import (
-    DEFAULT_RENAME_FORMAT,
-    save_assets_for_existing_video,
-)
+from app.services.file_service import save_assets_for_existing_video
+from app.services.rename_utils import DEFAULT_RENAME_FORMAT
 
 
 def main(argv: list[str] | None = None) -> None:

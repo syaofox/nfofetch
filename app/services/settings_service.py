@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import logging
 import os
 import threading
 from pathlib import Path
 
+import portalocker
+
 from app.schemas import UserSettings
 
+
+logger = logging.getLogger(__name__)
 
 _settings_lock = threading.Lock()
 
@@ -40,11 +45,12 @@ def load_user_settings() -> UserSettings:
     if path.exists():
         try:
             with _settings_lock:
-                return UserSettings.model_validate_json(
-                    path.read_text(encoding="utf-8")
-                )
+                with open(path, "rb") as f:
+                    portalocker.lock(f, portalocker.LOCK_SH)
+                    data = f.read().decode("utf-8")
+                return UserSettings.model_validate_json(data)
         except Exception:
-            pass
+            logger.warning("设置文件 %s 读取失败，使用默认设置", path)
     return UserSettings()
 
 
@@ -52,4 +58,6 @@ def save_user_settings(settings: UserSettings) -> None:
     path = _settings_path()
     with _settings_lock:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(settings.model_dump_json(indent=2), encoding="utf-8")
+        with open(path, "wb") as f:
+            portalocker.lock(f, portalocker.LOCK_EX)
+            f.write(settings.model_dump_json(indent=2).encode("utf-8"))

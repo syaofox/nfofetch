@@ -23,6 +23,7 @@ RUN pip install --upgrade pip && \
       "python-multipart>=0.0.9" \
       "curl-cffi>=0.14.0" \
       "Pillow>=10.0.0" \
+      "portalocker>=2.10.0" \
       --prefix=/install
 
 

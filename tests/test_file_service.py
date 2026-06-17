@@ -6,20 +6,28 @@ import pytest
 
 from app.schemas import Actor, MovieMetadata
 from app.services.file_service import (
-    _acquire_dir_lock,
-    _atomic_write_text,
     _check_reuse_existing,
-    _cleanup_orphaned_temps,
+    _rename_directory,
+    _scan_dir_names,
+)
+from app.services.file_utils import (
+    _atomic_write_text,
+    _sanitize_filename_part,
+    _truncate_to_bytes,
+)
+from app.services.image_utils import (
     _crop_image,
+)
+from app.services.lock_utils import (
+    _acquire_dir_lock,
+    _cleanup_orphaned_temps,
+    _release_dir_lock,
+)
+from app.services.rename_utils import (
     _format_dir_rename,
     _format_rename,
     _is_vr,
-    _release_dir_lock,
-    _rename_directory,
     _rename_single_video,
-    _sanitize_filename_part,
-    _scan_dir_names,
-    _truncate_to_bytes,
 )
 
 

@@ -13,7 +13,8 @@ class Settings:
     - NFOFETCH_USER_AGENT : HTTP User-Agent
     - NFOFETCH_HTTP_PROXY : HTTP 代理，例如 http://127.0.0.1:7890
     - NFOFETCH_JAVDB_COOKIE: 访问 javdb 时使用的 Cookie（含 cf_clearance 等）
-    - NFOFETCH_MAX_EXTRA_IMAGES: extrafanart 最大保存数量（默认 8）
+    - NFOFETCH_JAVDB_MIRROR: javdb 镜像域名（默认 javdb565.com）
+    - NFOFETCH_MAX_EXTRA_IMAGES: extrafanart 最大保存数量（默认 8，设为 0 完全禁用）
     - NFOFETCH_HTTP_TIMEOUT: 单个 HTTP 请求超时秒数（默认 20）
     - NFOFETCH_BATCH_TIMEOUT: extrafanart 批量下载总超时秒数（默认 120）
     """
@@ -21,9 +22,10 @@ class Settings:
     user_agent: str
     http_proxy: str | None
     javdb_cookie: str | None
-    max_extra_images: int
-    http_timeout: int
-    batch_timeout: int
+    javdb_mirror: str = "javdb565.com"
+    max_extra_images: int = 8
+    http_timeout: int = 20
+    batch_timeout: int = 120
 
 
 @lru_cache(maxsize=1)
@@ -39,26 +41,23 @@ def get_settings() -> Settings:
 
     http_proxy = os.getenv("NFOFETCH_HTTP_PROXY") or None
     javdb_cookie = os.getenv("NFOFETCH_JAVDB_COOKIE") or None
-    max_extra_images_str = os.getenv("NFOFETCH_MAX_EXTRA_IMAGES")
-    max_extra_images = int(max_extra_images_str) if max_extra_images_str else 8
+    javdb_mirror = os.getenv("NFOFETCH_JAVDB_MIRROR") or "javdb565.com"
 
-    http_timeout_str = os.getenv("NFOFETCH_HTTP_TIMEOUT")
-    try:
-        http_timeout = int(http_timeout_str) if http_timeout_str else 20
-    except (ValueError, TypeError):
-        http_timeout = 20
-
-    batch_timeout_str = os.getenv("NFOFETCH_BATCH_TIMEOUT")
-    try:
-        batch_timeout = int(batch_timeout_str) if batch_timeout_str else 120
-    except (ValueError, TypeError):
-        batch_timeout = 120
+    def _parse_int_env(name: str, default: int) -> int:
+        val = os.getenv(name)
+        if val is not None:
+            try:
+                return int(val)
+            except (ValueError, TypeError):
+                pass
+        return default
 
     return Settings(
         user_agent=user_agent,
         http_proxy=http_proxy,
         javdb_cookie=javdb_cookie,
-        max_extra_images=max_extra_images,
-        http_timeout=http_timeout,
-        batch_timeout=batch_timeout,
+        javdb_mirror=javdb_mirror,
+        max_extra_images=_parse_int_env("NFOFETCH_MAX_EXTRA_IMAGES", 8),
+        http_timeout=_parse_int_env("NFOFETCH_HTTP_TIMEOUT", 20),
+        batch_timeout=_parse_int_env("NFOFETCH_BATCH_TIMEOUT", 120),
     )

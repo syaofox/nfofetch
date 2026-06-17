@@ -2,13 +2,19 @@ from __future__ import annotations
 
 import functools
 import logging
+import re
+import shutil
+import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutureTimeoutError
+from pathlib import Path
 from typing import Any, Callable, TypeVar
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
+
+_SHARED_EXECUTOR = ThreadPoolExecutor(max_workers=4)
 
 _RETRYABLE_ERRNOS: set[int] = {
     5,  # EIO - I/O error (NFS/network disconnect)
@@ -32,13 +38,12 @@ def run_with_timeout(
     **kwargs: Any,
 ) -> T:
     """在独立线程中执行 func，超过 timeout 秒则抛出 TimeoutError。"""
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(func, *args, **kwargs)
-        try:
-            return future.result(timeout=timeout)
-        except _FutureTimeoutError:
-            future.cancel()
-            raise TimeoutError(f"Operation timed out after {timeout}s: {func.__name__}")
+    future = _SHARED_EXECUTOR.submit(func, *args, **kwargs)
+    try:
+        return future.result(timeout=timeout)
+    except _FutureTimeoutError:
+        future.cancel()
+        raise TimeoutError(f"Operation timed out after {timeout}s: {func.__name__}")
 
 
 def retry_on_oserror(
@@ -79,3 +84,79 @@ def retry_on_oserror(
         return wrapper
 
     return decorator
+
+
+_TEMP_PREFIX = "._nfofetch_"
+
+# 支持的视频扩展名
+VIDEO_EXTENSIONS = (
+    ".mp4",
+    ".mkv",
+    ".avi",
+    ".wmv",
+    ".mov",
+    ".webm",
+    ".m4v",
+    ".flv",
+    ".ts",
+    ".m2ts",
+    ".mpg",
+    ".mpeg",
+    ".vob",
+    ".3gp",
+    ".ogm",
+    ".divx",
+    ".f4v",
+)
+
+# 文件名中不允许的字符（Windows/Linux 通用）
+_FILENAME_UNSAFE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+# 空括号对（占位符为空时留下）
+_EMPTY_BRACKETS = re.compile(r"\[\s*\]")
+
+
+def _sanitize_filename_part(s: str) -> str:
+    """将字符串清理为安全的文件名片段。"""
+    s = _FILENAME_UNSAFE.sub("_", s)
+    # 反复清除占位符为空后留下的空括号对，如 []、[  ]
+    while True:
+        new_s = _EMPTY_BRACKETS.sub("", s)
+        if new_s == s:
+            break
+        s = new_s
+    return s.strip(" .") or "_"
+
+
+def _truncate_to_bytes(s: str, max_bytes: int) -> str:
+    """将字符串截断至不超过 max_bytes 字节，避免在 UTF-8 多字节字符中间切断。"""
+    b = s.encode("utf-8")
+    if len(b) <= max_bytes:
+        return s
+    b = b[:max_bytes]
+    # 移除可能被切断的 UTF-8 续字节（0x80–0xBF）
+    while b and (b[-1] & 0xC0) == 0x80:
+        b = b[:-1]
+    return b.decode("utf-8", errors="replace")
+
+
+@retry_on_oserror(max_retries=1, base_delay=1.0)
+def _atomic_write_text(path: Path, content: str) -> None:
+    """原子写入文本文件：先写系统临时文件，再 rename 覆盖目标。
+
+    临时文件放在系统临时目录（/tmp），避免网盘同步工具误上传。
+    网络文件系统下支持自动重试一次。
+    """
+    with tempfile.NamedTemporaryFile(
+        suffix=".tmp",
+        prefix=_TEMP_PREFIX,
+        delete=False,
+        mode="w",
+        encoding="utf-8",
+    ) as f:
+        tmp_path = Path(f.name)
+        f.write(content)
+    try:
+        shutil.move(str(tmp_path), str(path))
+    except BaseException:
+        tmp_path.unlink(missing_ok=True)
+        raise

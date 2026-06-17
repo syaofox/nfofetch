@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+import urllib.parse
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -14,7 +16,7 @@ try:  # 尝试使用 curl_cffi 来模拟浏览器指纹，绕过 Cloudflare
     from curl_cffi import requests as curl_requests
 
     _HAS_CURL_CFFI = True
-except Exception:  # pragma: no cover - 运行环境未安装 curl_cffi 时兜底
+except ImportError:  # pragma: no cover - 运行环境未安装 curl_cffi 时兜底
     curl_requests = None  # type: ignore[assignment, misc]
     _HAS_CURL_CFFI = False
 
@@ -26,7 +28,6 @@ class JavdbScraper(BaseScraper):
     """
 
     name = "javdb"
-    MIRROR_DOMAIN = "javdb565.com"
 
     def supports(self, url: str) -> bool:
         parsed = urlparse(url)
@@ -87,7 +88,7 @@ class JavdbScraper(BaseScraper):
         # 如果用户用了主域名 javdb.com，尝试改成当前常见镜像域名，减少被墙/403 概率。
         host = parsed.netloc.lower()
         if host == "javdb.com":
-            url = parsed._replace(netloc=self.MIRROR_DOMAIN).geturl()
+            url = parsed._replace(netloc=settings.javdb_mirror).geturl()
 
         html = self._request_page(url, settings)
         tree = HTMLParser(html)
@@ -97,11 +98,8 @@ class JavdbScraper(BaseScraper):
 
     def search(self, query: str, settings: Settings) -> list[SearchResult]:
         """搜索影片，支持番号或标题搜索。"""
-        import urllib.parse
 
-        search_url = (
-            f"https://{self.MIRROR_DOMAIN}/search?q={urllib.parse.quote(query)}&f=all"
-        )
+        search_url = f"https://{settings.javdb_mirror}/search?q={urllib.parse.quote(query)}&f=all"
 
         html = self._request_page(search_url, settings)
         return self._parse_search_results(html, base_url=search_url)
@@ -197,7 +195,6 @@ class JavdbScraper(BaseScraper):
 
         # 兜底：从标题中提取形如 `ABC-123` 的番号
         title = self._parse_title(tree) or ""
-        import re
 
         m = re.search(r"([A-Za-z]{2,6})[-_]?(\d{2,8})", title)
         if m:
@@ -224,7 +221,6 @@ class JavdbScraper(BaseScraper):
         #   &nbsp;<span class="value">2025-10-23</span>
         # </div>
         # 兼容老结构中的「發行日期/发行日期/上市日期」文案。
-        import re
 
         date_text: str | None = None
         for node in tree.css("div.panel-block, div.panel-item, tr"):
@@ -250,8 +246,6 @@ class JavdbScraper(BaseScraper):
         return year, date_text
 
     def _parse_runtime(self, tree: HTMLParser) -> int | None:
-        import re
-
         for node in tree.css("div.panel-block, div.panel-item, tr"):
             text = node.text(strip=True)
             if "分鐘" in text or "分" in text or "min" in text.lower():
@@ -365,7 +359,6 @@ class JavdbScraper(BaseScraper):
                         directors.append(name)
 
         # 评分
-        import re
 
         if rating is None:
             for node in tree.css("div.panel-block, div.panel-item, tr, section, div"):
@@ -479,8 +472,6 @@ class JavdbScraper(BaseScraper):
             date_node = item.css_first("div.meta")
             date_text = date_node.text(strip=True) if date_node else None
             if date_text:
-                import re
-
                 match = re.search(r"(\d{2})/(\d{2})/(\d{4})", date_text)
                 if match:
                     date_text = f"{match.group(3)}-{match.group(1)}-{match.group(2)}"

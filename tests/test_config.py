@@ -69,3 +69,26 @@ def test_dataclass_immutable_like() -> None:
     settings = get_settings()
     assert isinstance(settings, Settings)
     assert settings.http_timeout == 20
+
+
+def test_javdb_mirror_default() -> None:
+    settings = get_settings()
+    assert settings.javdb_mirror == "javdb565.com"
+
+
+def test_javdb_mirror_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("NFOFETCH_JAVDB_MIRROR", "javdb666.com")
+    settings = get_settings()
+    assert settings.javdb_mirror == "javdb666.com"
+
+
+def test_max_extra_images_zero(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("NFOFETCH_MAX_EXTRA_IMAGES", "0")
+    settings = get_settings()
+    assert settings.max_extra_images == 0
+
+
+def test_max_extra_images_negative(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("NFOFETCH_MAX_EXTRA_IMAGES", "-1")
+    settings = get_settings()
+    assert settings.max_extra_images == -1

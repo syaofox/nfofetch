@@ -20,7 +20,8 @@ from fastapi.templating import Jinja2Templates
 from app.config import get_settings
 from app.middleware import create_rate_limit_middleware
 from app.schemas import MovieMetadata, ScrapeResult, UserSettings
-from app.services.file_service import VIDEO_EXTENSIONS, save_assets_for_existing_video
+from app.services.file_utils import VIDEO_EXTENSIONS
+from app.services.file_service import save_assets_for_existing_video
 from app.services.nfo_service import build_movie_nfo
 from app.services.scrape_service import is_url, scrape_movie, search_movie
 from app.services.settings_service import load_user_settings, save_user_settings
@@ -57,6 +58,20 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
+
+def _jinja_escapejs(value: str) -> str:
+    """Jinja2 过滤器：转义字符串中的特殊字符以安全嵌入 JavaScript 字符串（单引号上下文）。"""
+    return (
+        value.replace("\\", "\\\\")
+        .replace("'", "\\'")
+        .replace('"', '\\"')
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+    )
+
+
+templates.env.filters["escapejs"] = _jinja_escapejs
+
 # 后台刮削任务进度存储（内存）
 scrape_tasks: dict[str, dict[str, Any]] = {}
 scrape_tasks_lock = threading.Lock()
@@ -71,13 +86,13 @@ def _update_task(task_id: str, **kwargs: Any) -> None:
 def _cleanup_stale_tasks(max_age: float = 300.0) -> None:
     """移除超过 max_age 秒的已完成任务，防止内存泄漏。"""
     now = time.monotonic()
-    stale = [
-        tid
-        for tid, t in scrape_tasks.items()
-        if t.get("done") and (now - t.get("created_at", 0)) > max_age
-    ]
-    for tid in stale:
-        with scrape_tasks_lock:
+    with scrape_tasks_lock:
+        stale = [
+            tid
+            for tid, t in scrape_tasks.items()
+            if t.get("done") and (now - t.get("created_at", 0)) > max_age
+        ]
+        for tid in stale:
             scrape_tasks.pop(tid, None)
 
 

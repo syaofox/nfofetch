@@ -7,7 +7,7 @@ import httpx
 
 try:
     from curl_cffi.requests.exceptions import HTTPError as _CurlHTTPError
-except Exception:
+except ImportError:
     _CurlHTTPError = None  # type: ignore[assignment, misc]
 
 RETRYABLE_STATUSES = frozenset({429, 500, 502, 503, 504})
