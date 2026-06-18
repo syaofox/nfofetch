@@ -476,6 +476,33 @@
           loadSettings();
         }
       })();
+
+      // 图片单击设 poster，双击设 fanart
+      (function () {
+        document.body.addEventListener("click", function (e) {
+          var thumb = e.target.closest(".nf-image-thumb");
+          if (!thumb) return;
+          var option = thumb.closest(".nf-image-option");
+          if (!option) return;
+
+          if (option._clickTimer) {
+            clearTimeout(option._clickTimer);
+            option._clickTimer = null;
+            var fanartRadio = option.querySelector(
+              "input[name='fanart_url']"
+            );
+            if (fanartRadio) fanartRadio.checked = true;
+          } else {
+            option._clickTimer = setTimeout(function () {
+              option._clickTimer = null;
+              var posterRadio = option.querySelector(
+                "input[name='poster_url']"
+              );
+              if (posterRadio) posterRadio.checked = true;
+            }, 250);
+          }
+        });
+      })();
     </script>
   </body>
 </html>

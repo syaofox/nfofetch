@@ -308,6 +308,7 @@
   border-radius: 0.5rem;
   object-fit: cover;
   background: #e5e7eb;
+  cursor: pointer;
 }
 
 .nf-image-option-controls {
