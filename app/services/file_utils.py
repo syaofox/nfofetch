@@ -109,6 +109,18 @@ VIDEO_EXTENSIONS = (
     ".f4v",
 )
 
+# 支持的字幕扩展名
+SUBTITLE_EXTENSIONS = (
+    ".srt",
+    ".ass",
+    ".ssa",
+    ".sub",
+    ".idx",
+    ".sup",
+    ".vtt",
+    ".pgs",
+)
+
 # 文件名中不允许的字符（Windows/Linux 通用）
 _FILENAME_UNSAFE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 # 空括号对（占位符为空时留下）

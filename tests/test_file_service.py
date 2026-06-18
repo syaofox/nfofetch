@@ -28,6 +28,11 @@ from app.services.rename_utils import (
     _format_rename,
     _is_vr,
     _rename_single_video,
+    _rename_videos_in_dir,
+)
+from app.services.subtitle_utils import (
+    _find_matching_subtitles,
+    _rename_subtitles,
 )
 
 
@@ -747,3 +752,262 @@ class TestSaveAssetsForExistingVideo:
             assert Path(result.video_path).is_absolute()
         finally:
             os.chdir(old_cwd)
+
+
+class TestFindMatchingSubtitles:
+    def test_exact_stem_match(self, tmp_path: Path) -> None:
+        video = tmp_path / "ABC-123.mp4"
+        video.write_text("fake")
+        sub = tmp_path / "ABC-123.srt"
+        sub.write_text("sub")
+        result = _find_matching_subtitles(video)
+        assert result == [(sub, None)]
+
+    def test_language_tag_match(self, tmp_path: Path) -> None:
+        video = tmp_path / "ABC-123.mp4"
+        video.write_text("fake")
+        sub = tmp_path / "ABC-123.cht.srt"
+        sub.write_text("sub")
+        result = _find_matching_subtitles(video)
+        assert result == [(sub, "cht")]
+
+    def test_multiple_language_subtitles(self, tmp_path: Path) -> None:
+        video = tmp_path / "ABC-123.mp4"
+        video.write_text("fake")
+        sub_cht = tmp_path / "ABC-123.cht.srt"
+        sub_cht.write_text("cht")
+        sub_eng = tmp_path / "ABC-123.eng.srt"
+        sub_eng.write_text("eng")
+        sub_jp = tmp_path / "ABC-123.ja.ass"
+        sub_jp.write_text("jp")
+        result = _find_matching_subtitles(video)
+        assert len(result) == 3
+        assert (sub_cht, "cht") in result
+        assert (sub_eng, "eng") in result
+        assert (sub_jp, "ja") in result
+
+    def test_ignores_unrelated_files(self, tmp_path: Path) -> None:
+        video = tmp_path / "ABC-123.mp4"
+        video.write_text("fake")
+        (tmp_path / "unrelated.txt").write_text("text")
+        (tmp_path / "other.srt").write_text("sub")
+        result = _find_matching_subtitles(video)
+        assert result == []
+
+    def test_ignores_subdirectories(self, tmp_path: Path) -> None:
+        video = tmp_path / "ABC-123.mp4"
+        video.write_text("fake")
+        subdir = tmp_path / "subs"
+        subdir.mkdir()
+        (subdir / "ABC-123.srt").write_text("sub")
+        result = _find_matching_subtitles(video)
+        assert result == []
+
+    def test_case_insensitive_extension(self, tmp_path: Path) -> None:
+        video = tmp_path / "ABC-123.mp4"
+        video.write_text("fake")
+        sub = tmp_path / "ABC-123.SRT"
+        sub.write_text("sub")
+        result = _find_matching_subtitles(video)
+        assert result == [(sub, None)]
+
+    def test_nonexistent_directory(self) -> None:
+        video = Path("/nonexistent/movie.mp4")
+        result = _find_matching_subtitles(video)
+        assert result == []
+
+    def test_video_stem_with_dot(self, tmp_path: Path) -> None:
+        video = tmp_path / "ABC.123.mp4"
+        video.write_text("fake")
+        sub = tmp_path / "ABC.123.cht.srt"
+        sub.write_text("sub")
+        result = _find_matching_subtitles(video)
+        assert result == [(sub, "cht")]
+
+
+class TestRenameSubtitles:
+    def test_renames_exact_match_subtitle(self, tmp_path: Path) -> None:
+        old_video = tmp_path / "ABC-123.mp4"
+        old_video.write_text("video")
+        sub = tmp_path / "ABC-123.srt"
+        sub.write_text("sub")
+        new_video = tmp_path / "ABP-456.mp4"
+        old_video.rename(new_video)
+
+        result = _rename_subtitles(old_video, new_video)
+        expected = tmp_path / "ABP-456.srt"
+        assert result == [expected]
+        assert expected.exists()
+        assert not sub.exists()
+
+    def test_renames_language_tagged_subtitle(self, tmp_path: Path) -> None:
+        old_video = tmp_path / "ABC-123.mp4"
+        old_video.write_text("video")
+        sub = tmp_path / "ABC-123.cht.srt"
+        sub.write_text("sub")
+        new_video = tmp_path / "ABP-456.mp4"
+        old_video.rename(new_video)
+
+        result = _rename_subtitles(old_video, new_video)
+        expected = tmp_path / "ABP-456.cht.srt"
+        assert result == [expected]
+        assert expected.exists()
+        assert not sub.exists()
+
+    def test_skip_if_same_name(self, tmp_path: Path) -> None:
+        video = tmp_path / "ABC-123.mp4"
+        video.write_text("video")
+        sub = tmp_path / "ABC-123.srt"
+        sub.write_text("sub")
+        result = _rename_subtitles(video, video)
+        assert result == [sub]
+
+    def test_multiple_subtitle_formats(self, tmp_path: Path) -> None:
+        old_video = tmp_path / "ABC-123.mp4"
+        old_video.write_text("video")
+        subs = [
+            tmp_path / "ABC-123.srt",
+            tmp_path / "ABC-123.cht.srt",
+            tmp_path / "ABC-123.eng.ass",
+        ]
+        for s in subs:
+            s.write_text("sub")
+
+        new_video = tmp_path / "ABP-456.mp4"
+        old_video.rename(new_video)
+
+        result = _rename_subtitles(old_video, new_video)
+        expected = [
+            tmp_path / "ABP-456.srt",
+            tmp_path / "ABP-456.cht.srt",
+            tmp_path / "ABP-456.eng.ass",
+        ]
+        assert sorted(result) == sorted(expected)
+        for p in expected:
+            assert p.exists()
+
+
+class TestRenameSingleVideoWithSubtitles:
+    def test_subtitle_follows_video_rename(self, tmp_path: Path) -> None:
+        video = tmp_path / "old_name.mp4"
+        video.write_text("video")
+        sub = tmp_path / "old_name.srt"
+        sub.write_text("sub")
+        meta = MovieMetadata(title="Test", number="ABP-123")
+
+        result = _rename_single_video(video, meta, "{id}")
+        assert result == tmp_path / "ABP-123.mp4"
+        assert (tmp_path / "ABP-123.srt").exists()
+        assert not video.exists()
+        assert not sub.exists()
+
+    def test_subtitle_with_language_tag_follows(self, tmp_path: Path) -> None:
+        video = tmp_path / "old.mp4"
+        video.write_text("video")
+        sub = tmp_path / "old.cht.srt"
+        sub.write_text("sub")
+        meta = MovieMetadata(
+            title="Test",
+            number="ABP-123",
+            actors=[Actor(name="田中丽奈")],
+        )
+
+        result = _rename_single_video(video, meta, "[{actor}]{id}")
+        expected_video = tmp_path / "[田中丽奈]ABP-123.mp4"
+        expected_sub = tmp_path / "[田中丽奈]ABP-123.cht.srt"
+        assert result == expected_video
+        assert expected_sub.exists()
+        assert not sub.exists()
+
+    def test_multiple_subs_follow_video(self, tmp_path: Path) -> None:
+        video = tmp_path / "old.mp4"
+        video.write_text("video")
+        subs = [
+            tmp_path / "old.srt",
+            tmp_path / "old.cht.srt",
+            tmp_path / "old.eng.ass",
+        ]
+        for s in subs:
+            s.write_text("sub")
+        meta = MovieMetadata(title="Test", number="ABP-123")
+
+        _rename_single_video(video, meta, "{id}")
+        assert (tmp_path / "ABP-123.srt").exists()
+        assert (tmp_path / "ABP-123.cht.srt").exists()
+        assert (tmp_path / "ABP-123.eng.ass").exists()
+
+    def test_no_subtitles_still_works(self, tmp_path: Path) -> None:
+        video = tmp_path / "old.mp4"
+        video.write_text("video")
+        meta = MovieMetadata(title="Test", number="ABP-123")
+        result = _rename_single_video(video, meta, "{id}")
+        assert result == tmp_path / "ABP-123.mp4"
+
+    def test_subtitles_not_follow_when_name_unchanged(self, tmp_path: Path) -> None:
+        meta = MovieMetadata(title="Test", number="ABP-123")
+        video = tmp_path / "ABP-123.mp4"
+        video.write_text("video")
+        sub = tmp_path / "ABP-123.srt"
+        sub.write_text("sub")
+        result = _rename_single_video(video, meta, "{id}")
+        assert result == video
+        assert sub.exists()
+
+
+class TestRenameVideosInDir:
+    def test_basic_multi_video_rename(self, tmp_path: Path) -> None:
+        v1 = tmp_path / "AAA-001.mp4"
+        v1.write_text("v1")
+        v2 = tmp_path / "BBB-002.mp4"
+        v2.write_text("v2")
+        meta = MovieMetadata(title="Test", number="ABP-123")
+
+        result = _rename_videos_in_dir(tmp_path, meta, "{id}-{idx}")
+
+        assert len(result) == 2
+        assert (tmp_path / "ABP-123-1.mp4").exists()
+        assert (tmp_path / "ABP-123-2.mp4").exists()
+
+    def test_subtitles_follow_in_batch_rename(self, tmp_path: Path) -> None:
+        v1 = tmp_path / "AAA-001.mp4"
+        v1.write_text("v1")
+        s1 = tmp_path / "AAA-001.srt"
+        s1.write_text("s1")
+        s1_cht = tmp_path / "AAA-001.cht.srt"
+        s1_cht.write_text("s1_cht")
+
+        v2 = tmp_path / "BBB-002.mp4"
+        v2.write_text("v2")
+        s2 = tmp_path / "BBB-002.eng.srt"
+        s2.write_text("s2")
+
+        meta = MovieMetadata(title="Test", number="ABP-123")
+
+        result = _rename_videos_in_dir(tmp_path, meta, "{id}-{idx}")
+
+        assert len(result) == 2
+        assert (tmp_path / "ABP-123-1.mp4").exists()
+        assert (tmp_path / "ABP-123-1.srt").exists()
+        assert (tmp_path / "ABP-123-1.cht.srt").exists()
+        assert (tmp_path / "ABP-123-2.mp4").exists()
+        assert (tmp_path / "ABP-123-2.eng.srt").exists()
+        assert not s1.exists()
+        assert not s1_cht.exists()
+        assert not s2.exists()
+
+    def test_no_videos_returns_empty(self, tmp_path: Path) -> None:
+        meta = MovieMetadata(title="Test", number="ABP-123")
+        result = _rename_videos_in_dir(tmp_path, meta, "{id}")
+        assert result == {}
+
+    def test_no_subtitles_in_batch_rename(self, tmp_path: Path) -> None:
+        v1 = tmp_path / "AAA-001.mp4"
+        v1.write_text("v1")
+        v2 = tmp_path / "BBB-002.mp4"
+        v2.write_text("v2")
+        meta = MovieMetadata(title="Test", number="ABP-123")
+
+        result = _rename_videos_in_dir(tmp_path, meta, "{id}-{idx}")
+        assert len(result) == 2
+        assert (tmp_path / "ABP-123-1.mp4").exists()
+        assert (tmp_path / "ABP-123-2.mp4").exists()

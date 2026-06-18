@@ -17,6 +17,7 @@ from app.services.file_utils import (
     _sanitize_filename_part,
     _truncate_to_bytes,
 )
+from app.services.subtitle_utils import _rename_subtitles
 
 logger = logging.getLogger(__name__)
 
@@ -188,6 +189,7 @@ def _rename_single_video(
         new_path = movie_dir / f"{base_name}_{n}{ext}"
     if new_path != video_path:
         video_path.rename(new_path)
+        _rename_subtitles(video_path, new_path)
     return new_path
 
 
@@ -236,9 +238,10 @@ def _rename_videos_in_dir(
         temp_path = movie_dir / f"{_TEMP_PREFIX}{i}{ext}"
         temp_renames.append((old_path, temp_path))
 
-    # 执行临时重命名
+    # 执行临时重命名（视频 + 字幕同步）
     for old_p, temp_p in temp_renames:
         old_p.rename(temp_p)
+        _rename_subtitles(old_p, temp_p)
 
     # 最终重命名
     result: dict[Path, Path] = {}
@@ -258,6 +261,7 @@ def _rename_videos_in_dir(
             n += 1
             final_path = movie_dir / f"{base_name}_{n}{ext}"
         temp_p.rename(final_path)
+        _rename_subtitles(temp_p, final_path)
         result[temp_renames[i - 1][0]] = final_path
 
     return result
