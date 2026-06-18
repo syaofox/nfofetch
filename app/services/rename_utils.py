@@ -9,7 +9,7 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from app.schemas import MovieMetadata
+from app.schemas import Actor, MovieMetadata
 from app.services.lock_utils import _cleanup_orphaned_temps
 from app.services.file_utils import (
     VIDEO_EXTENSIONS,
@@ -40,6 +40,16 @@ def _is_vr(metadata: MovieMetadata) -> bool:
         if "VR" in t.upper():
             return True
     return False
+
+
+def _format_actor_part(actors: list[Actor], limit: int) -> str:
+    """格式化演员名：取前 limit 个，超出则加"等x人"后缀。"""
+    if limit <= 0:
+        return ""
+    joined = "、".join(a.name for a in actors[:limit])
+    if len(actors) > limit:
+        joined += f"等{len(actors)}人"
+    return joined
 
 
 @functools.lru_cache(maxsize=256)
@@ -110,9 +120,7 @@ def _format_rename(
     result = re.sub(
         r"\{actor(?::(\d+))?\}",
         lambda m: (
-            "、".join(a.name for a in actors_all[: int(m.group(1))])
-            if m.group(1)
-            else actor_val
+            _format_actor_part(actors_all, int(m.group(1))) if m.group(1) else actor_val
         ),
         result,
     )
@@ -148,9 +156,7 @@ def _format_dir_rename(
     result = re.sub(
         r"\{actor(?::(\d+))?\}",
         lambda m: (
-            "、".join(a.name for a in actors_all[: int(m.group(1))])
-            if m.group(1)
-            else actor_val
+            _format_actor_part(actors_all, int(m.group(1))) if m.group(1) else actor_val
         ),
         result,
     )

@@ -124,7 +124,8 @@ class TestFormatRename:
         result = _format_rename(meta, idx=1, is_vr=False, format_str="{actor}")
         assert result == "田中丽奈、佐藤健"
 
-    def test_actor_limit_count(self) -> None:
+    def test_actor_limit_overflow_with_suffix(self) -> None:
+        """超出限制时追加"等x人"后缀。"""
         meta = MovieMetadata(
             title="Test",
             number="ABP-123",
@@ -135,9 +136,24 @@ class TestFormatRename:
             ],
         )
         result = _format_rename(meta, idx=1, is_vr=False, format_str="{actor:2}")
-        assert result == "田中丽奈、佐藤健"
+        assert result == "田中丽奈、佐藤健等3人"
 
-    def test_actor_limit_exceeds_count(self) -> None:
+    def test_actor_limit_exact_no_suffix(self) -> None:
+        """恰好等于限制时不加后缀。"""
+        meta = MovieMetadata(
+            title="Test",
+            number="ABP-123",
+            actors=[
+                Actor(name="田中丽奈"),
+                Actor(name="佐藤健"),
+                Actor(name="桥本环奈"),
+            ],
+        )
+        result = _format_rename(meta, idx=1, is_vr=False, format_str="{actor:3}")
+        assert result == "田中丽奈、佐藤健、桥本环奈"
+
+    def test_actor_limit_less_than_total(self) -> None:
+        """limit > 实际人数时不加后缀。"""
         meta = MovieMetadata(
             title="Test",
             number="ABP-123",
@@ -155,7 +171,24 @@ class TestFormatRename:
         result = _format_rename(meta, idx=1, is_vr=False, format_str="{actor:0}")
         assert result == "_"
 
-    def test_actor_dir_rename_limit(self) -> None:
+    def test_actor_limit_one_with_overflow(self) -> None:
+        """limit=1 且有更多演员时显示"名前等N人"。"""
+        meta = MovieMetadata(
+            title="Test",
+            number="ABP-123",
+            actors=[
+                Actor(name="田中丽奈"),
+                Actor(name="佐藤健"),
+                Actor(name="桥本环奈"),
+                Actor(name="绫濑遥"),
+                Actor(name="新垣结衣"),
+            ],
+        )
+        result = _format_rename(meta, idx=1, is_vr=False, format_str="{actor:1}")
+        assert result == "田中丽奈等5人"
+
+    def test_actor_dir_rename_limit_with_suffix(self) -> None:
+        """目录重命名同样支持溢出后缀。"""
         meta = MovieMetadata(
             title="Test",
             number="ABP-123",
@@ -166,7 +199,7 @@ class TestFormatRename:
             ],
         )
         result = _format_dir_rename(meta, is_vr=False, format_str="{actor:2}")
-        assert result == "田中丽奈、佐藤健"
+        assert result == "田中丽奈、佐藤健等3人"
 
     def test_actor_no_limit_still_works(self) -> None:
         meta = MovieMetadata(
