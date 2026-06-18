@@ -17,6 +17,7 @@ class Settings:
     - NFOFETCH_MAX_EXTRA_IMAGES: extrafanart 最大保存数量（默认 8，设为 0 完全禁用）
     - NFOFETCH_HTTP_TIMEOUT: 单个 HTTP 请求超时秒数（默认 20）
     - NFOFETCH_BATCH_TIMEOUT: extrafanart 批量下载总超时秒数（默认 120）
+    - NFOFETCH_SERIAL_WRITES: 串行写入图片，避免 FUSE 网络文件系统并发 I/O 断开（默认 false）
     """
 
     user_agent: str
@@ -26,6 +27,7 @@ class Settings:
     max_extra_images: int = 8
     http_timeout: int = 20
     batch_timeout: int = 120
+    serial_writes: bool = False
 
 
 @lru_cache(maxsize=1)
@@ -52,6 +54,12 @@ def get_settings() -> Settings:
                 pass
         return default
 
+    def _parse_bool_env(name: str, default: bool) -> bool:
+        val = os.getenv(name)
+        if val is not None:
+            return val.lower() in ("true", "1", "yes")
+        return default
+
     return Settings(
         user_agent=user_agent,
         http_proxy=http_proxy,
@@ -60,4 +68,5 @@ def get_settings() -> Settings:
         max_extra_images=_parse_int_env("NFOFETCH_MAX_EXTRA_IMAGES", 8),
         http_timeout=_parse_int_env("NFOFETCH_HTTP_TIMEOUT", 20),
         batch_timeout=_parse_int_env("NFOFETCH_BATCH_TIMEOUT", 120),
+        serial_writes=_parse_bool_env("NFOFETCH_SERIAL_WRITES", False),
     )

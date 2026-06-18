@@ -21,6 +21,7 @@ def test_default_values() -> None:
     assert settings.max_extra_images == 8
     assert settings.http_timeout == 20
     assert settings.batch_timeout == 120
+    assert settings.serial_writes is False
     assert "Firefox" in settings.user_agent or "Mozilla" in settings.user_agent
 
 
@@ -69,6 +70,29 @@ def test_dataclass_immutable_like() -> None:
     settings = get_settings()
     assert isinstance(settings, Settings)
     assert settings.http_timeout == 20
+
+
+def test_serial_writes_default() -> None:
+    settings = get_settings()
+    assert settings.serial_writes is False
+
+
+def test_serial_writes_env_true(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("NFOFETCH_SERIAL_WRITES", "true")
+    settings = get_settings()
+    assert settings.serial_writes is True
+
+
+def test_serial_writes_env_1(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("NFOFETCH_SERIAL_WRITES", "1")
+    settings = get_settings()
+    assert settings.serial_writes is True
+
+
+def test_serial_writes_env_false(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("NFOFETCH_SERIAL_WRITES", "false")
+    settings = get_settings()
+    assert settings.serial_writes is False
 
 
 def test_javdb_mirror_default() -> None:

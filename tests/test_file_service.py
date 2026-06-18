@@ -583,32 +583,21 @@ class TestRenameDirectory:
 
 class TestDirLock:
     def test_acquire_and_release(self, tmp_path: Path) -> None:
-        lock = _acquire_dir_lock(tmp_path)
-        assert lock is not None
-        fd, lock_path = lock
-        assert lock_path.name == ".nfofetch_lock"
-        _release_dir_lock(fd, lock_path)
-        # 锁文件应该可以正常清理
-        lock_path.unlink(missing_ok=True)
-        assert not lock_path.exists()
+        assert _acquire_dir_lock(tmp_path)
+        assert (tmp_path / ".nfofetch_lock").exists()
+        _release_dir_lock(tmp_path)
+        assert not (tmp_path / ".nfofetch_lock").exists()
 
     def test_lock_in_subdirectory(self, tmp_path: Path) -> None:
         sub = tmp_path / "sub"
         sub.mkdir()
-        lock = _acquire_dir_lock(sub)
-        assert lock is not None
-        fd, lock_path = lock
-        _release_dir_lock(fd, lock_path)
+        assert _acquire_dir_lock(sub)
+        _release_dir_lock(sub)
 
     def test_concurrent_lock_fails(self, tmp_path: Path) -> None:
-        lock1 = _acquire_dir_lock(tmp_path, timeout=0.5)
-        assert lock1 is not None
-        fd1, _ = lock1
-        try:
-            lock2 = _acquire_dir_lock(tmp_path, timeout=0.5)
-            assert lock2 is None  # 应无法获取锁
-        finally:
-            _release_dir_lock(fd1, tmp_path / ".nfofetch_lock")
+        assert _acquire_dir_lock(tmp_path, timeout=1.0)
+        assert not _acquire_dir_lock(tmp_path, timeout=0.5)  # 应无法获取锁
+        _release_dir_lock(tmp_path)
 
 
 class TestSaveAssetsForExistingVideo:
@@ -752,6 +741,38 @@ class TestSaveAssetsForExistingVideo:
             assert Path(result.video_path).is_absolute()
         finally:
             os.chdir(old_cwd)
+
+    def test_serial_writes_success(self, tmp_path: Path, sample_movie_metadata) -> None:
+        """serial_writes=True 模式下基本刮削正常。"""
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.nfo_service import build_movie_nfo
+
+        video = tmp_path / "test.mp4"
+        video.write_text("fake video content")
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+            serial_writes=True,
+        )
+        nfo_text = build_movie_nfo(sample_movie_metadata)
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=nfo_text,
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+        )
+
+        assert result.success
+        nfo_path = tmp_path / "movie.nfo"
+        assert nfo_path.exists()
+        assert "ABP-123" in nfo_path.read_text(encoding="utf-8")
 
 
 class TestFindMatchingSubtitles:

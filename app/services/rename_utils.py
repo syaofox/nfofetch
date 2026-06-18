@@ -72,7 +72,7 @@ def _get_video_resolution(video_path: Path) -> str:
             ],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=10,
         )
         if result.returncode != 0:
             return ""

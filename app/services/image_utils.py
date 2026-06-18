@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import shutil
 import tempfile
+import time
 from pathlib import Path
 
 import httpx
@@ -10,6 +11,46 @@ import httpx
 from app.config import Settings
 from app.retry import retry_request
 from app.services.file_utils import _TEMP_PREFIX
+
+# 网络文件系统重试相关的 errno
+_RETRYABLE_ERRNOS = frozenset(
+    {
+        5,  # EIO
+        116,  # ESTALE
+        122,  # ETIMEDOUT
+    }
+)
+
+
+def _move_with_retry(
+    src: Path, dst: Path, max_retries: int = 2, base_delay: float = 1.0
+) -> None:
+    """将 src 移动到 dst，遇到网络文件系统 OSError 时自动重试。"""
+    last_exc: OSError | None = None
+    for attempt in range(max_retries + 1):
+        try:
+            shutil.move(str(src), str(dst))
+            return
+        except OSError as e:
+            last_exc = e
+            errno = getattr(e, "errno", None)
+            if errno in _RETRYABLE_ERRNOS and attempt < max_retries:
+                delay = base_delay * (2**attempt)
+                logger.warning(
+                    "移动文件失败 (errno=%d) %s -> %s, retry %d/%d in %.1fs: %s",
+                    errno,
+                    src.name,
+                    dst.name,
+                    attempt + 1,
+                    max_retries,
+                    delay,
+                    e,
+                )
+                time.sleep(delay)
+                continue
+            raise
+    raise last_exc  # type: ignore[misc]
+
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +131,7 @@ def _download_image(
 
         try:
             retry_request(_fetch, max_retries=1, base_delay=1.0)
-            shutil.move(str(tmp_path), str(dest))
+            _move_with_retry(tmp_path, dest)
         except Exception:
             tmp_path.unlink(missing_ok=True)
             raise
@@ -123,7 +164,7 @@ def _download_image_with_crop(
             tmp_path.unlink(missing_ok=True)
             return False
         _crop_image(tmp_path, crop_direction)
-        shutil.move(str(tmp_path), str(dest))
+        _move_with_retry(tmp_path, dest)
         return True
     except Exception as exc:
         logger.warning("下载/裁切失败: %s - %s", url, exc)
