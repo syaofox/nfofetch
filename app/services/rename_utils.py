@@ -6,7 +6,6 @@ import logging
 import os
 import re
 import subprocess
-import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -211,23 +210,16 @@ def _rename_videos_in_dir(
 ) -> dict[Path, Path]:
     """重命名目录下所有视频文件，返回 旧路径 -> 新路径 映射。"""
     video_files: list[Path] = []
-    _scandir_errnos = frozenset({5, 116, 122})
-    for _attempt in range(3):
-        try:
-            with os.scandir(movie_dir) as it:
-                for entry in sorted(it, key=lambda e: e.name.lower()):
-                    if (
-                        entry.is_file()
-                        and Path(entry.name).suffix.lower() in VIDEO_EXTENSIONS
-                    ):
-                        video_files.append(movie_dir / entry.name)
-            break
-        except OSError as e:
-            errno = getattr(e, "errno", None)
-            if errno in _scandir_errnos and _attempt < 2:
-                time.sleep(1.0)
-                continue
-            break
+    try:
+        with os.scandir(movie_dir) as it:
+            for entry in sorted(it, key=lambda e: e.name.lower()):
+                if (
+                    entry.is_file()
+                    and Path(entry.name).suffix.lower() in VIDEO_EXTENSIONS
+                ):
+                    video_files.append(movie_dir / entry.name)
+    except OSError:
+        pass
     if not video_files:
         return {}
 
@@ -266,7 +258,10 @@ def _rename_videos_in_dir(
     result: dict[Path, Path] = {}
     for i, (_, temp_p) in enumerate(temp_renames, start=1):
         base_name = _format_rename(
-            metadata, i, is_vr, format_str,
+            metadata,
+            i,
+            is_vr,
+            format_str,
             resolution=resolutions[i - 1] if resolutions else "",
         )
         ext = temp_p.suffix

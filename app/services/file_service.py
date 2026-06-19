@@ -17,12 +17,9 @@ from app.config import Settings
 from app.schemas import MovieMetadata, ScrapeResult
 from app.services.file_utils import (
     _atomic_write_text,
-    _mkdir_with_retry,
     _read_nfo_art_mapping,
     _read_nfo_url_hash,
-    _settle_rename,
     _url_hash,
-    retry_on_oserror,
     run_with_timeout,
 )
 from app.services.image_utils import _download_image, _download_image_with_crop
@@ -40,7 +37,6 @@ logger = logging.getLogger(__name__)
 ProgressCallback = Callable[[str, int, int, str], None]
 
 
-@retry_on_oserror(max_retries=1, base_delay=1.0)
 def _scan_dir_names_impl(movie_dir: Path) -> set[str]:
     with os.scandir(movie_dir) as it:
         return {e.name for e in it}
@@ -232,7 +228,7 @@ def _write_nfo_and_images(
 
     # 3. extrafanart/*（顺序命名 01.jpg, 02.jpg…，不删除已有文件）
     extra_dir = movie_dir / "extrafanart"
-    _mkdir_with_retry(extra_dir)
+    extra_dir.mkdir(exist_ok=True)
     extra_names = _scan_dir_names(extra_dir)
 
     all_extra_sources: list[str] = []
@@ -428,7 +424,7 @@ def save_assets_for_existing_video(
     # 避免对网络路径做多余的符号链接解析（absolute() 不触发网络 stat）
     video_path = video_path.absolute()
     movie_dir = video_path.parent
-    _mkdir_with_retry(movie_dir, parents=True)
+    movie_dir.mkdir(parents=True, exist_ok=True)
 
     # 获取目录锁，防止同目录并发刮削（默认关闭，单人使用无需）
     lock_acquired = False
@@ -451,10 +447,6 @@ def save_assets_for_existing_video(
                     message=f"重命名失败：{e}",
                     metadata=metadata,
                 )
-            # FUSE 挂载下等待文件重命名稳定，避免后续写入时 mounts 断开
-            if settings.serial_writes:
-                _settle_rename(final_video_path)
-
         # 2. 重命名文件夹（在视频重命名之后、NFO 写入之前执行）
         if rename_dir and rename_dir.strip():
             fmt_dir = rename_dir.strip()
@@ -471,10 +463,6 @@ def save_assets_for_existing_video(
                     message=f"文件夹重命名失败：{e}",
                     metadata=metadata,
                 )
-            # FUSE 挂载下等待文件夹重命名稳定
-            if settings.serial_writes:
-                _settle_rename(movie_dir)
-
         # 3. 去重检测：目录已有同源刮削记录 → 跳过 NFO / 图片写入
         # 在重命名之后、写入之前一次性扫描目录，后续不再走网络 stat
         existing_names = _scan_dir_names(movie_dir)
@@ -537,7 +525,7 @@ def save_assets_for_existing_video(
                 )
 
             # extrafanart：顺序命名，NFO 映射去重，不删除已有
-            _mkdir_with_retry(extra_dir)
+            extra_dir.mkdir(exist_ok=True)
             extra_names = _scan_dir_names(extra_dir)
             art_mapping = _read_nfo_art_mapping(stored_root)
             # 只保留磁盘上还存在的映射
