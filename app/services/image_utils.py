@@ -118,27 +118,21 @@ def _download_image_with_crop(
     crop_direction: str = "none",
     http_timeout: int = 20,
 ) -> bool:
-    """下载图片，需要裁切时先下载到临时文件再裁切后移动到目标路径。
+    """下载图片，需要裁切时先下载到 /tmp 裁切后再移动到目标路径。
 
     避免在目标目录产生未裁切的临时文件。
     """
     if crop_direction == "none":
         return _download_image(url, dest, settings, http_timeout=http_timeout)
 
-    with tempfile.NamedTemporaryFile(
-        suffix=".jpg", prefix=_TEMP_PREFIX, delete=False
-    ) as tmp:
-        tmp_path = Path(tmp.name)
+    tmp = _download_to_temp(url, settings, http_timeout=http_timeout)
+    if tmp is None:
+        return False
     try:
-        tmp_down = _download_to_temp(url, settings, http_timeout=http_timeout)
-        if tmp_down is None:
-            tmp_path.unlink(missing_ok=True)
-            return False
-        shutil.move(str(tmp_down), str(tmp_path))
-        _crop_image(tmp_path, crop_direction)
-        shutil.move(str(tmp_path), str(dest))
+        _crop_image(tmp, crop_direction)
+        shutil.move(str(tmp), str(dest))
         return True
     except Exception as exc:
         logger.warning("下载/裁切失败: %s - %s", url, exc)
-        tmp_path.unlink(missing_ok=True)
+        tmp.unlink(missing_ok=True)
         return False
