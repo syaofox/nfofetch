@@ -66,6 +66,7 @@ def _write_nfo_and_images(
     download_concurrency: int = 4,
     http_timeout: int = 20,
     batch_timeout: int = 120,
+    existing_names: set[str] | None = None,
     on_progress: ProgressCallback | None = None,
 ) -> tuple[Path, Path | None, Path | None, list[Path]]:
     """写入 movie.nfo 并下载图片资源，返回相关路径。"""
@@ -74,8 +75,9 @@ def _write_nfo_and_images(
         if on_progress:
             on_progress(phase, current, total, detail)
 
-    # 读取已有的 NFO 获取 URL hash 存储
-    existing_names = _scan_dir_names(movie_dir)
+    # 读取已有的 NFO 获取 URL hash 存储（优先使用调用者传入的扫描结果）
+    if existing_names is None:
+        existing_names = _scan_dir_names(movie_dir)
     nfo_path = movie_dir / "movie.nfo"
     stored_root: ET.Element | None = None
     if nfo_path.name in existing_names:
@@ -606,6 +608,7 @@ def save_assets_for_existing_video(
             download_concurrency=download_concurrency,
             http_timeout=http_timeout,
             batch_timeout=batch_timeout,
+            existing_names=existing_names,
             on_progress=on_progress,
         )
 
