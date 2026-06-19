@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import subprocess
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from app.services.lock_utils import _cleanup_orphaned_temps
 from app.services.file_utils import (
     VIDEO_EXTENSIONS,
     _TEMP_PREFIX,
+    _rename_with_retry,
     _sanitize_filename_part,
     _truncate_to_bytes,
 )
@@ -188,7 +190,7 @@ def _rename_single_video(
         n += 1
         new_path = movie_dir / f"{base_name}_{n}{ext}"
     if new_path != video_path:
-        video_path.rename(new_path)
+        _rename_with_retry(video_path, new_path)
         _rename_subtitles(video_path, new_path)
     return new_path
 
@@ -200,16 +202,23 @@ def _rename_videos_in_dir(
 ) -> dict[Path, Path]:
     """重命名目录下所有视频文件，返回 旧路径 -> 新路径 映射。"""
     video_files: list[Path] = []
-    try:
-        with os.scandir(movie_dir) as it:
-            for entry in sorted(it, key=lambda e: e.name.lower()):
-                if (
-                    entry.is_file()
-                    and Path(entry.name).suffix.lower() in VIDEO_EXTENSIONS
-                ):
-                    video_files.append(movie_dir / entry.name)
-    except OSError:
-        pass
+    _scandir_errnos = frozenset({5, 116, 122})
+    for _attempt in range(3):
+        try:
+            with os.scandir(movie_dir) as it:
+                for entry in sorted(it, key=lambda e: e.name.lower()):
+                    if (
+                        entry.is_file()
+                        and Path(entry.name).suffix.lower() in VIDEO_EXTENSIONS
+                    ):
+                        video_files.append(movie_dir / entry.name)
+            break
+        except OSError as e:
+            errno = getattr(e, "errno", None)
+            if errno in _scandir_errnos and _attempt < 2:
+                time.sleep(1.0)
+                continue
+            break
     if not video_files:
         return {}
 
@@ -240,7 +249,7 @@ def _rename_videos_in_dir(
 
     # 执行临时重命名（视频 + 字幕同步）
     for old_p, temp_p in temp_renames:
-        old_p.rename(temp_p)
+        _rename_with_retry(old_p, temp_p)
         _rename_subtitles(old_p, temp_p)
 
     # 最终重命名
@@ -260,7 +269,7 @@ def _rename_videos_in_dir(
         while final_path.exists():
             n += 1
             final_path = movie_dir / f"{base_name}_{n}{ext}"
-        temp_p.rename(final_path)
+        _rename_with_retry(temp_p, final_path)
         _rename_subtitles(temp_p, final_path)
         result[temp_renames[i - 1][0]] = final_path
 

@@ -118,6 +118,55 @@ def _settle_rename(
     raise OSError(f"rename 后路径仍然不可访问: {path}") from last_err
 
 
+def _rename_with_retry(
+    src: Path, dst: Path, max_retries: int = 2, base_delay: float = 1.0
+) -> None:
+    """重命名文件或目录，遇到网络文件系统 OSError 时自动重试。"""
+    _RETRYABLE_RENAME_ERRNOS = frozenset({5, 116, 122})
+    last_exc: OSError | None = None
+    for attempt in range(max_retries + 1):
+        try:
+            src.rename(dst)
+            return
+        except OSError as e:
+            last_exc = e
+            errno = getattr(e, "errno", None)
+            if errno in _RETRYABLE_RENAME_ERRNOS and attempt < max_retries:
+                delay = base_delay * (2**attempt)
+                logger.warning(
+                    "rename 失败 (errno=%d) %s -> %s, retry %d/%d in %.1fs: %s",
+                    errno,
+                    src.name,
+                    dst.name,
+                    attempt + 1,
+                    max_retries,
+                    delay,
+                    e,
+                )
+                time.sleep(delay)
+                continue
+            raise
+    raise last_exc  # type: ignore[misc]
+
+
+def _mkdir_with_retry(
+    path: Path,
+    parents: bool = False,
+    max_retries: int = 2,
+    base_delay: float = 1.0,
+) -> None:
+    """创建目录，遇到网络文件系统 OSError 时自动重试。"""
+    for attempt in range(max_retries + 1):
+        try:
+            path.mkdir(exist_ok=True, parents=parents)
+            return
+        except OSError:
+            if attempt < max_retries:
+                time.sleep(base_delay * (2**attempt))
+                continue
+            raise
+
+
 _TEMP_PREFIX = "._nfofetch_"
 
 _ART_URL_HASH_LEN = 12

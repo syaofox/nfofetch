@@ -17,8 +17,10 @@ from app.config import Settings
 from app.schemas import MovieMetadata, ScrapeResult
 from app.services.file_utils import (
     _atomic_write_text,
+    _mkdir_with_retry,
     _read_nfo_art_mapping,
     _read_nfo_url_hash,
+    _rename_with_retry,
     _settle_rename,
     _url_hash,
     retry_on_oserror,
@@ -54,21 +56,6 @@ def _scan_dir_names(movie_dir: Path, timeout: float = 30.0) -> set[str]:
         return run_with_timeout(_scan_dir_names_impl, timeout, movie_dir)
     except (OSError, TimeoutError):
         return set()
-
-
-def _mkdir_with_retry(
-    path: Path, max_retries: int = 2, base_delay: float = 1.0
-) -> None:
-    """创建目录，遇到网络文件系统 OSError 时自动重试。"""
-    for attempt in range(max_retries + 1):
-        try:
-            path.mkdir(exist_ok=True)
-            return
-        except OSError:
-            if attempt < max_retries:
-                time.sleep(base_delay * (2**attempt))
-                continue
-            raise
 
 
 def _write_nfo_and_images(
@@ -408,7 +395,7 @@ def _rename_directory(
         return movie_dir, video_path
     if new_dir.exists():
         raise OSError(f"目标文件夹已存在：{new_dir_name}")
-    movie_dir.rename(new_dir)
+    _rename_with_retry(movie_dir, new_dir)
     new_video_path = new_dir / video_path.name
     return new_dir, new_video_path
 
@@ -440,7 +427,7 @@ def save_assets_for_existing_video(
     # 避免对网络路径做多余的符号链接解析（absolute() 不触发网络 stat）
     video_path = video_path.absolute()
     movie_dir = video_path.parent
-    movie_dir.mkdir(parents=True, exist_ok=True)
+    _mkdir_with_retry(movie_dir, parents=True)
 
     # 获取目录锁，防止同目录并发刮削（默认关闭，单人使用无需）
     lock_acquired = False
@@ -549,7 +536,7 @@ def save_assets_for_existing_video(
                 )
 
             # extrafanart：顺序命名，NFO 映射去重，不删除已有
-            extra_dir.mkdir(exist_ok=True)
+            _mkdir_with_retry(extra_dir)
             extra_names = _scan_dir_names(extra_dir)
             art_mapping = _read_nfo_art_mapping(stored_root)
             # 只保留磁盘上还存在的映射
