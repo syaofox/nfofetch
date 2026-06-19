@@ -26,6 +26,20 @@ uv run ruff check --fix . && uv run ruff format . && uv run mypy app/ tests/ && 
 | 7 | `mkdir` 在 FUSE 上失败 | 网络闪断导致 EIO | `file_utils.py`: `_mkdir_with_retry()` 重试 2 次，支持 `parents=True` |
 | 8 | `Path.rename` 文件/目录失败 | FUSE 网络闪断导致 EIO/ESTALE | `file_utils.py`: `_rename_with_retry()` 重试 2 次，覆盖文件、目录、字幕三类 rename |
 
+## VR 格式判定
+
+`{vr}` 占位符用于文件/目录重命名，根据视频分辨率判定格式：
+
+| 条件 | 结果 | 含义 |
+|---|---|---|
+| `w > h`（宽>高） | `180_LR` | 左右格式（横屏/标准 SBS） |
+| `w <= h`（宽≤高） | `360_TB` | 上下格式（竖屏/正方形均为 TB） |
+| 无分辨率（ffprobe 失败） | `180_LR` | 兜底默认 |
+
+- `_is_vr()` 检查番号、genres、tags 中是否含 `"VR"` 来判断是否为 VR 视频
+- 文件重命名 `_format_rename` 和目录重命名 `_format_dir_rename` 使用相同的 VR 判定逻辑
+- 目录重命名曾遗漏分辨率判断（始终输出 `180_LR`），已修复
+
 ## NFO 设计原则
 
 - **URL hash 存 NFO，不额外创建文件**：`<poster_url_hash>` / `<fanart_url_hash>` /
@@ -49,7 +63,7 @@ uv run ruff check --fix . && uv run ruff format . && uv run mypy app/ tests/ && 
 - **刮削器注册**: `app/scrapers/registry.py` — 新增站点注册到 `SCRAPERS` 列表
 - **HTML 解析**: `selectolax`；**HTTP 客户端**: 优先 `curl-cffi`，兜底 `httpx`
 - **配置**: `get_settings()` 由 `@lru_cache` 缓存，环境变量 → `Settings` dataclass
-- **设置缓存**: 环境变量仅启动时读一次，Web 端用户偏好持久化到 JSON（`settings_service.py`）
+- **用户偏好**: 重命名格式等持久化到 JSON（`settings_service.py`），启动时加载
 
 ## 特殊约定
 
