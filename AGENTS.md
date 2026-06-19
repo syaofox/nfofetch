@@ -19,12 +19,38 @@ uv run ruff check --fix . && uv run ruff format . && uv run mypy app/ tests/ && 
 |---|------|------|----------|
 | 1 | `fcntl.flock` 导致挂载 hang | 多数 FUSE 不支持 POSIX 文件锁 | `lock_utils.py`: 改用 `O_CREAT \| O_EXCL` 原子创建锁文件，60s 过期检测 |
 | 2 | poster + fanart + extrafanart 并发写 FUSE 导致断开 | 4-6 路同时写入压垮 FUSE daemon | `file_service.py`: 新增 `NFOFETCH_SERIAL_WRITES=true`，所有图片串行写入 |
-| 3 | 文件夹 rename 后立即写入图片 → mount 断开 | rename 在 FUSE 上需时间同步，后续写入加剧负载 | `file_service.py`: rename 后 `_settle_rename()` stat 验证 + sleep 2s |
-| 4 | `shutil.move` 从 `/tmp` 到 FUSE 失败 | 网络闪断导致 EIO/ESTALE | `image_utils.py`: `_move_with_retry()` 遇到重试 errno 自动重试 |
-| 5 | `os.scandir` 网络抖动失败 | FUSE 短暂断开 | `file_service.py`: `_scan_dir_names_impl` 加 `@retry_on_oserror` |
-| 6 | ffprobe 读网络视频阻塞 30s | 大文件通过网络读取耗时久 | `rename_utils.py`: timeout 30s → 10s |
-| 7 | `mkdir` 在 FUSE 上失败 | 网络闪断导致 EIO | `file_utils.py`: `_mkdir_with_retry()` 重试 2 次，支持 `parents=True` |
-| 8 | `Path.rename` 文件/目录失败 | FUSE 网络闪断导致 EIO/ESTALE | `file_utils.py`: `_rename_with_retry()` 重试 2 次，覆盖文件、目录、字幕三类 rename |
+| 3 | ffprobe 读网络视频阻塞 30s | 大文件通过网络读取耗时久 | `rename_utils.py`: timeout 30s → 10s |
+| 4 | 文件夹 rename 后立即写入图片 → mount 断开 | rename 在 FUSE 上需时间同步，后续写入加剧负载 | ~~`_settle_rename()`~~ → 最终结论：FUSE 重试弊大于利，已全部移除，改 fail-fast |
+
+### 关键教训：FUSE 重试是反模式
+
+最初我们给所有 FUSE 操作加了重试（`_rename_with_retry` / `_mkdir_with_retry` / `_move_with_retry` / `_settle_rename` / scandir retry loop / `retry_on_oserror`），结果**断开更频繁了**。
+
+原因：FUSE daemon 已经过载时，重试只会增加负载，让它更难恢复。
+
+最终策略（经过实际验证有效）：
+
+| 操作 | 做法 | 原因 |
+|---|---|---|
+| `mkdir` | 直调，不重试 | 重试无意义 |
+| `scandir` | 直调，不重试 | 失败就失败 |
+| `rename` 文件/目录/字幕 | 直调 `Path.rename()` | 不重试 |
+| `shutil.move` 从 `/tmp` 到 FUSE | 直调，不重试 | 不重试 |
+| **HTTP 请求**（远程服务器） | `retry_request` 重试 1 次 | 429/5xx 可恢复 |
+| **`stat` / `exists()`** 轻量检查 | 优先于全目录扫描 | 单个 stat 比 scandir 快得多 |
+
+### FUSE 通讯量优化清单
+
+从最初到最终，一次刮削从 ~90 次 FUSE 操作降至 ~20 次：
+
+| 优化 | 效果 |
+|---|---|
+| ffprobe 按需执行（格式不用 `{resolution}`/`{vr}` 时跳过） | 省 1~4 次 ffprobe |
+| 去掉所有 retry（rename/mkdir/move/scandir） | 每步省 66% 调用 |
+| `stat` 判 NFO 存在代替全目录扫描（首次刮削） | 省 1 次 scandir |
+| `existing_names` 参数传递避免重复扫描 | 省 1 次 scandir |
+| extrafanart 批量 move（全部下载到 `/tmp` 再一次性 move 到 FUSE） | 减少 FUSE daemon 切换开销 |
+| `_download_to_temp` / `_download_image` 分离 | 支持批量 move |
 
 ## VR 格式判定
 
