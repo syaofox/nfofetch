@@ -8,7 +8,7 @@ nfofetch: FastAPI + HTMX 影片刮削工具，从 javdb 抓取信息并生成 Je
 uv sync                          # 安装依赖
 uv run uvicorn app.main:app --reload  # 开发服务器
 uv run python -m app.cli --url <URL> --video <PATH>  # CLI 模式
-uv run ruff check --fix . && uv run ruff format . && uv run mypy app/ && uv run pytest   # 提交前必跑
+uv run ruff check --fix . && uv run ruff format . && uv run mypy app/ tests/ && uv run pytest   # 提交前必跑
 ```
 
 ## FUSE / 网络文件系统踩坑记录
@@ -23,6 +23,8 @@ uv run ruff check --fix . && uv run ruff format . && uv run mypy app/ && uv run 
 | 4 | `shutil.move` 从 `/tmp` 到 FUSE 失败 | 网络闪断导致 EIO/ESTALE | `image_utils.py`: `_move_with_retry()` 遇到重试 errno 自动重试 |
 | 5 | `os.scandir` 网络抖动失败 | FUSE 短暂断开 | `file_service.py`: `_scan_dir_names_impl` 加 `@retry_on_oserror` |
 | 6 | ffprobe 读网络视频阻塞 30s | 大文件通过网络读取耗时久 | `rename_utils.py`: timeout 30s → 10s |
+| 7 | `mkdir` 在 FUSE 上失败 | 网络闪断导致 EIO | `file_utils.py`: `_mkdir_with_retry()` 重试 2 次，支持 `parents=True` |
+| 8 | `Path.rename` 文件/目录失败 | FUSE 网络闪断导致 EIO/ESTALE | `file_utils.py`: `_rename_with_retry()` 重试 2 次，覆盖文件、目录、字幕三类 rename |
 
 ## NFO 设计原则
 
