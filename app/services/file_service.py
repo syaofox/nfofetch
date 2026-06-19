@@ -465,15 +465,18 @@ def save_assets_for_existing_video(
                     message=f"文件夹重命名失败：{e}",
                     metadata=metadata,
                 )
-        # 3. 去重检测：目录已有同源刮削记录 → 跳过 NFO / 图片写入
-        # 在重命名之后、写入之前一次性扫描目录，后续不再走网络 stat
-        existing_names = _scan_dir_names(movie_dir)
-        reuse = _check_reuse_existing(
-            movie_dir,
-            str(metadata.source_url) if metadata.source_url else None,
-            metadata.number,
-            existing_names=existing_names,
-        )
+        # 3. 去重检测：先 stat 判 NFO 存在，有 NFO 才全目录扫描
+        nfo_exists = (movie_dir / "movie.nfo").exists()
+        existing_names: set[str] = set()
+        reuse = False
+        if nfo_exists:
+            existing_names = _scan_dir_names(movie_dir)
+            reuse = _check_reuse_existing(
+                movie_dir,
+                str(metadata.source_url) if metadata.source_url else None,
+                metadata.number,
+                existing_names=existing_names,
+            )
         if reuse:
             if on_progress:
                 on_progress("reuse", 0, 1, "检测到已有同源刮削记录，重新下载图片…")
