@@ -60,10 +60,10 @@ def _crop_image(image_path: Path, direction: str) -> None:
     )
 
 
-def _download_image(
-    url: str, dest: Path, settings: Settings, http_timeout: int = 20
-) -> bool:
-    """下载单张图片到目标路径（原子写入）。"""
+def _download_to_temp(
+    url: str, settings: Settings, http_timeout: int = 20
+) -> Path | None:
+    """下载图片到临时文件，返回临时路径（失败返回 None）。"""
     try:
         client_kwargs: dict = {
             "headers": {"User-Agent": settings.user_agent},
@@ -75,10 +75,11 @@ def _download_image(
                 "https://": settings.http_proxy,
             }
 
-        with tempfile.NamedTemporaryFile(
+        tmp = tempfile.NamedTemporaryFile(
             suffix=".tmp", prefix=_TEMP_PREFIX, delete=False
-        ) as tmp:
-            tmp_path = Path(tmp.name)
+        )
+        tmp_path = Path(tmp.name)
+        tmp.close()
 
         def _fetch() -> None:
             with httpx.Client(**client_kwargs) as client:
@@ -88,15 +89,25 @@ def _download_image(
                         for chunk in resp.iter_bytes():
                             f.write(chunk)
 
-        try:
-            retry_request(_fetch, max_retries=1, base_delay=1.0)
-            shutil.move(str(tmp_path), str(dest))
-        except Exception:
-            tmp_path.unlink(missing_ok=True)
-            raise
-        return True
+        retry_request(_fetch, max_retries=1, base_delay=1.0)
+        return tmp_path
     except Exception as exc:
         logger.warning("下载失败: %s - %s", url, exc)
+        return None
+
+
+def _download_image(
+    url: str, dest: Path, settings: Settings, http_timeout: int = 20
+) -> bool:
+    """下载单张图片到目标路径（原子写入）。"""
+    tmp = _download_to_temp(url, settings, http_timeout=http_timeout)
+    if tmp is None:
+        return False
+    try:
+        shutil.move(str(tmp), str(dest))
+        return True
+    except Exception:
+        tmp.unlink(missing_ok=True)
         return False
 
 
@@ -119,9 +130,11 @@ def _download_image_with_crop(
     ) as tmp:
         tmp_path = Path(tmp.name)
     try:
-        if not _download_image(url, tmp_path, settings, http_timeout=http_timeout):
+        tmp_down = _download_to_temp(url, settings, http_timeout=http_timeout)
+        if tmp_down is None:
             tmp_path.unlink(missing_ok=True)
             return False
+        shutil.move(str(tmp_down), str(tmp_path))
         _crop_image(tmp_path, crop_direction)
         shutil.move(str(tmp_path), str(dest))
         return True

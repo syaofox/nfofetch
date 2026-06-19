@@ -22,7 +22,11 @@ from app.services.file_utils import (
     _url_hash,
     run_with_timeout,
 )
-from app.services.image_utils import _download_image, _download_image_with_crop
+from app.services.image_utils import (
+    _download_image,
+    _download_image_with_crop,
+    _download_to_temp,
+)
 from app.services.lock_utils import _acquire_dir_lock, _release_dir_lock
 from app.services.rename_utils import (
     _format_dir_rename,
@@ -273,12 +277,15 @@ def _write_nfo_and_images(
         if settings.serial_writes:
             completed = 0
             deadline = time.monotonic() + batch_timeout
+            # 阶段一：全部下载到 /tmp（HTTP 不涉及 FUSE I/O）
+            batch_moves: list[tuple[Path, Path]] = []
             for url, dest in download_tasks:
                 if time.monotonic() > deadline:
                     _report("extrafanart", completed, total_tasks, "下载超时，中止…")
                     break
-                if download_image(url, dest):
-                    extra_paths.append(dest)
+                tmp = _download_to_temp(url, settings, http_timeout=http_timeout)
+                if tmp is not None:
+                    batch_moves.append((tmp, dest))
                 completed += 1
                 _report(
                     "extrafanart",
@@ -286,6 +293,13 @@ def _write_nfo_and_images(
                     total_tasks,
                     f"正在下载剧照 {completed}/{total_tasks}…",
                 )
+            # 阶段二：批量 move 到 FUSE（集中连续写，减少 daemon 切换开销）
+            for tmp, dest in batch_moves:
+                try:
+                    shutil.move(str(tmp), str(dest))
+                    extra_paths.append(dest)
+                except Exception:
+                    tmp.unlink(missing_ok=True)
         else:
             with ThreadPoolExecutor(max_workers=download_concurrency) as executor:
                 fs = {
