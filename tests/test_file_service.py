@@ -936,6 +936,99 @@ class TestExtrafanartHash:
         assert (extra_dir / hash_name).exists()
 
 
+class TestPosterFanartMarker:
+    """poster/fanart 基于 URL hash 标记文件的跳过去重逻辑。"""
+
+    def test_marker_skips_redownload(
+        self, tmp_path: Path, sample_movie_metadata
+    ) -> None:
+        """标记文件与 URL 匹配时，不重新下载（不产生下载日志）。"""
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.nfo_service import build_movie_nfo
+        from app.services.file_utils import (
+            _POSTER_URL_MARKER,
+            _FANART_URL_MARKER,
+            _url_hash,
+        )
+
+        video = tmp_path / "test.mp4"
+        video.write_text("fake")
+        # 预置 poster/fanart 和匹配的标记文件
+        poster_path = tmp_path / "poster.jpg"
+        poster_path.write_text("existing poster")
+        (tmp_path / _POSTER_URL_MARKER).write_text(
+            _url_hash(str(sample_movie_metadata.posters[0]))
+        )
+        fanart_path = tmp_path / "fanart.jpg"
+        fanart_path.write_text("existing fanart")
+        (tmp_path / _FANART_URL_MARKER).write_text(
+            _url_hash(str(sample_movie_metadata.art[0]))
+        )
+
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+        )
+        nfo_text = build_movie_nfo(sample_movie_metadata)
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=nfo_text,
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+        )
+
+        assert result.success
+        # 文件应保持原内容不变（未被重新下载覆盖）
+        assert poster_path.read_text() == "existing poster"
+        assert fanart_path.read_text() == "existing fanart"
+
+    def test_marker_no_skip_on_different_url(
+        self, tmp_path: Path, sample_movie_metadata
+    ) -> None:
+        """标记文件与 URL 不同时，走下载路径（不会跳过）。"""
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.nfo_service import build_movie_nfo
+        from app.services.file_utils import _POSTER_URL_MARKER, _url_hash
+
+        video = tmp_path / "test.mp4"
+        video.write_text("fake")
+        poster_path = tmp_path / "poster.jpg"
+        poster_path.write_text("old poster")
+        old_hash = _url_hash("https://different-url.com/old.jpg")
+        (tmp_path / _POSTER_URL_MARKER).write_text(old_hash)
+
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+        )
+        nfo_text = build_movie_nfo(sample_movie_metadata)
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=nfo_text,
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+        )
+
+        assert result.success
+        # 下载失败（fake URL）时标记不应更新，应保持旧值
+        actual = (tmp_path / _POSTER_URL_MARKER).read_text().strip()
+        assert actual == old_hash
+
+
 class TestFindMatchingSubtitles:
     def test_exact_stem_match(self, tmp_path: Path) -> None:
         video = tmp_path / "ABC-123.mp4"

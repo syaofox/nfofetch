@@ -16,9 +16,13 @@ from app.config import Settings
 from app.schemas import MovieMetadata, ScrapeResult
 from app.services.file_utils import (
     _EXTRAFANART_HASH_LEN,
+    _FANART_URL_MARKER,
+    _POSTER_URL_MARKER,
     _atomic_write_text,
+    _check_marker,
     _settle_rename,
     _url_to_filename,
+    _write_marker,
     retry_on_oserror,
     run_with_timeout,
 )
@@ -114,7 +118,7 @@ def _write_nfo_and_images(
     def download_image(url: str, dest: Path) -> bool:
         return _download_image(url, dest, settings, http_timeout=http_timeout)
 
-    # 1. 下载 poster.jpg 和 fanart.jpg（始终重新下载覆盖）
+    # 1. 下载 poster.jpg 和 fanart.jpg
     poster_path = movie_dir / "poster.jpg"
     fanart_dest = movie_dir / "fanart.jpg"
 
@@ -127,11 +131,22 @@ def _write_nfo_and_images(
     if art_urls:
         fanart_candidates.append(str(art_urls[0]))
 
-    # 2. 下载 poster.jpg 和 fanart.jpg（始终重新下载覆盖，串行或并行取决于 serial_writes）
+    # URL hash 检测：标记文件与当前 URL 一致时跳过重新下载
+    poster_marker = movie_dir / _POSTER_URL_MARKER
+    poster_needs_download = False
+    if poster_url_val is not None:
+        poster_needs_download = not _check_marker(poster_marker, poster_url_val)
+    fanart_needs_download = False
+    if fanart_candidates:
+        fanart_needs_download = not _check_marker(
+            movie_dir / _FANART_URL_MARKER, fanart_candidates[0]
+        )
+
+    # 2. 下载 poster.jpg 和 fanart.jpg（串行或并行取决于 serial_writes）
     poster_ok: bool
     if settings.serial_writes:
         poster_ok = False
-        if poster_url_val:
+        if poster_needs_download and poster_url_val:
             _report("poster", 0, 1, "正在下载封面 poster.jpg…")
             poster_ok = _download_image_with_crop(
                 poster_url_val,
@@ -140,12 +155,14 @@ def _write_nfo_and_images(
                 crop_direction=crop_direction,
                 http_timeout=http_timeout,
             )
+        elif poster_url_val and not poster_needs_download:
+            poster_ok = True
 
         if not poster_ok:
             poster_path = None
 
-        fanart_ok = False
-        if fanart_candidates:
+        fanart_ok = not fanart_needs_download
+        if fanart_needs_download:
             _report("fanart", 0, 1, "正在下载背景 fanart.jpg…")
             for url in fanart_candidates:
                 if download_image(url, fanart_dest):
@@ -167,7 +184,7 @@ def _write_nfo_and_images(
     else:
         with ThreadPoolExecutor(max_workers=2) as executor:
             poster_ft = None
-            if poster_url_val:
+            if poster_needs_download and poster_url_val:
                 _report("poster", 0, 1, "正在下载封面 poster.jpg…")
                 poster_ft = executor.submit(
                     _download_image_with_crop,
@@ -177,11 +194,13 @@ def _write_nfo_and_images(
                     crop_direction=crop_direction,
                     http_timeout=http_timeout,
                 )
+            elif poster_url_val and not poster_needs_download:
+                poster_ok = True
             else:
                 poster_path = None
 
             fanart_ft = None
-            if fanart_candidates:
+            if fanart_needs_download:
                 _report("fanart", 0, 1, "正在下载背景 fanart.jpg…")
 
                 def _try_fanart() -> bool:
@@ -192,11 +211,17 @@ def _write_nfo_and_images(
 
                 fanart_ft = executor.submit(_try_fanart)
 
-            poster_ok = poster_ft.result() if poster_ft else (poster_path is not None)
+            poster_ok = (
+                poster_ft.result()
+                if poster_ft
+                else (poster_path is not None)
+                if poster_url_val
+                else False
+            )  # type: ignore[has-type]
             if not poster_ok:
                 poster_path = None
 
-            fanart_ok = False
+            fanart_ok = not fanart_needs_download
             if fanart_ft:
                 fanart_ok = fanart_ft.result()
 
@@ -212,6 +237,12 @@ def _write_nfo_and_images(
                 fanart_ok = True
 
             fanart_path = fanart_dest if fanart_ok else None  # type: ignore[no-redef]
+
+    # 更新 URL hash 标记文件
+    if poster_ok and poster_url_val:
+        _write_marker(poster_marker, poster_url_val)
+    if fanart_path is not None:
+        _write_marker(movie_dir / _FANART_URL_MARKER, fanart_candidates[0])
 
     # 3. extrafanart/*（基于 URL hash 去重，不删除已有文件）
     extra_dir = movie_dir / "extrafanart"
@@ -431,33 +462,41 @@ def save_assets_for_existing_video(
             fanart_path = movie_dir / "fanart.jpg"
             extra_dir = movie_dir / "extrafanart"
 
-            # poster：始终重新下载覆盖
-            dl_url = poster_url or (
+            # poster：URL hash 检测，不同才重新下载
+            poster_dl_url = poster_url or (
                 str(metadata.posters[0]) if metadata.posters else None
             )
-            if dl_url:
+            poster_needs_renew = poster_dl_url is not None and not _check_marker(
+                movie_dir / _POSTER_URL_MARKER, poster_dl_url
+            )
+            if poster_needs_renew and poster_dl_url:
                 if on_progress:
                     on_progress("poster", 0, 1, "正在重新下载封面…")
                 _download_image_with_crop(
-                    dl_url,
+                    poster_dl_url,
                     poster_path,
                     settings,
                     crop_direction=crop_direction,
                     http_timeout=http_timeout,
                 )
+                _write_marker(movie_dir / _POSTER_URL_MARKER, poster_dl_url)
 
-            # fanart：始终重新下载覆盖
-            dl_url = (
+            # fanart：URL hash 检测，不同才重新下载
+            fanart_dl_url = (
                 fanart_url
                 or (str(metadata.art[0]) if metadata.art else None)
                 or (str(metadata.posters[0]) if metadata.posters else None)
             )
-            if dl_url:
+            fanart_needs_renew = fanart_dl_url is not None and not _check_marker(
+                movie_dir / _FANART_URL_MARKER, fanart_dl_url
+            )
+            if fanart_needs_renew and fanart_dl_url:
                 if on_progress:
                     on_progress("fanart", 0, 1, "正在重新下载背景…")
                 _download_image(
-                    dl_url, fanart_path, settings, http_timeout=http_timeout
+                    fanart_dl_url, fanart_path, settings, http_timeout=http_timeout
                 )
+                _write_marker(movie_dir / _FANART_URL_MARKER, fanart_dl_url)
 
             # extrafanart：基于 URL hash 补充不存在的，不删除原有
             extra_dir.mkdir(exist_ok=True)

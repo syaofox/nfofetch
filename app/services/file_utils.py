@@ -121,11 +121,38 @@ _TEMP_PREFIX = "._nfofetch_"
 
 _EXTRAFANART_HASH_LEN = 12
 
+_POSTER_URL_MARKER = "._nfofetch_poster_url"
+_FANART_URL_MARKER = "._nfofetch_fanart_url"
+
+
+def _url_hash(url: str) -> str:
+    """返回 URL 的固定长度 hash，用于标记文件和 extrafanart 文件名。"""
+    return hashlib.md5(url.encode()).hexdigest()[:_EXTRAFANART_HASH_LEN]
+
 
 def _url_to_filename(url: str) -> str:
     """将 URL 映射为稳定的文件名（基于 MD5 hash），用于 extrafanart 去重。"""
-    h = hashlib.md5(url.encode()).hexdigest()[:_EXTRAFANART_HASH_LEN]
-    return f"{h}.jpg"
+    return f"{_url_hash(url)}.jpg"
+
+
+def _check_marker(marker_path: Path, url: str) -> bool:
+    """检查标记文件中记录的 URL hash 是否与当前 URL 一致。
+
+    用于判断 poster/fanart 是否需要重新下载。
+    """
+    expected = _url_hash(url)
+    try:
+        return marker_path.read_text().strip() == expected
+    except OSError:
+        return False
+
+
+def _write_marker(marker_path: Path, url: str) -> None:
+    """写入 URL hash 到标记文件。"""
+    try:
+        marker_path.write_text(_url_hash(url))
+    except OSError:
+        pass
 
 
 # 支持的视频扩展名

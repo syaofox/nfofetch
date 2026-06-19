@@ -7,8 +7,11 @@ import pytest
 from pathlib import Path
 
 from app.services.file_utils import (
-    _url_to_filename,
+    _check_marker,
     _settle_rename,
+    _url_hash,
+    _url_to_filename,
+    _write_marker,
     retry_on_oserror,
     run_with_timeout,
 )
@@ -163,3 +166,41 @@ class TestUrlToFilename:
         assert name.endswith(".jpg")
         stem = name.removesuffix(".jpg")
         assert all(c in "0123456789abcdef" for c in stem)
+
+
+class TestUrlHash:
+    def test_consistent(self) -> None:
+        assert _url_hash("https://example.com/img.jpg") == _url_hash(
+            "https://example.com/img.jpg"
+        )
+
+    def test_different(self) -> None:
+        assert _url_hash("https://a.com/1.jpg") != _url_hash("https://b.com/2.jpg")
+
+    def test_length(self) -> None:
+        assert len(_url_hash("any-url")) == 12
+
+
+class TestCheckWriteMarker:
+    def test_marker_match(self, tmp_path: Path) -> None:
+        url = "https://example.com/poster.jpg"
+        marker = tmp_path / "._test_marker"
+        _write_marker(marker, url)
+        assert _check_marker(marker, url) is True
+
+    def test_marker_mismatch(self, tmp_path: Path) -> None:
+        marker = tmp_path / "._test_marker"
+        _write_marker(marker, "https://old-url.com/old.jpg")
+        assert _check_marker(marker, "https://new-url.com/new.jpg") is False
+
+    def test_no_marker(self, tmp_path: Path) -> None:
+        marker = tmp_path / "._nonexistent"
+        assert _check_marker(marker, "https://example.com/img.jpg") is False
+
+    def test_overwrite_marker(self, tmp_path: Path) -> None:
+        marker = tmp_path / "._test_marker"
+        _write_marker(marker, "https://first-url.com/1.jpg")
+        assert _check_marker(marker, "https://first-url.com/1.jpg") is True
+        _write_marker(marker, "https://second-url.com/2.jpg")
+        assert _check_marker(marker, "https://second-url.com/2.jpg") is True
+        assert _check_marker(marker, "https://first-url.com/1.jpg") is False
