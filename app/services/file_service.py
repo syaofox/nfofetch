@@ -16,6 +16,7 @@ from app.config import Settings
 from app.schemas import MovieMetadata, ScrapeResult
 from app.services.file_utils import (
     _atomic_write_text,
+    _settle_rename,
     retry_on_oserror,
     run_with_timeout,
 )
@@ -446,6 +447,9 @@ def save_assets_for_existing_video(
                     message=f"重命名失败：{e}",
                     metadata=metadata,
                 )
+            # FUSE 挂载下等待文件重命名稳定，避免后续写入时 mounts 断开
+            if settings.serial_writes:
+                _settle_rename(final_video_path)
 
         # 2. 重命名文件夹（在视频重命名之后、NFO 写入之前执行）
         if rename_dir and rename_dir.strip():
@@ -463,6 +467,9 @@ def save_assets_for_existing_video(
                     message=f"文件夹重命名失败：{e}",
                     metadata=metadata,
                 )
+            # FUSE 挂载下等待文件夹重命名稳定
+            if settings.serial_writes:
+                _settle_rename(movie_dir)
 
         # 3. 去重检测：目录已有同源刮削记录 → 跳过 NFO / 图片写入
         # 在重命名之后、写入之前一次性扫描目录，后续不再走网络 stat

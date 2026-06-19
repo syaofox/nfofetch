@@ -4,7 +4,9 @@ import time
 
 import pytest
 
-from app.services.file_utils import retry_on_oserror, run_with_timeout
+from pathlib import Path
+
+from app.services.file_utils import _settle_rename, retry_on_oserror, run_with_timeout
 
 
 class TestRunWithTimeout:
@@ -102,3 +104,28 @@ class TestRetryOnOSError:
             return "ok"
 
         assert my_func.__name__ == "my_func"
+
+
+class TestSettleRename:
+    def test_existing_path(self, tmp_path: Path) -> None:
+        """存在的路径应正常通过（stat 成功 + settled）。"""
+        p = tmp_path / "test.txt"
+        p.write_text("hello")
+        # 使用极短 settle 避免测试耗时
+        _settle_rename(p, settle_secs=0.01, retries=1)
+
+    def test_directory_path(self, tmp_path: Path) -> None:
+        """目录路径也应正常通过。"""
+        _settle_rename(tmp_path, settle_secs=0.01, retries=1)
+
+    def test_nonexistent_path_raises(self, tmp_path: Path) -> None:
+        """不存在的路径应抛出 OSError。"""
+        p = tmp_path / "does_not_exist.txt"
+        with pytest.raises(OSError, match="rename 后路径仍然不可访问"):
+            _settle_rename(p, settle_secs=0.01, retries=1)
+
+    def test_nonexistent_after_retries(self, tmp_path: Path) -> None:
+        """持续 stat 失败应在耗尽重试后抛出异常。"""
+        p = tmp_path / "gone.txt"
+        with pytest.raises(OSError, match="rename 后路径仍然不可访问"):
+            _settle_rename(p, settle_secs=0.01, retries=2)

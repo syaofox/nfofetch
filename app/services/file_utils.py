@@ -86,6 +86,36 @@ def retry_on_oserror(
     return decorator
 
 
+def _settle_rename(
+    path: Path,
+    settle_secs: float = 2.0,
+    retries: int = 3,
+) -> None:
+    """重命名后确认路径可访问，并等待 FUSE 文件系统稳定。
+
+    在 FUSE 网络挂载上，rename 返回后 mount daemon 可能仍在处理同步。
+    短暂等待 + 重试 stat 可避免后续写入时因 mount 未稳定而断开。
+    """
+    last_err: OSError | None = None
+    for attempt in range(retries):
+        try:
+            path.stat()
+            if settle_secs > 0:
+                time.sleep(settle_secs)
+            return
+        except OSError as e:
+            last_err = e
+            logger.warning(
+                "rename 后路径 stat 失败 (attempt %d/%d): %s - %s",
+                attempt + 1,
+                retries,
+                path,
+                e,
+            )
+            time.sleep(1.0)
+    raise OSError(f"rename 后路径仍然不可访问: {path}") from last_err
+
+
 _TEMP_PREFIX = "._nfofetch_"
 
 # 支持的视频扩展名

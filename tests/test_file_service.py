@@ -774,6 +774,83 @@ class TestSaveAssetsForExistingVideo:
         assert nfo_path.exists()
         assert "ABP-123" in nfo_path.read_text(encoding="utf-8")
 
+    def test_serial_writes_with_rename_format(
+        self, tmp_path: Path, sample_movie_metadata
+    ) -> None:
+        """serial_writes + rename_format: 文件重命名后的 settle 应正常执行。"""
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.nfo_service import build_movie_nfo
+
+        video = tmp_path / "old_name.mp4"
+        video.write_text("fake video")
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+            serial_writes=True,
+        )
+        nfo_text = build_movie_nfo(sample_movie_metadata)
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=nfo_text,
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+            rename_format="{id}",
+        )
+
+        assert result.success
+        # 视频应已被重命名
+        assert not (tmp_path / "old_name.mp4").exists()
+        assert (tmp_path / "ABP-123.mp4").exists()
+        # NFO 应被正常写入
+        assert (tmp_path / "movie.nfo").exists()
+
+    def test_serial_writes_with_rename_dir(
+        self, tmp_path: Path, sample_movie_metadata
+    ) -> None:
+        """serial_writes + rename_dir: 文件夹重命名后的 settle 应正常执行。"""
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.nfo_service import build_movie_nfo
+
+        movie_dir = tmp_path / "old_dir"
+        movie_dir.mkdir()
+        video = movie_dir / "video.mp4"
+        video.write_text("fake video")
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+            serial_writes=True,
+        )
+        nfo_text = build_movie_nfo(sample_movie_metadata)
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=nfo_text,
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+            rename_dir="{id}",
+        )
+
+        assert result.success
+        # 文件夹应已被重命名
+        new_dir = tmp_path / "ABP-123"
+        assert new_dir.exists()
+        assert not movie_dir.exists()
+        # NFO 应在新目录中
+        assert (new_dir / "movie.nfo").exists()
+
 
 class TestFindMatchingSubtitles:
     def test_exact_stem_match(self, tmp_path: Path) -> None:
