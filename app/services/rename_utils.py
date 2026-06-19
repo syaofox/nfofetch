@@ -109,7 +109,7 @@ def _format_rename(
             try:
                 w_str, h_str = resolution.split("x", 1)
                 w, h = int(w_str), int(h_str)
-                vr_val = "360_TB" if w >= h else "180_LR"
+                vr_val = "180_LR" if w > h else "360_TB"
             except (ValueError, IndexError):
                 vr_val = "180_LR"
         else:
@@ -153,7 +153,7 @@ def _format_dir_rename(
             try:
                 w_str, h_str = resolution.split("x", 1)
                 w, h = int(w_str), int(h_str)
-                vr_val = "360_TB" if w >= h else "180_LR"
+                vr_val = "180_LR" if w > h else "360_TB"
             except (ValueError, IndexError):
                 vr_val = "180_LR"
         else:
