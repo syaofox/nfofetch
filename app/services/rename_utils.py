@@ -109,7 +109,7 @@ def _format_rename(
             try:
                 w_str, h_str = resolution.split("x", 1)
                 w, h = int(w_str), int(h_str)
-                vr_val = "180_LR" if w >= h else "360_TB"
+                vr_val = "360_TB" if w >= h else "180_LR"
             except (ValueError, IndexError):
                 vr_val = "180_LR"
         else:
@@ -149,7 +149,15 @@ def _format_dir_rename(
     title_val = metadata.title or ""
     vr_val = ""
     if is_vr:
-        vr_val = "180_LR"
+        if resolution and "x" in resolution:
+            try:
+                w_str, h_str = resolution.split("x", 1)
+                w, h = int(w_str), int(h_str)
+                vr_val = "360_TB" if w >= h else "180_LR"
+            except (ValueError, IndexError):
+                vr_val = "180_LR"
+        else:
+            vr_val = "180_LR"
 
     result = format_str
     result = result.replace("{id}", id_val)

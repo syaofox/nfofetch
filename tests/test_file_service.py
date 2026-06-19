@@ -253,6 +253,36 @@ class TestFormatRename:
         result = _format_rename(meta, idx=1, is_vr=True, format_str="{vr}")
         assert result == "180_LR"
 
+    def test_vr_landscape_is_360_tb(self) -> None:
+        """宽≥高 → 360_TB（左右分屏是上下格式）。"""
+        meta = MovieMetadata(title="Test", number="IPVR-335")
+        result = _format_rename(
+            meta, idx=1, is_vr=True, format_str="{vr}", resolution="3840x1920"
+        )
+        assert result == "360_TB"
+
+    def test_vr_portrait_is_180_lr(self) -> None:
+        """高>宽 → 180_LR。"""
+        meta = MovieMetadata(title="Test", number="IPVR-335")
+        result = _format_rename(
+            meta, idx=1, is_vr=True, format_str="{vr}", resolution="1920x3840"
+        )
+        assert result == "180_LR"
+
+    def test_vr_dir_rename_landscape_is_360_tb(self) -> None:
+        """目录重命名同样根据分辨率判断 VR 格式。"""
+        meta = MovieMetadata(title="Test", number="IPVR-335")
+        result = _format_dir_rename(
+            meta, is_vr=True, format_str="{vr}", resolution="3840x1920"
+        )
+        assert result == "360_TB"
+
+    def test_vr_dir_rename_default(self) -> None:
+        """目录重命名无分辨率时默认 180_LR。"""
+        meta = MovieMetadata(title="Test", number="IPVR-335")
+        result = _format_dir_rename(meta, is_vr=True, format_str="{vr}")
+        assert result == "180_LR"
+
     def test_idx(self) -> None:
         meta = MovieMetadata(title="Test")
         result = _format_rename(meta, idx=3, is_vr=False, format_str="{idx}")
