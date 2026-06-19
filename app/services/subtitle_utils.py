@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from app.services.file_utils import SUBTITLE_EXTENSIONS, _rename_with_retry
+from app.services.file_utils import SUBTITLE_EXTENSIONS
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ def _rename_subtitles(old_video: Path, new_video: Path) -> list[Path]:
             new_name = f"{new_stem}{ext}"
         new_path = sub_path.parent / new_name
         if new_path != sub_path:
-            _rename_with_retry(sub_path, new_path)
+            sub_path.rename(new_path)
         renamed.append(new_path)
 
     return renamed

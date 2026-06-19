@@ -15,7 +15,6 @@ from app.services.lock_utils import _cleanup_orphaned_temps
 from app.services.file_utils import (
     VIDEO_EXTENSIONS,
     _TEMP_PREFIX,
-    _rename_with_retry,
     _sanitize_filename_part,
     _truncate_to_bytes,
 )
@@ -187,7 +186,9 @@ def _rename_single_video(
     movie_dir = video_path.parent
     ext = video_path.suffix
     is_vr = _is_vr(metadata)
-    resolution = _get_video_resolution(video_path)
+    resolution = ""
+    if "{resolution}" in format_str or "{vr}" in format_str:
+        resolution = _get_video_resolution(video_path)
     base_name = _format_rename(metadata, 1, is_vr, format_str, resolution=resolution)
     ext_bytes = len(ext.encode("utf-8"))
     max_base_bytes = max(1, MAX_FILENAME_BYTES - ext_bytes - RESERVED_SUFFIX_BYTES)
@@ -198,7 +199,7 @@ def _rename_single_video(
         n += 1
         new_path = movie_dir / f"{base_name}_{n}{ext}"
     if new_path != video_path:
-        _rename_with_retry(video_path, new_path)
+        video_path.rename(new_path)
         _rename_subtitles(video_path, new_path)
     return new_path
 
@@ -234,10 +235,11 @@ def _rename_videos_in_dir(
     # 清理上次崩溃遗留的临时文件
     _cleanup_orphaned_temps(movie_dir)
 
-    # 并发获取所有视频分辨率（FUSE 文件系统下网络 RTT 并行化）
     n_files = len(video_files)
     resolutions: list[str] = []
-    if n_files > 0:
+    needs_resolution = "{resolution}" in format_str or "{vr}" in format_str
+    if n_files > 0 and needs_resolution:
+        # 仅在格式用到分辨率时运行 ffprobe，避免 FUSE 上不必要的网络 I/O
         with ThreadPoolExecutor(max_workers=min(n_files, 4)) as executor:
             resolutions = list(executor.map(_get_video_resolution, video_files))
 
@@ -257,14 +259,15 @@ def _rename_videos_in_dir(
 
     # 执行临时重命名（视频 + 字幕同步）
     for old_p, temp_p in temp_renames:
-        _rename_with_retry(old_p, temp_p)
+        old_p.rename(temp_p)
         _rename_subtitles(old_p, temp_p)
 
     # 最终重命名
     result: dict[Path, Path] = {}
     for i, (_, temp_p) in enumerate(temp_renames, start=1):
         base_name = _format_rename(
-            metadata, i, is_vr, format_str, resolution=resolutions[i - 1]
+            metadata, i, is_vr, format_str,
+            resolution=resolutions[i - 1] if resolutions else "",
         )
         ext = temp_p.suffix
         ext_bytes = len(ext.encode("utf-8"))
@@ -277,7 +280,7 @@ def _rename_videos_in_dir(
         while final_path.exists():
             n += 1
             final_path = movie_dir / f"{base_name}_{n}{ext}"
-        _rename_with_retry(temp_p, final_path)
+        temp_p.rename(final_path)
         _rename_subtitles(temp_p, final_path)
         result[temp_renames[i - 1][0]] = final_path
 

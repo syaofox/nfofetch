@@ -20,7 +20,6 @@ from app.services.file_utils import (
     _mkdir_with_retry,
     _read_nfo_art_mapping,
     _read_nfo_url_hash,
-    _rename_with_retry,
     _settle_rename,
     _url_hash,
     retry_on_oserror,
@@ -385,7 +384,9 @@ def _rename_directory(
 ) -> tuple[Path, Path]:
     """重命名视频所在文件夹，返回 (新目录, 更新后的视频路径)。"""
     is_vr = _is_vr(metadata)
-    resolution = _get_video_resolution(video_path)
+    resolution = ""
+    if "{resolution}" in format_str or "{vr}" in format_str:
+        resolution = _get_video_resolution(video_path)
     new_dir_name = _format_dir_rename(
         metadata, is_vr, format_str, resolution=resolution
     )
@@ -395,7 +396,7 @@ def _rename_directory(
         return movie_dir, video_path
     if new_dir.exists():
         raise OSError(f"目标文件夹已存在：{new_dir_name}")
-    _rename_with_retry(movie_dir, new_dir)
+    movie_dir.rename(new_dir)
     new_video_path = new_dir / video_path.name
     return new_dir, new_video_path
 
