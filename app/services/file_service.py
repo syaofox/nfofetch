@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import time
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from concurrent.futures import (
@@ -53,6 +54,21 @@ def _scan_dir_names(movie_dir: Path, timeout: float = 30.0) -> set[str]:
         return run_with_timeout(_scan_dir_names_impl, timeout, movie_dir)
     except (OSError, TimeoutError):
         return set()
+
+
+def _mkdir_with_retry(
+    path: Path, max_retries: int = 2, base_delay: float = 1.0
+) -> None:
+    """创建目录，遇到网络文件系统 OSError 时自动重试。"""
+    for attempt in range(max_retries + 1):
+        try:
+            path.mkdir(exist_ok=True)
+            return
+        except OSError:
+            if attempt < max_retries:
+                time.sleep(base_delay * (2**attempt))
+                continue
+            raise
 
 
 def _write_nfo_and_images(
@@ -230,7 +246,7 @@ def _write_nfo_and_images(
 
     # 3. extrafanart/*（顺序命名 01.jpg, 02.jpg…，不删除已有文件）
     extra_dir = movie_dir / "extrafanart"
-    extra_dir.mkdir(exist_ok=True)
+    _mkdir_with_retry(extra_dir)
     extra_names = _scan_dir_names(extra_dir)
 
     all_extra_sources: list[str] = []
@@ -272,7 +288,11 @@ def _write_nfo_and_images(
     if total_tasks > 0:
         if settings.serial_writes:
             completed = 0
+            deadline = time.monotonic() + batch_timeout
             for url, dest in download_tasks:
+                if time.monotonic() > deadline:
+                    _report("extrafanart", completed, total_tasks, "下载超时，中止…")
+                    break
                 if download_image(url, dest):
                     extra_paths.append(dest)
                 completed += 1
