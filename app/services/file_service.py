@@ -422,8 +422,10 @@ def save_assets_for_existing_video(
     movie_dir = video_path.parent
     movie_dir.mkdir(parents=True, exist_ok=True)
 
-    # 获取目录锁，防止同目录并发刮削
-    lock_acquired = _acquire_dir_lock(movie_dir)
+    # 获取目录锁，防止同目录并发刮削（默认关闭，单人使用无需）
+    lock_acquired = False
+    if settings.lock_enabled:
+        lock_acquired = _acquire_dir_lock(movie_dir)
     try:
         # 1. 重命名视频文件（始终执行，幂等设计）
         final_video_path = video_path

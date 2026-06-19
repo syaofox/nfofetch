@@ -18,6 +18,7 @@ class Settings:
     - NFOFETCH_HTTP_TIMEOUT: 单个 HTTP 请求超时秒数（默认 20）
     - NFOFETCH_BATCH_TIMEOUT: extrafanart 批量下载总超时秒数（默认 120）
     - NFOFETCH_SERIAL_WRITES: 串行写入图片，避免 FUSE 网络文件系统并发 I/O 断开（默认 false）
+    - NFOFETCH_LOCK_ENABLED: 启用目录锁防止同目录并发刮削，多用户 Web 场景需要（默认 false）
     """
 
     user_agent: str
@@ -28,6 +29,7 @@ class Settings:
     http_timeout: int = 20
     batch_timeout: int = 120
     serial_writes: bool = False
+    lock_enabled: bool = False
 
 
 @lru_cache(maxsize=1)
@@ -69,4 +71,5 @@ def get_settings() -> Settings:
         http_timeout=_parse_int_env("NFOFETCH_HTTP_TIMEOUT", 20),
         batch_timeout=_parse_int_env("NFOFETCH_BATCH_TIMEOUT", 120),
         serial_writes=_parse_bool_env("NFOFETCH_SERIAL_WRITES", False),
+        lock_enabled=_parse_bool_env("NFOFETCH_LOCK_ENABLED", False),
     )

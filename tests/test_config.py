@@ -95,6 +95,22 @@ def test_serial_writes_env_false(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.serial_writes is False
 
 
+def test_lock_enabled_default() -> None:
+    settings = get_settings()
+    assert settings.lock_enabled is False
+
+
+def test_lock_enabled_env_true(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("NFOFETCH_LOCK_ENABLED", "true")
+    settings = get_settings()
+    assert settings.lock_enabled is True
+
+
+def test_lock_enabled_default_in_defaults() -> None:
+    settings = get_settings()
+    assert settings.lock_enabled is False
+
+
 def test_javdb_mirror_default() -> None:
     settings = get_settings()
     assert settings.javdb_mirror == "javdb565.com"
