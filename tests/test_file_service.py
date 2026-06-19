@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 import pytest
 
@@ -853,26 +854,22 @@ class TestSaveAssetsForExistingVideo:
 
 
 class TestExtrafanartHash:
-    """extrafanart 基于 URL hash 的去重与补充逻辑。"""
+    """extrafanart 顺序命名 + NFO 映射的去重与补充逻辑。"""
 
     def test_keeps_sequential_files(
         self, tmp_path: Path, sample_movie_metadata
     ) -> None:
-        """旧版顺序命名文件（01.jpg）不被删除。"""
+        """已有的顺序命名文件不被删除。"""
         from app.config import Settings
         from app.services.file_service import save_assets_for_existing_video
         from app.services.nfo_service import build_movie_nfo
-        from app.services.file_utils import _url_to_filename
 
         video = tmp_path / "test.mp4"
         video.write_text("fake")
-        # 预置旧版顺序命名文件
         extra_dir = tmp_path / "extrafanart"
         extra_dir.mkdir()
         (extra_dir / "01.jpg").write_text("old")
-        # 预置一个 hash 命名的文件
-        hash_name = _url_to_filename(str(sample_movie_metadata.art[0]))
-        (extra_dir / hash_name).write_text("existing")
+        (extra_dir / "99.jpg").write_text("legacy")
 
         settings = Settings(
             user_agent="test-agent",
@@ -893,25 +890,20 @@ class TestExtrafanartHash:
         )
 
         assert result.success
-        # 旧版顺序文件应保留
         assert (extra_dir / "01.jpg").exists()
-        # 已有 hash 文件应保留
-        assert (extra_dir / hash_name).exists()
+        assert (extra_dir / "99.jpg").exists()
 
     def test_supplements_new_urls(self, tmp_path: Path, sample_movie_metadata) -> None:
-        """新 URL 按 hash 命名下载到 extrafanart。"""
+        """新 URL 以顺序命名补充到 extrafanart。"""
         from app.config import Settings
         from app.services.file_service import save_assets_for_existing_video
         from app.services.nfo_service import build_movie_nfo
-        from app.services.file_utils import _url_to_filename
 
         video = tmp_path / "test.mp4"
         video.write_text("fake")
-        # 只保留一张已有，另一张应该被补充
         extra_dir = tmp_path / "extrafanart"
         extra_dir.mkdir()
-        hash_name = _url_to_filename(str(sample_movie_metadata.art[0]))
-        (extra_dir / hash_name).write_text("existing")
+        (extra_dir / "01.jpg").write_text("existing")
 
         settings = Settings(
             user_agent="test-agent",
@@ -933,38 +925,47 @@ class TestExtrafanartHash:
 
         assert result.success
         # 已有文件保留
-        assert (extra_dir / hash_name).exists()
+        assert (extra_dir / "01.jpg").exists()
 
 
-class TestPosterFanartMarker:
-    """poster/fanart 基于 URL hash 标记文件的跳过去重逻辑。"""
+class TestNfoUrlHashSkip:
+    """基于 NFO 中 poster_url_hash / fanart_url_hash 的跳过逻辑。"""
 
-    def test_marker_skips_redownload(
+    def _make_nfo_with_hashes(self, base: str, poster_url: str, fanart_url: str) -> str:
+        """构建包含 URL hash 的 NFO XML。"""
+        from app.services.file_utils import _url_hash
+
+        root = ET.Element("movie")
+        el = ET.SubElement(root, "title")
+        el.text = "Test"
+        el = ET.SubElement(root, "poster_url_hash")
+        el.text = _url_hash(poster_url)
+        el = ET.SubElement(root, "fanart_url_hash")
+        el.text = _url_hash(fanart_url)
+        ET.indent(root)
+        return ET.tostring(root, encoding="unicode")
+
+    def test_same_url_skips_redownload(
         self, tmp_path: Path, sample_movie_metadata
     ) -> None:
-        """标记文件与 URL 匹配时，不重新下载（不产生下载日志）。"""
+        """NFO 中 hash 与当前 URL 一致时，不重新下载覆盖。"""
         from app.config import Settings
         from app.services.file_service import save_assets_for_existing_video
         from app.services.nfo_service import build_movie_nfo
-        from app.services.file_utils import (
-            _POSTER_URL_MARKER,
-            _FANART_URL_MARKER,
-            _url_hash,
-        )
 
         video = tmp_path / "test.mp4"
         video.write_text("fake")
-        # 预置 poster/fanart 和匹配的标记文件
         poster_path = tmp_path / "poster.jpg"
         poster_path.write_text("existing poster")
-        (tmp_path / _POSTER_URL_MARKER).write_text(
-            _url_hash(str(sample_movie_metadata.posters[0]))
-        )
         fanart_path = tmp_path / "fanart.jpg"
         fanart_path.write_text("existing fanart")
-        (tmp_path / _FANART_URL_MARKER).write_text(
-            _url_hash(str(sample_movie_metadata.art[0]))
+        # 预写含 URL hash 的 NFO
+        nfo_text = self._make_nfo_with_hashes(
+            "test",
+            str(sample_movie_metadata.posters[0]),
+            str(sample_movie_metadata.art[0]),
         )
+        (tmp_path / "movie.nfo").write_text(nfo_text)
 
         settings = Settings(
             user_agent="test-agent",
@@ -974,36 +975,37 @@ class TestPosterFanartMarker:
             http_timeout=5,
             batch_timeout=10,
         )
-        nfo_text = build_movie_nfo(sample_movie_metadata)
 
         result = save_assets_for_existing_video(
             metadata=sample_movie_metadata,
-            nfo_text=nfo_text,
+            nfo_text=build_movie_nfo(sample_movie_metadata),
             video_path=video,
             settings=settings,
             max_extra_images=2,
         )
 
         assert result.success
-        # 文件应保持原内容不变（未被重新下载覆盖）
         assert poster_path.read_text() == "existing poster"
         assert fanart_path.read_text() == "existing fanart"
 
-    def test_marker_no_skip_on_different_url(
+    def test_different_url_triggers_redownload(
         self, tmp_path: Path, sample_movie_metadata
     ) -> None:
-        """标记文件与 URL 不同时，走下载路径（不会跳过）。"""
+        """NFO 中 hash 与当前 URL 不同时，触发了重新下载（标记因此被移除）。"""
         from app.config import Settings
         from app.services.file_service import save_assets_for_existing_video
         from app.services.nfo_service import build_movie_nfo
-        from app.services.file_utils import _POSTER_URL_MARKER, _url_hash
 
         video = tmp_path / "test.mp4"
         video.write_text("fake")
         poster_path = tmp_path / "poster.jpg"
         poster_path.write_text("old poster")
-        old_hash = _url_hash("https://different-url.com/old.jpg")
-        (tmp_path / _POSTER_URL_MARKER).write_text(old_hash)
+        nfo_text = self._make_nfo_with_hashes(
+            "test",
+            "https://different-url.com/old.jpg",
+            "https://different-url.com/old_art.jpg",
+        )
+        (tmp_path / "movie.nfo").write_text(nfo_text)
 
         settings = Settings(
             user_agent="test-agent",
@@ -1013,20 +1015,20 @@ class TestPosterFanartMarker:
             http_timeout=5,
             batch_timeout=10,
         )
-        nfo_text = build_movie_nfo(sample_movie_metadata)
 
         result = save_assets_for_existing_video(
             metadata=sample_movie_metadata,
-            nfo_text=nfo_text,
+            nfo_text=build_movie_nfo(sample_movie_metadata),
             video_path=video,
             settings=settings,
             max_extra_images=2,
         )
 
         assert result.success
-        # 下载失败（fake URL）时标记不应更新，应保持旧值
-        actual = (tmp_path / _POSTER_URL_MARKER).read_text().strip()
-        assert actual == old_hash
+        # 下载失败（fake URL）后旧 hash 已被清除，新 hash 未写入
+        written = ET.parse(tmp_path / "movie.nfo").getroot()
+        new_poster_hash = written.findtext("poster_url_hash")
+        assert new_poster_hash is None
 
 
 class TestFindMatchingSubtitles:

@@ -10,6 +10,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutureTimeoutError
 from pathlib import Path
 from typing import Any, Callable, TypeVar
+from xml.etree import ElementTree as ET
 
 logger = logging.getLogger(__name__)
 
@@ -119,40 +120,36 @@ def _settle_rename(
 
 _TEMP_PREFIX = "._nfofetch_"
 
-_EXTRAFANART_HASH_LEN = 12
-
-_POSTER_URL_MARKER = "._nfofetch_poster_url"
-_FANART_URL_MARKER = "._nfofetch_fanart_url"
+_ART_URL_HASH_LEN = 12
 
 
 def _url_hash(url: str) -> str:
-    """返回 URL 的固定长度 hash，用于标记文件和 extrafanart 文件名。"""
-    return hashlib.md5(url.encode()).hexdigest()[:_EXTRAFANART_HASH_LEN]
+    """返回 URL 的固定长度 hash，用于 NFO 中存储 URL 指纹。"""
+    return hashlib.md5(url.encode()).hexdigest()[:_ART_URL_HASH_LEN]
 
 
-def _url_to_filename(url: str) -> str:
-    """将 URL 映射为稳定的文件名（基于 MD5 hash），用于 extrafanart 去重。"""
-    return f"{_url_hash(url)}.jpg"
+def _read_nfo_url_hash(root: ET.Element | None, tag: str) -> str | None:
+    """从 NFO 根元素读取指定 tag 的 URL hash 文本。"""
+    if root is None:
+        return None
+    el = root.find(tag)
+    if el is not None and el.text:
+        txt = el.text.strip()
+        return txt if txt else None
+    return None
 
 
-def _check_marker(marker_path: Path, url: str) -> bool:
-    """检查标记文件中记录的 URL hash 是否与当前 URL 一致。
-
-    用于判断 poster/fanart 是否需要重新下载。
-    """
-    expected = _url_hash(url)
-    try:
-        return marker_path.read_text().strip() == expected
-    except OSError:
-        return False
-
-
-def _write_marker(marker_path: Path, url: str) -> None:
-    """写入 URL hash 到标记文件。"""
-    try:
-        marker_path.write_text(_url_hash(url))
-    except OSError:
-        pass
+def _read_nfo_art_mapping(root: ET.Element | None) -> dict[str, str]:
+    """从 NFO 读取 art_url 映射（url_hash → filename）。"""
+    mapping: dict[str, str] = {}
+    if root is None:
+        return mapping
+    for el in root.findall("art_url"):
+        h = el.get("hash", "").strip()
+        fn = (el.text or "").strip()
+        if h and fn:
+            mapping[h] = fn
+    return mapping
 
 
 # 支持的视频扩展名

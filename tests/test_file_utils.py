@@ -5,13 +5,13 @@ import time
 import pytest
 
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 from app.services.file_utils import (
-    _check_marker,
+    _read_nfo_art_mapping,
+    _read_nfo_url_hash,
     _settle_rename,
     _url_hash,
-    _url_to_filename,
-    _write_marker,
     retry_on_oserror,
     run_with_timeout,
 )
@@ -139,35 +139,6 @@ class TestSettleRename:
             _settle_rename(p, settle_secs=0.01, retries=2)
 
 
-class TestUrlToFilename:
-    def test_consistent(self) -> None:
-        """同一 URL 每次生成相同文件名。"""
-        url = "https://example.com/art/001.jpg"
-        assert _url_to_filename(url) == _url_to_filename(url)
-
-    def test_extension(self) -> None:
-        """结果应以 .jpg 结尾。"""
-        assert _url_to_filename("https://example.com/img.jpg").endswith(".jpg")
-
-    def test_length(self) -> None:
-        """hash 段固定 12 字符 + .jpg。"""
-        name = _url_to_filename("https://example.com/img.jpg")
-        assert len(name) == 16  # 12 hex + 4 ext
-
-    def test_different_urls_different_names(self) -> None:
-        """不同 URL 产生不同的文件名。"""
-        a = _url_to_filename("https://example.com/1.jpg")
-        b = _url_to_filename("https://example.com/2.jpg")
-        assert a != b
-
-    def test_no_special_chars(self) -> None:
-        """文件名只含小写 hex 和 .jpg，不含特殊字符。"""
-        name = _url_to_filename("https://example.com/奇怪中文?query=1&foo=bar")
-        assert name.endswith(".jpg")
-        stem = name.removesuffix(".jpg")
-        assert all(c in "0123456789abcdef" for c in stem)
-
-
 class TestUrlHash:
     def test_consistent(self) -> None:
         assert _url_hash("https://example.com/img.jpg") == _url_hash(
@@ -181,26 +152,66 @@ class TestUrlHash:
         assert len(_url_hash("any-url")) == 12
 
 
-class TestCheckWriteMarker:
-    def test_marker_match(self, tmp_path: Path) -> None:
-        url = "https://example.com/poster.jpg"
-        marker = tmp_path / "._test_marker"
-        _write_marker(marker, url)
-        assert _check_marker(marker, url) is True
+class TestReadNfoUrlHash:
+    def _make_nfo(self, tags: dict[str, str]) -> ET.Element:
+        root = ET.Element("movie")
+        for k, v in tags.items():
+            el = ET.SubElement(root, k)
+            el.text = v
+        return root
 
-    def test_marker_mismatch(self, tmp_path: Path) -> None:
-        marker = tmp_path / "._test_marker"
-        _write_marker(marker, "https://old-url.com/old.jpg")
-        assert _check_marker(marker, "https://new-url.com/new.jpg") is False
+    def test_found(self) -> None:
+        root = self._make_nfo({"poster_url_hash": "abc123def456"})
+        assert _read_nfo_url_hash(root, "poster_url_hash") == "abc123def456"
 
-    def test_no_marker(self, tmp_path: Path) -> None:
-        marker = tmp_path / "._nonexistent"
-        assert _check_marker(marker, "https://example.com/img.jpg") is False
+    def test_missing_tag(self) -> None:
+        root = self._make_nfo({"title": "test"})
+        assert _read_nfo_url_hash(root, "poster_url_hash") is None
 
-    def test_overwrite_marker(self, tmp_path: Path) -> None:
-        marker = tmp_path / "._test_marker"
-        _write_marker(marker, "https://first-url.com/1.jpg")
-        assert _check_marker(marker, "https://first-url.com/1.jpg") is True
-        _write_marker(marker, "https://second-url.com/2.jpg")
-        assert _check_marker(marker, "https://second-url.com/2.jpg") is True
-        assert _check_marker(marker, "https://first-url.com/1.jpg") is False
+    def test_empty_text(self) -> None:
+        root = self._make_nfo({"poster_url_hash": ""})
+        assert _read_nfo_url_hash(root, "poster_url_hash") is None
+
+    def test_none_root(self) -> None:
+        assert _read_nfo_url_hash(None, "poster_url_hash") is None
+
+    def test_different_urls_different_hashes(self) -> None:
+        root = self._make_nfo({"poster_url_hash": _url_hash("https://a.com/1.jpg")})
+        assert _read_nfo_url_hash(root, "poster_url_hash") != _url_hash(
+            "https://b.com/2.jpg"
+        )
+
+
+class TestReadNfoArtMapping:
+    def _make_nfo(self, pairs: list[tuple[str, str]]) -> ET.Element:
+        root = ET.Element("movie")
+        for h, fn in pairs:
+            el = ET.SubElement(root, "art_url")
+            el.set("hash", h)
+            el.text = fn
+        return root
+
+    def test_empty(self) -> None:
+        root = self._make_nfo([])
+        assert _read_nfo_art_mapping(root) == {}
+
+    def test_single(self) -> None:
+        h = _url_hash("https://example.com/1.jpg")
+        root = self._make_nfo([(h, "01.jpg")])
+        assert _read_nfo_art_mapping(root) == {h: "01.jpg"}
+
+    def test_multiple(self) -> None:
+        h1 = _url_hash("https://example.com/1.jpg")
+        h2 = _url_hash("https://example.com/2.jpg")
+        root = self._make_nfo([(h1, "01.jpg"), (h2, "02.jpg")])
+        assert _read_nfo_art_mapping(root) == {h1: "01.jpg", h2: "02.jpg"}
+
+    def test_dedup_by_hash(self) -> None:
+        h = _url_hash("https://example.com/1.jpg")
+        root = self._make_nfo([(h, "01.jpg"), (h, "02.jpg")])
+        result = _read_nfo_art_mapping(root)
+        assert len(result) == 1
+        assert result[h] in ("01.jpg", "02.jpg")
+
+    def test_none_root(self) -> None:
+        assert _read_nfo_art_mapping(None) == {}
