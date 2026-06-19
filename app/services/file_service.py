@@ -15,8 +15,10 @@ from pathlib import Path
 from app.config import Settings
 from app.schemas import MovieMetadata, ScrapeResult
 from app.services.file_utils import (
+    _EXTRAFANART_HASH_LEN,
     _atomic_write_text,
     _settle_rename,
+    _url_to_filename,
     retry_on_oserror,
     run_with_timeout,
 )
@@ -112,54 +114,24 @@ def _write_nfo_and_images(
     def download_image(url: str, dest: Path) -> bool:
         return _download_image(url, dest, settings, http_timeout=http_timeout)
 
-    # 1. 并行下载 poster.jpg 和 fanart.jpg
-    # 先确定两者是否需要下载
+    # 1. 下载 poster.jpg 和 fanart.jpg（始终重新下载覆盖）
     poster_path = movie_dir / "poster.jpg"
-    poster_needs_download = True
-    if poster_path.name in existing_names:
-        try:
-            if poster_path.stat().st_size > 0:
-                _report("poster", 0, 1, "封面已存在，跳过下载…")
-                poster_needs_download = False
-        except OSError:
-            pass
-
     fanart_dest = movie_dir / "fanart.jpg"
-    fanart_available = False
-    if fanart_dest.name in existing_names:
-        try:
-            fanart_available = fanart_dest.stat().st_size > 0
-        except OSError:
-            pass
-    if fanart_available:
-        _report("fanart", 0, 1, "背景已存在，跳过下载…")
 
     poster_url_val = str(poster_urls[0]) if poster_urls else None
 
-    # 构造 fanart URL 候选列表（用户选择优先 > art[0] > poster[0] 兜底）
+    # 构造 fanart URL 候选列表（用户选择优先 > art[0] 兜底）
     fanart_candidates: list[str] = []
     if fanart_url:
         fanart_candidates.append(fanart_url)
     if art_urls:
         fanart_candidates.append(str(art_urls[0]))
-    # poster URL 作为兜底，但如果 poster 正在下载中则跳过（后续用文件拷贝代替）
-    if poster_url_val and not poster_needs_download:
-        fanart_candidates.append(poster_url_val)
-    # 去重
-    _seen_set: set[str] = set()
-    deduped: list[str] = []
-    for c in fanart_candidates:
-        if c not in _seen_set:
-            _seen_set.add(c)
-            deduped.append(c)
-    fanart_candidates = deduped
 
-    # 2. 下载 poster.jpg 和 fanart.jpg（串行或并行取决于 serial_writes）
+    # 2. 下载 poster.jpg 和 fanart.jpg（始终重新下载覆盖，串行或并行取决于 serial_writes）
     poster_ok: bool
     if settings.serial_writes:
-        # 串行模式：先 poster 后 fanart，避免 FUSE 并发写入
         poster_ok = False
-        if poster_needs_download and poster_url_val:
+        if poster_url_val:
             _report("poster", 0, 1, "正在下载封面 poster.jpg…")
             poster_ok = _download_image_with_crop(
                 poster_url_val,
@@ -168,26 +140,21 @@ def _write_nfo_and_images(
                 crop_direction=crop_direction,
                 http_timeout=http_timeout,
             )
-        elif not poster_url_val:
-            poster_path = None
-        else:
-            poster_ok = True
 
         if not poster_ok:
             poster_path = None
 
-        fanart_ok = fanart_available
-        if not fanart_available and fanart_candidates:
+        fanart_ok = False
+        if fanart_candidates:
             _report("fanart", 0, 1, "正在下载背景 fanart.jpg…")
             for url in fanart_candidates:
                 if download_image(url, fanart_dest):
                     fanart_ok = True
                     break
 
-        # 若 fanart 兜底 URL 是 poster URL 且 poster 下载成功，用文件拷贝代替重复下载
+        # 兜底：poster 下载成功但 fanart 没有时，拷贝 poster 文件
         if (
             not fanart_ok
-            and not fanart_available
             and poster_url_val
             and poster_ok
             and poster_path is not None
@@ -198,10 +165,9 @@ def _write_nfo_and_images(
 
         fanart_path = fanart_dest if fanart_ok else None
     else:
-        # 并行模式：poster + fanart 同时下载
         with ThreadPoolExecutor(max_workers=2) as executor:
             poster_ft = None
-            if poster_needs_download and poster_url_val:
+            if poster_url_val:
                 _report("poster", 0, 1, "正在下载封面 poster.jpg…")
                 poster_ft = executor.submit(
                     _download_image_with_crop,
@@ -211,11 +177,11 @@ def _write_nfo_and_images(
                     crop_direction=crop_direction,
                     http_timeout=http_timeout,
                 )
-            elif not poster_url_val:
+            else:
                 poster_path = None
 
             fanart_ft = None
-            if not fanart_available and fanart_candidates:
+            if fanart_candidates:
                 _report("fanart", 0, 1, "正在下载背景 fanart.jpg…")
 
                 def _try_fanart() -> bool:
@@ -230,14 +196,13 @@ def _write_nfo_and_images(
             if not poster_ok:
                 poster_path = None
 
-            fanart_ok = fanart_available
+            fanart_ok = False
             if fanart_ft:
                 fanart_ok = fanart_ft.result()
 
-            # 若 fanart 兜底 URL 是 poster URL 且 poster 下载成功，用文件拷贝代替重复下载
+            # 兜底：poster 下载成功但 fanart 没有时，拷贝 poster 文件
             if (
                 not fanart_ok
-                and not fanart_available
                 and poster_url_val
                 and poster_ok
                 and poster_path is not None
@@ -248,56 +213,34 @@ def _write_nfo_and_images(
 
             fanart_path = fanart_dest if fanart_ok else None  # type: ignore[no-redef]
 
-    # 3. extrafanart/*（串行或并行取决于 serial_writes）
+    # 3. extrafanart/*（基于 URL hash 去重，不删除已有文件）
     extra_dir = movie_dir / "extrafanart"
     extra_dir.mkdir(exist_ok=True)
-    # 一次性扫描 extrafanart 目录，避免多次 stat
     extra_names = _scan_dir_names(extra_dir)
-    existing_extras = sorted(
-        extra_dir / n for n in extra_names if Path(n).suffix.lower() == ".jpg"
-    )
-    for p in existing_extras[max_extra_images:]:
-        p.unlink()
 
-    used_urls: set[str] = set()
-    if poster_urls:
-        used_urls.add(str(poster_urls[0]))
-    if art_urls:
-        used_urls.add(str(art_urls[0]))
-    if poster_url:
-        used_urls.add(poster_url)
-    if fanart_url:
-        used_urls.add(fanart_url)
+    # 已有文件按 hash 文件名建立快速索引（兼容旧版顺序命名文件，不删除）
+    existing_hash_set = {
+        n
+        for n in extra_names
+        if n.endswith(".jpg") and len(n) == _EXTRAFANART_HASH_LEN + 4
+    }
 
     all_extra_sources: list[str] = []
     all_extra_sources.extend(str(u) for u in art_urls)
     all_extra_sources.extend(str(u) for u in poster_urls)
 
     download_tasks: list[tuple[str, Path]] = []
-    idx = 1
     for url in all_extra_sources:
-        if url in used_urls:
+        dest_name = _url_to_filename(url)
+        if dest_name in existing_hash_set:
+            extra_paths.append(extra_dir / dest_name)
             continue
-        if idx > max_extra_images:
-            break
-        dest = extra_dir / f"{idx:02d}.jpg"
-        if dest.name in extra_names:
-            try:
-                st = dest.stat()
-                if st.st_size > 0:
-                    extra_paths.append(dest)
-                    idx += 1
-                    continue
-            except OSError:
-                pass
-        download_tasks.append((url, dest))
-        idx += 1
+        download_tasks.append((url, extra_dir / dest_name))
 
     total_tasks = len(download_tasks)
     _report("extrafanart", 0, total_tasks, "正在下载剧照…")
     if total_tasks > 0:
         if settings.serial_writes:
-            # 串行逐个下载，避免 FUSE 并发写入
             completed = 0
             for url, dest in download_tasks:
                 if download_image(url, dest):
@@ -482,60 +425,65 @@ def save_assets_for_existing_video(
         )
         if reuse:
             if on_progress:
-                on_progress("reuse", 0, 1, "检测到已有同源刮削记录，跳过下载…")
+                on_progress("reuse", 0, 1, "检测到已有同源刮削记录，重新下载图片…")
             nfo_path = movie_dir / "movie.nfo"
             poster_path = movie_dir / "poster.jpg"
             fanart_path = movie_dir / "fanart.jpg"
             extra_dir = movie_dir / "extrafanart"
+
+            # poster：始终重新下载覆盖
+            dl_url = poster_url or (
+                str(metadata.posters[0]) if metadata.posters else None
+            )
+            if dl_url:
+                if on_progress:
+                    on_progress("poster", 0, 1, "正在重新下载封面…")
+                _download_image_with_crop(
+                    dl_url,
+                    poster_path,
+                    settings,
+                    crop_direction=crop_direction,
+                    http_timeout=http_timeout,
+                )
+
+            # fanart：始终重新下载覆盖
+            dl_url = (
+                fanart_url
+                or (str(metadata.art[0]) if metadata.art else None)
+                or (str(metadata.posters[0]) if metadata.posters else None)
+            )
+            if dl_url:
+                if on_progress:
+                    on_progress("fanart", 0, 1, "正在重新下载背景…")
+                _download_image(
+                    dl_url, fanart_path, settings, http_timeout=http_timeout
+                )
+
+            # extrafanart：基于 URL hash 补充不存在的，不删除原有
+            extra_dir.mkdir(exist_ok=True)
+            extra_names = _scan_dir_names(extra_dir)
+            existing_hash_set = {
+                n
+                for n in extra_names
+                if n.endswith(".jpg") and len(n) == _EXTRAFANART_HASH_LEN + 4
+            }
+            all_extra: list[str] = []
+            all_extra.extend(str(u) for u in metadata.art)
+            all_extra.extend(str(u) for u in metadata.posters)
+            extra_downloads: list[tuple[str, Path]] = []
+            for url in all_extra:
+                dest_name = _url_to_filename(url)
+                if dest_name in existing_hash_set:
+                    continue
+                extra_downloads.append((url, extra_dir / dest_name))
+            for url, dest in extra_downloads:
+                _download_image(url, dest, settings, http_timeout=http_timeout)
+
             extra_images = (
                 sorted(str(p) for p in extra_dir.glob("*.jpg"))
                 if extra_dir.is_dir()
                 else []
             )
-
-            # 补充下载缺失的图片（用户可能手动删除了）
-            # 先用 existing_names 判断存在性，避免网络 stat
-            poster_needs_download = True
-            if "poster.jpg" in existing_names:
-                try:
-                    poster_needs_download = poster_path.stat().st_size == 0
-                except OSError:
-                    poster_needs_download = True
-
-            if poster_needs_download:
-                dl_url = poster_url or (
-                    str(metadata.posters[0]) if metadata.posters else None
-                )
-                if dl_url:
-                    if on_progress:
-                        on_progress("poster", 0, 1, "封面缺失，正在补充下载…")
-                    _download_image_with_crop(
-                        dl_url,
-                        poster_path,
-                        settings,
-                        crop_direction=crop_direction,
-                        http_timeout=http_timeout,
-                    )
-
-            fanart_needs_download = True
-            if "fanart.jpg" in existing_names:
-                try:
-                    fanart_needs_download = fanart_path.stat().st_size == 0
-                except OSError:
-                    fanart_needs_download = True
-
-            if fanart_needs_download:
-                dl_url = (
-                    fanart_url
-                    or (str(metadata.art[0]) if metadata.art else None)
-                    or (str(metadata.posters[0]) if metadata.posters else None)
-                )
-                if dl_url:
-                    if on_progress:
-                        on_progress("fanart", 0, 1, "背景缺失，正在补充下载…")
-                    _download_image(
-                        dl_url, fanart_path, settings, http_timeout=http_timeout
-                    )
 
             return ScrapeResult(
                 success=True,

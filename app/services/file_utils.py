@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import hashlib
 import logging
 import re
 import shutil
@@ -117,6 +118,15 @@ def _settle_rename(
 
 
 _TEMP_PREFIX = "._nfofetch_"
+
+_EXTRAFANART_HASH_LEN = 12
+
+
+def _url_to_filename(url: str) -> str:
+    """将 URL 映射为稳定的文件名（基于 MD5 hash），用于 extrafanart 去重。"""
+    h = hashlib.md5(url.encode()).hexdigest()[:_EXTRAFANART_HASH_LEN]
+    return f"{h}.jpg"
+
 
 # 支持的视频扩展名
 VIDEO_EXTENSIONS = (

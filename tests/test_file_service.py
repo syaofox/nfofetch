@@ -852,6 +852,90 @@ class TestSaveAssetsForExistingVideo:
         assert (new_dir / "movie.nfo").exists()
 
 
+class TestExtrafanartHash:
+    """extrafanart 基于 URL hash 的去重与补充逻辑。"""
+
+    def test_keeps_sequential_files(
+        self, tmp_path: Path, sample_movie_metadata
+    ) -> None:
+        """旧版顺序命名文件（01.jpg）不被删除。"""
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.nfo_service import build_movie_nfo
+        from app.services.file_utils import _url_to_filename
+
+        video = tmp_path / "test.mp4"
+        video.write_text("fake")
+        # 预置旧版顺序命名文件
+        extra_dir = tmp_path / "extrafanart"
+        extra_dir.mkdir()
+        (extra_dir / "01.jpg").write_text("old")
+        # 预置一个 hash 命名的文件
+        hash_name = _url_to_filename(str(sample_movie_metadata.art[0]))
+        (extra_dir / hash_name).write_text("existing")
+
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+        )
+        nfo_text = build_movie_nfo(sample_movie_metadata)
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=nfo_text,
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+        )
+
+        assert result.success
+        # 旧版顺序文件应保留
+        assert (extra_dir / "01.jpg").exists()
+        # 已有 hash 文件应保留
+        assert (extra_dir / hash_name).exists()
+
+    def test_supplements_new_urls(self, tmp_path: Path, sample_movie_metadata) -> None:
+        """新 URL 按 hash 命名下载到 extrafanart。"""
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.nfo_service import build_movie_nfo
+        from app.services.file_utils import _url_to_filename
+
+        video = tmp_path / "test.mp4"
+        video.write_text("fake")
+        # 只保留一张已有，另一张应该被补充
+        extra_dir = tmp_path / "extrafanart"
+        extra_dir.mkdir()
+        hash_name = _url_to_filename(str(sample_movie_metadata.art[0]))
+        (extra_dir / hash_name).write_text("existing")
+
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+        )
+        nfo_text = build_movie_nfo(sample_movie_metadata)
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=nfo_text,
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+        )
+
+        assert result.success
+        # 已有文件保留
+        assert (extra_dir / hash_name).exists()
+
+
 class TestFindMatchingSubtitles:
     def test_exact_stem_match(self, tmp_path: Path) -> None:
         video = tmp_path / "ABC-123.mp4"

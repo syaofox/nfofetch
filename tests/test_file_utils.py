@@ -6,7 +6,12 @@ import pytest
 
 from pathlib import Path
 
-from app.services.file_utils import _settle_rename, retry_on_oserror, run_with_timeout
+from app.services.file_utils import (
+    _url_to_filename,
+    _settle_rename,
+    retry_on_oserror,
+    run_with_timeout,
+)
 
 
 class TestRunWithTimeout:
@@ -129,3 +134,32 @@ class TestSettleRename:
         p = tmp_path / "gone.txt"
         with pytest.raises(OSError, match="rename 后路径仍然不可访问"):
             _settle_rename(p, settle_secs=0.01, retries=2)
+
+
+class TestUrlToFilename:
+    def test_consistent(self) -> None:
+        """同一 URL 每次生成相同文件名。"""
+        url = "https://example.com/art/001.jpg"
+        assert _url_to_filename(url) == _url_to_filename(url)
+
+    def test_extension(self) -> None:
+        """结果应以 .jpg 结尾。"""
+        assert _url_to_filename("https://example.com/img.jpg").endswith(".jpg")
+
+    def test_length(self) -> None:
+        """hash 段固定 12 字符 + .jpg。"""
+        name = _url_to_filename("https://example.com/img.jpg")
+        assert len(name) == 16  # 12 hex + 4 ext
+
+    def test_different_urls_different_names(self) -> None:
+        """不同 URL 产生不同的文件名。"""
+        a = _url_to_filename("https://example.com/1.jpg")
+        b = _url_to_filename("https://example.com/2.jpg")
+        assert a != b
+
+    def test_no_special_chars(self) -> None:
+        """文件名只含小写 hex 和 .jpg，不含特殊字符。"""
+        name = _url_to_filename("https://example.com/奇怪中文?query=1&foo=bar")
+        assert name.endswith(".jpg")
+        stem = name.removesuffix(".jpg")
+        assert all(c in "0123456789abcdef" for c in stem)
