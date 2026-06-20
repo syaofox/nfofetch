@@ -891,6 +891,158 @@ class TestSaveAssetsForExistingVideo:
         assert (new_dir / "movie.nfo").exists()
 
 
+class TestNoTempLeakAfterScrape:
+    """验证刮削完成后目标目录无 _._nfofetch_ 临时文件残留。"""
+
+    def test_no_temp_left_after_basic_scrape(
+        self, tmp_path: Path, sample_movie_metadata
+    ) -> None:
+        """save_assets_for_existing_video 后不应在 target 目录留下 temp 文件。"""
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.file_utils import _TEMP_PREFIX
+        from app.services.nfo_service import build_movie_nfo
+
+        video = tmp_path / "test.mp4"
+        video.write_text("fake video")
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+        )
+        nfo_text = build_movie_nfo(sample_movie_metadata)
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=nfo_text,
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+        )
+
+        assert result.success
+        assert (tmp_path / "movie.nfo").exists()
+        # 检查目标目录无临时文件
+        temps = list(tmp_path.rglob(f"{_TEMP_PREFIX}*"))
+        assert len(temps) == 0, f"目标目录发现临时文件残留: {temps}"
+
+    def test_no_temp_left_after_reuse(
+        self, tmp_path: Path, sample_movie_metadata
+    ) -> None:
+        """重用模式下也不应有临时文件残留。"""
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.file_utils import _TEMP_PREFIX
+        from app.services.nfo_service import build_movie_nfo
+
+        video = tmp_path / "test.mp4"
+        video.write_text("fake")
+
+        # 预写 NFO 触发重用路径
+        nfo_path = tmp_path / "movie.nfo"
+        nfo_path.write_text(
+            '<?xml version="1.0"?>\n<movie>'
+            "<source_url>https://javdb.com/v/abcdef</source_url>"
+            "<id>ABP-123</id>"
+            "</movie>"
+        )
+
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+        )
+        nfo_text = build_movie_nfo(sample_movie_metadata)
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=nfo_text,
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+        )
+
+        assert result.success
+        # 检查目标目录无临时文件
+        temps = list(tmp_path.rglob(f"{_TEMP_PREFIX}*"))
+        assert len(temps) == 0, f"目标目录发现临时文件残留: {temps}"
+
+    def test_no_temp_left_with_rename_format(
+        self, tmp_path: Path, sample_movie_metadata
+    ) -> None:
+        """重命名视频后也不应有临时文件残留。"""
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.file_utils import _TEMP_PREFIX
+        from app.services.nfo_service import build_movie_nfo
+
+        video = tmp_path / "old_name.mp4"
+        video.write_text("fake video")
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+        )
+        nfo_text = build_movie_nfo(sample_movie_metadata)
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=nfo_text,
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+            rename_format="{id}",
+        )
+
+        assert result.success
+        assert (tmp_path / "ABP-123.mp4").exists()
+        temps = list(tmp_path.rglob(f"{_TEMP_PREFIX}*"))
+        assert len(temps) == 0, f"目标目录发现临时文件残留: {temps}"
+
+    def test_no_temp_left_with_serial_writes(
+        self, tmp_path: Path, sample_movie_metadata
+    ) -> None:
+        """serial_writes=True 模式下也不应有临时文件残留。"""
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.file_utils import _TEMP_PREFIX
+        from app.services.nfo_service import build_movie_nfo
+
+        video = tmp_path / "test.mp4"
+        video.write_text("fake video")
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+            serial_writes=True,
+        )
+        nfo_text = build_movie_nfo(sample_movie_metadata)
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=nfo_text,
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+        )
+
+        assert result.success
+        temps = list(tmp_path.rglob(f"{_TEMP_PREFIX}*"))
+        assert len(temps) == 0, f"目标目录发现临时文件残留: {temps}"
+
+
 class TestExtrafanartHash:
     """extrafanart 顺序命名 + NFO 映射的去重与补充逻辑。"""
 

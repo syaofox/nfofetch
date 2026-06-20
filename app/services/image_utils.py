@@ -48,7 +48,7 @@ def _crop_image(image_path: Path, direction: str) -> None:
 
     y = 0
     cropped = img.crop((x, y, x + target_w, y + target_h))
-    cropped.save(image_path)
+    cropped.save(image_path, format=img.format)
     logger.info(
         "裁切 poster: %s -> %dx%d（direction=%s, 原图 %dx%d）",
         image_path.name,
