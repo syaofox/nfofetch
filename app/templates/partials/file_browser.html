@@ -62,7 +62,7 @@
       <div class="nf-file-browser-item-wrapper">
         <button
           type="button"
-          class="nf-file-browser-item {% if entry.is_dir %}nf-file-browser-dir{% else %}nf-file-browser-file{% endif %}"
+          class="nf-file-browser-item {% if entry.is_dir %}nf-file-browser-dir{% elif entry.is_video %}nf-file-browser-video{% else %}nf-file-browser-file{% endif %}"
           data-name="{{ entry.name_lower }}"
           onclick="{% if entry.is_dir %}window.nfBrowseTo('{{ entry.path|escapejs }}'){% else %}window.nfSelectFile('{{ entry.path|escapejs }}'){% endif %}"
         >

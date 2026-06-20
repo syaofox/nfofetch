@@ -22,6 +22,7 @@ from app.config import get_settings
 from app.middleware import create_rate_limit_middleware
 from app.schemas import MovieMetadata, ScrapeResult, UserSettings
 from app.services.file_service import save_assets_for_existing_video
+from app.services.file_utils import VIDEO_EXTENSIONS
 from app.services.nfo_service import build_movie_nfo
 from app.services.scrape_service import is_url, scrape_movie, search_movie
 from app.services.settings_service import load_user_settings, save_user_settings
@@ -185,6 +186,8 @@ async def browse(
                     "name_lower": entry.name.lower(),
                     "path": entry.path,
                     "is_dir": is_dir,
+                    "is_video": is_file
+                    and Path(entry.name).suffix.lower() in VIDEO_EXTENSIONS,
                 }
                 if sort_by == "mtime":
                     try:

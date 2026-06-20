@@ -447,6 +447,15 @@
   content: "📄 ";
 }
 
+.nf-file-browser-video .nf-file-browser-item-name {
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.nf-file-browser-video .nf-file-browser-item-name::before {
+  content: "🎬 ";
+}
+
 .nf-file-browser-item-wrapper {
   display: flex;
   gap: 0.25rem;
