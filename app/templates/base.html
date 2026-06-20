@@ -17,6 +17,17 @@
       <div class="nf-loading-spinner"></div>
       <div id="nf-loading-text" class="nf-loading-text">处理中…</div>
     </div>
+    <div id="nf-delete-modal" class="nf-modal" style="display:none">
+      <div class="nf-modal-backdrop"></div>
+      <div class="nf-modal-box">
+        <div class="nf-modal-title">确认删除</div>
+        <div id="nf-delete-modal-path" class="nf-modal-body"></div>
+        <div class="nf-modal-actions">
+          <button type="button" class="nf-button nf-button-secondary" id="nf-delete-cancel-btn">取消</button>
+          <button type="button" class="nf-button nf-button-danger" id="nf-delete-confirm-btn">删除</button>
+        </div>
+      </div>
+    </div>
 
     <header class="nf-header">
       <div class="nf-container">
@@ -372,9 +383,29 @@
           }
         };
 
+        window._nfDeletePendingPath = "";
+
         window.nfDeleteItem = function (path, event) {
           if (event) event.stopPropagation();
-          if (!confirm("确定要删除 " + path + " 吗？")) return;
+          window._nfDeletePendingPath = path;
+          var body = document.getElementById("nf-delete-modal-path");
+          if (body) body.textContent = path;
+          var modal = document.getElementById("nf-delete-modal");
+          if (modal) modal.style.display = "";
+        };
+
+        document.getElementById("nf-delete-cancel-btn").addEventListener("click", function () {
+          var modal = document.getElementById("nf-delete-modal");
+          if (modal) modal.style.display = "none";
+          window._nfDeletePendingPath = "";
+        });
+
+        document.getElementById("nf-delete-confirm-btn").addEventListener("click", function () {
+          var path = window._nfDeletePendingPath;
+          var modal = document.getElementById("nf-delete-modal");
+          if (modal) modal.style.display = "none";
+          window._nfDeletePendingPath = "";
+          if (!path) return;
           var formData = new FormData();
           formData.append("path", path);
           fetch("/browse/delete", { method: "POST", body: formData })
@@ -392,7 +423,7 @@
             .catch(function () {
               alert("删除请求失败");
             });
-        };
+        });
 
         window.nfRefreshBrowser = function (path) {
           loadBrowser(path);

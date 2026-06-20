@@ -662,4 +662,67 @@
   }
 }
 
+/* 删除确认弹窗 */
+.nf-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nf-modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(17, 24, 39, 0.6);
+}
+
+.nf-modal-box {
+  position: relative;
+  background: #ffffff;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.nf-modal-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.75rem;
+}
+
+.nf-modal-body {
+  font-size: 0.85rem;
+  color: #4b5563;
+  word-break: break-all;
+  margin-bottom: 1.25rem;
+  line-height: 1.5;
+}
+
+.nf-modal-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.nf-button-danger {
+  background: #dc2626;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.nf-button-danger:hover {
+  background: #b91c1c;
+}
+
 
