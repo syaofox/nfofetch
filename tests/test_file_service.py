@@ -904,6 +904,130 @@ class TestSaveAssetsForExistingVideo:
         assert (new_dir / "movie.nfo").exists()
 
 
+class TestProgressReporting:
+    """验证 on_progress 回调按预期阶段触发。"""
+
+    def test_reports_expected_phases(
+        self, tmp_path: Path, sample_movie_metadata
+    ) -> None:
+        """基本刮削应触发 poster/fanart/extrafanart/nfo 等阶段。"""
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.nfo_service import build_movie_nfo
+
+        video = tmp_path / "test.mp4"
+        video.write_text("fake video")
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+        )
+        nfo_text = build_movie_nfo(sample_movie_metadata)
+        reported_phases: list[str] = []
+
+        def on_progress(phase: str, current: int, total: int, detail: str) -> None:
+            reported_phases.append(phase)
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=nfo_text,
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+            on_progress=on_progress,
+        )
+
+        assert result.success
+        # 应触发过图片/NFO 相关阶段
+        assert "poster" in reported_phases
+        assert "fanart" in reported_phases or "extrafanart" in reported_phases
+        assert "nfo" in reported_phases
+
+    def test_reports_rename_phases(self, tmp_path: Path, sample_movie_metadata) -> None:
+        """设 rename_format/rename_dir 时应触发 rename 阶段。"""
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.nfo_service import build_movie_nfo
+
+        video = tmp_path / "old_name.mp4"
+        video.write_text("fake video")
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+        )
+        nfo_text = build_movie_nfo(sample_movie_metadata)
+        reported_phases: list[str] = []
+
+        def on_progress(phase: str, current: int, total: int, detail: str) -> None:
+            reported_phases.append(phase)
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=nfo_text,
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+            rename_format="{id}",
+            on_progress=on_progress,
+        )
+
+        assert result.success
+        assert "rename_video" in reported_phases
+
+    def test_reports_reuse_phase(self, tmp_path: Path, sample_movie_metadata) -> None:
+        """重用检测时应触发 scanning 和 reuse 阶段。"""
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.nfo_service import build_movie_nfo
+
+        video = tmp_path / "test.mp4"
+        video.write_text("fake")
+        nfo_path = tmp_path / "movie.nfo"
+        nfo_path.write_text(
+            '<?xml version="1.0"?>\n<movie>'
+            "<source_url>https://javdb.com/v/abcdef</source_url>"
+            "<id>ABP-123</id>"
+            "</movie>"
+        )
+
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+        )
+        nfo_text = build_movie_nfo(sample_movie_metadata)
+        reported_phases: list[str] = []
+
+        def on_progress(phase: str, current: int, total: int, detail: str) -> None:
+            reported_phases.append(phase)
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=nfo_text,
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+            on_progress=on_progress,
+        )
+
+        assert result.success
+        assert "scanning" in reported_phases
+        assert "reuse" in reported_phases
+
+
 class TestNoTempLeakAfterScrape:
     """验证刮削完成后目标目录无 _._nfofetch_ 临时文件残留。"""
 

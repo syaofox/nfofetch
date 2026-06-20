@@ -457,6 +457,8 @@ def save_assets_for_existing_video(
         final_video_path = video_path
         if rename_format and rename_format.strip():
             fmt = rename_format.strip()
+            if on_progress:
+                on_progress("rename_video", 0, 1, "正在重命名视频文件…")
             try:
                 if "{idx}" in fmt:
                     renames = _rename_videos_in_dir(movie_dir, metadata, fmt)
@@ -474,6 +476,8 @@ def save_assets_for_existing_video(
         # 2. 重命名文件夹（在视频重命名之后、NFO 写入之前执行）
         if rename_dir and rename_dir.strip():
             fmt_dir = rename_dir.strip()
+            if on_progress:
+                on_progress("rename_dir", 0, 1, "正在重命名文件夹…")
             try:
                 movie_dir, final_video_path = _rename_directory(
                     movie_dir,
@@ -494,6 +498,8 @@ def save_assets_for_existing_video(
         existing_names: set[str] = set()
         reuse = False
         if nfo_exists:
+            if on_progress:
+                on_progress("scanning", 0, 1, "正在扫描已有文件…")
             existing_names = _scan_dir_names(movie_dir)
             reuse = _check_reuse_existing(
                 movie_dir,
@@ -580,7 +586,15 @@ def save_assets_for_existing_video(
                 dest = extra_dir / f"{next_idx:02d}.jpg"
                 extra_downloads.append((url, dest))
                 next_idx += 1
-            for url, dest in extra_downloads:
+            total_extra = len(extra_downloads)
+            for i, (url, dest) in enumerate(extra_downloads, 1):
+                if on_progress:
+                    on_progress(
+                        "extrafanart",
+                        i,
+                        total_extra,
+                        f"正在下载剧照 {i}/{total_extra}…",
+                    )
                 _download_image(url, dest, settings, http_timeout=http_timeout)
 
             extra_images = (
