@@ -382,6 +382,15 @@ async def scrape(
         if task_id:
             _update_task(task_id, done=True)
 
+    # 刮削成功后更新文件浏览器记住的路径，使下次打开时定位到新目录
+    if result.success and result.movie_dir:
+        try:
+            current = load_user_settings()
+            current.last_browse_path = result.movie_dir
+            save_user_settings(current)
+        except Exception:
+            pass
+
     return templates.TemplateResponse(
         request,
         "partials/scrape_result.html",

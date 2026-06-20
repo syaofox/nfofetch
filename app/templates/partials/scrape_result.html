@@ -144,5 +144,15 @@
       </ul>
     </div>
   </div>
+  {% if result.video_path %}
+    <script>
+      (function() {
+        var input = document.getElementById("video_path");
+        if (input) {
+          input.value = "{{ result.video_path | escapejs | safe }}";
+        }
+      })();
+    </script>
+  {% endif %}
 {% endif %}
 

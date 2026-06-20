@@ -2,6 +2,12 @@
 
 nfofetch: FastAPI + HTMX 影片刮削工具，从 javdb 抓取信息并生成 Jellyfin 兼容的 NFO/图片。
 
+## 重要事项
+- 实际修改前，要先评估此次修改的合理性与可行性。
+- 修改后的代码必须有完整的 pytest 单元测试，并通过 mypy 和 ruff 检测。
+- 请使用提问的方式帮助我确认需求。
+- 不要猜测我的意图。任何不明确的地方都必须向我提问。
+
 ## 关键命令
 
 ```bash
@@ -9,6 +15,7 @@ uv sync                          # 安装依赖
 uv run uvicorn app.main:app --reload  # 开发服务器
 uv run python -m app.cli --url <URL> --video <PATH>  # CLI 模式
 uv run ruff check --fix . && uv run ruff format . && uv run mypy app/ tests/ && uv run pytest   # 提交前必跑
+uv run pytest tests/test_scrape_path_update.py -v   # 仅跑新增的路径更新测试
 ```
 
 ## FUSE / 网络文件系统踩坑记录
@@ -52,6 +59,32 @@ uv run ruff check --fix . && uv run ruff format . && uv run mypy app/ tests/ && 
 | extrafanart 批量 move（全部下载到 `/tmp` 再一次性 move 到 FUSE） | 减少 FUSE daemon 切换开销 |
 | `_download_to_temp` / `_download_image` 分离 | 支持批量 move |
 
+## HTMX / 前端踩坑记录
+
+### 坑 1：`htmx:afterRequest` 事件冒泡因 DOM 分离失效
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| `htmx:afterRequest`/`afterSwap` 监听器不执行 | swap 后发起请求的元素（`elt`）被移出 DOM，事件无法冒泡到 `document.body` | **内联 `<script>`**：在返回的 HTML partial 中嵌入 `<script>`，HTMX 会在 swap 后自动执行 |
+
+**错误做法：** 在 `base.html` 中靠 `document.body.addEventListener("htmx:afterRequest", ...)` 监听 `#write-form` 完成事件来更新 UI。
+
+**正确做法：** 在 `scrape_result.html` 中直接输出 `<script>document.getElementById("video_path").value = "{{ path | escapejs | safe }}";</script>`。
+
+### 坑 2：`<script>` 在 innerHTML swap 中不执行
+
+HTML 规范规定 `innerHTML` 插入的 `<script>` 不执行。HTMX 内部会主动查找并执行它们，所以依赖 HTMX 的 script 执行没问题。但如果用原生 `fetch` + `innerHTML` 手动插入内容，需要自行处理脚本执行。
+
+### `escapejs` 过滤器
+
+在 `app/main.py` 中注册了自定义 Jinja2 过滤器 `escapejs`，用于安全地将 Python 字符串嵌入 JavaScript 字符串上下文（单/双引号、反斜杠、换行符均被转义）。用法：
+
+```
+{{ value | escapejs | safe }}
+```
+
+注意必须追加 `| safe`，否则 Jinja2 的 HTML 自动转义会破坏 JS 字符串。
+
 ## VR 格式判定
 
 `{vr}` 占位符用于文件/目录重命名，根据视频分辨率判定格式：
@@ -82,18 +115,19 @@ uv run ruff check --fix . && uv run ruff format . && uv run mypy app/ tests/ && 
 - **重复刮削检测**：NFO 中 `<source_url>` 或 `<id>` 匹配即有记录；若已有同源记录，仍然重新下载图片并更新 NFO hash。
 - **目录锁默认关闭**：`NFOFETCH_LOCK_ENABLED=false`，单人使用不需锁。多用户 Web 场景需开启。
 - **`Path.resolve()` 禁用**：FUSE 上 `resolve()` 触发网络 stat 慢，改用 `absolute()`。
+- **文件浏览器记住的路径**：刮削完成后，服务端自动将 `last_browse_path` 更新为 `result.movie_dir`（`app/main.py:385-392`），同时内联 `<script>` 将 `#video_path` 输入框更新为新的视频路径（`scrape_result.html:147-156`）。下次打开文件浏览器时自动定位到新目录。
 
 ## 架构要点
 
-- **入口**: `app/main.py` (FastAPI), `app/cli.py` (CLI)
+- **入口**: `app/main.py`（FastAPI）、`app/cli.py`（CLI）
 - **刮削器注册**: `app/scrapers/registry.py` — 新增站点注册到 `SCRAPERS` 列表
 - **HTML 解析**: `selectolax`；**HTTP 客户端**: 优先 `curl-cffi`，兜底 `httpx`
 - **配置**: `get_settings()` 由 `@lru_cache` 缓存，环境变量 → `Settings` dataclass
-- **用户偏好**: 重命名格式等持久化到 JSON（`settings_service.py`），启动时加载
+- **用户偏好**: 重命名格式、最后浏览路径等持久化到 JSON（`settings_service.py`，默认 `~/.config/nfofetch/settings.json`），启动时加载
 
 ## 特殊约定
 
 - 所有文件 `from __future__ import annotations`
 - 类型 `str | None` 而非 `Optional[str]`
-- 纯单元测试 (`tests/`)，pytest 管理，不依赖网络
+- 纯单元测试（`tests/`），pytest 管理，不依赖网络
 - 依赖声明在 `pyproject.toml`，Dockerfile 重复列了 `pip install` 行，新增需同步
