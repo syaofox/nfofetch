@@ -297,7 +297,14 @@ def _write_nfo_and_images(
                     f"正在下载剧照 {completed}/{total_tasks}…",
                 )
             # 阶段二：批量 move 到 FUSE（集中连续写，减少 daemon 切换开销）
-            for tmp, dest in batch_moves:
+            move_count = len(batch_moves)
+            for move_idx, (tmp, dest) in enumerate(batch_moves, 1):
+                _report(
+                    "extrafanart",
+                    move_idx,
+                    move_count,
+                    f"正在写入剧照 {move_idx}/{move_count}…",
+                )
                 _write_delay(settings.write_delay)
                 try:
                     shutil.move(str(tmp), str(dest))
