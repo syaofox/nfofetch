@@ -5,47 +5,48 @@
   </div>
 
   <div class="nf-file-browser-actions">
-    {% if parent_dir %}
+    <div class="nf-file-browser-actions-left">
+      {% if parent_dir %}
+        <button
+          type="button"
+          class="nf-button nf-button-secondary"
+          onclick="window.nfBrowseUp('{{ parent_dir|escapejs }}', '{{ current_dir|escapejs }}')"
+        >
+          上级目录
+        </button>
+      {% endif %}
       <button
         type="button"
         class="nf-button nf-button-secondary"
-        onclick="window.nfBrowseUp('{{ parent_dir|escapejs }}', '{{ current_dir|escapejs }}')"
+          onclick="window.nfRefreshBrowser('{{ current_dir|escapejs }}')"
       >
-        上级目录
+        刷新
       </button>
-    {% endif %}
-    <button
-      type="button"
-      class="nf-button nf-button-secondary"
-        onclick="window.nfRefreshBrowser('{{ current_dir|escapejs }}')"
-    >
-      刷新
-    </button>
-    <button
-      type="button"
-      class="nf-button nf-button-secondary"
-      onclick="window.nfCloseFileBrowser()"
-    >
-      关闭
-    </button>
-  </div>
-
-  <div class="nf-file-browser-sort">
-    <button
-      type="button"
-      class="nf-button nf-button-secondary nf-sort-btn{% if sort_by == 'name' %} nf-sort-btn-active{% endif %}"
-      onclick="window.nfSetSort('name')"
-    >文件名{% if sort_by == 'name' %}{% if sort_order == 'desc' %} ↓{% else %} ↑{% endif %}{% endif %}</button>
-    <button
-      type="button"
-      class="nf-button nf-button-secondary nf-sort-btn{% if sort_by == 'natural' %} nf-sort-btn-active{% endif %}"
-      onclick="window.nfSetSort('natural')"
-    >自然排序{% if sort_by == 'natural' %}{% if sort_order == 'desc' %} ↓{% else %} ↑{% endif %}{% endif %}</button>
-    <button
-      type="button"
-      class="nf-button nf-button-secondary nf-sort-btn{% if sort_by == 'mtime' %} nf-sort-btn-active{% endif %}"
-      onclick="window.nfSetSort('mtime')"
-    >修改时间{% if sort_by == 'mtime' %}{% if sort_order == 'desc' %} ↓{% else %} ↑{% endif %}{% endif %}</button>
+      <button
+        type="button"
+        class="nf-button nf-button-secondary"
+        onclick="window.nfCloseFileBrowser()"
+      >
+        关闭
+      </button>
+    </div>
+    <div class="nf-file-browser-actions-right">
+      <button
+        type="button"
+        class="nf-button nf-button-secondary nf-sort-btn{% if sort_by == 'name' %} nf-sort-btn-active{% endif %}"
+        onclick="window.nfSetSort('name')"
+      >文件名{% if sort_by == 'name' %}{% if sort_order == 'desc' %} ↓{% else %} ↑{% endif %}{% endif %}</button>
+      <button
+        type="button"
+        class="nf-button nf-button-secondary nf-sort-btn{% if sort_by == 'natural' %} nf-sort-btn-active{% endif %}"
+        onclick="window.nfSetSort('natural')"
+      >自然排序{% if sort_by == 'natural' %}{% if sort_order == 'desc' %} ↓{% else %} ↑{% endif %}{% endif %}</button>
+      <button
+        type="button"
+        class="nf-button nf-button-secondary nf-sort-btn{% if sort_by == 'mtime' %} nf-sort-btn-active{% endif %}"
+        onclick="window.nfSetSort('mtime')"
+      >修改时间{% if sort_by == 'mtime' %}{% if sort_order == 'desc' %} ↓{% else %} ↑{% endif %}{% endif %}</button>
+    </div>
   </div>
 
   <div class="nf-file-browser-filter">
