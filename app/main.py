@@ -167,6 +167,11 @@ async def browse(
 
     entries: list[dict[str, Any]] = []
     try:
+        # FUSE 下先 stat 目录，尝试触发 rclone 缓存刷新
+        current.stat()
+    except OSError:
+        pass
+    try:
         with os.scandir(current) as it:
             for entry in it:
                 if entry.name.startswith("."):

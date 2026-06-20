@@ -28,6 +28,7 @@ uv run pytest tests/test_scrape_path_update.py -v   # 仅跑新增的路径更�
 | 2 | poster + fanart + extrafanart 并发写 FUSE 导致断开 | 4-6 路同时写入压垮 FUSE daemon | `file_service.py`: 新增 `NFOFETCH_SERIAL_WRITES=true`，所有图片串行写入 |
 | 3 | ffprobe 读网络视频阻塞 30s | 大文件通过网络读取耗时久 | `rename_utils.py`: timeout 30s → 10s |
 | 4 | 文件夹 rename 后立即写入图片 → mount 断开 | rename 在 FUSE 上需时间同步，后续写入加剧负载 | ~~`_settle_rename()`~~ → 最终结论：FUSE 重试弊大于利，已全部移除，改 fail-fast |
+| 5 | 远程添加文件后 UI 文件浏览器看不到 | 内核 dcache + rclone 内部缓存导致 `scandir` 返回旧数据 | `app/main.py:170`: `scandir` 前加 `current.stat()` 尝试触发 getattr 刷新缓存; 也可在 fnos 侧设 `--dir-cache-timeout=30s` |
 
 ### 关键教训：FUSE 重试是反模式
 
