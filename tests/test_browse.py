@@ -227,3 +227,66 @@ class TestBrowseEndpoint:
         client = TestClient(app)
         resp = client.get("/browse")
         assert resp.status_code == 200
+
+
+class TestBrowseDeleteEndpoint:
+    """文件浏览器删除功能测试"""
+
+    @pytest.fixture
+    def browse_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        root = tmp_path / "browse_test"
+        root.mkdir()
+        monkeypatch.setenv("NFOFETCH_BROWSE_ROOT", str(root))
+        return root
+
+    def test_delete_file(self, browse_root: Path) -> None:
+        file = browse_root / "test.mp4"
+        file.touch()
+        client = TestClient(app)
+        resp = client.post("/browse/delete", data={"path": str(file)})
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": True}
+        assert not file.exists()
+
+    def test_delete_empty_directory(self, browse_root: Path) -> None:
+        dir_path = browse_root / "subdir"
+        dir_path.mkdir()
+        client = TestClient(app)
+        resp = client.post("/browse/delete", data={"path": str(dir_path)})
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": True}
+        assert not dir_path.exists()
+
+    def test_delete_non_empty_directory_succeeds(self, browse_root: Path) -> None:
+        dir_path = browse_root / "subdir"
+        dir_path.mkdir()
+        (dir_path / "file.txt").touch()
+        client = TestClient(app)
+        resp = client.post("/browse/delete", data={"path": str(dir_path)})
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": True}
+        assert not dir_path.exists()
+
+    def test_delete_outside_root_fails(self, browse_root: Path) -> None:
+        outside = browse_root.parent / "outside.txt"
+        outside.touch()
+        client = TestClient(app)
+        resp = client.post("/browse/delete", data={"path": str(outside)})
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": False}
+
+    def test_delete_nonexistent_fails(self, browse_root: Path) -> None:
+        missing = browse_root / "nonexistent.mp4"
+        client = TestClient(app)
+        resp = client.post("/browse/delete", data={"path": str(missing)})
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": False}
+
+    def test_delete_button_rendered_in_template(self, browse_root: Path) -> None:
+        file = browse_root / "video.mp4"
+        file.touch()
+        client = TestClient(app)
+        resp = client.get("/browse?sort_by=name")
+        assert resp.status_code == 200
+        assert "nfDeleteItem" in resp.text
+        assert "nf-file-browser-delete-btn" in resp.text

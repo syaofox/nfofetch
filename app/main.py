@@ -5,6 +5,7 @@ import base64
 import functools
 import logging
 import os
+import shutil
 import re
 import threading
 import time
@@ -20,7 +21,6 @@ from fastapi.templating import Jinja2Templates
 from app.config import get_settings
 from app.middleware import create_rate_limit_middleware
 from app.schemas import MovieMetadata, ScrapeResult, UserSettings
-from app.services.file_utils import VIDEO_EXTENSIONS
 from app.services.file_service import save_assets_for_existing_video
 from app.services.nfo_service import build_movie_nfo
 from app.services.scrape_service import is_url, scrape_movie, search_movie
@@ -180,8 +180,6 @@ async def browse(
                 is_file = entry.is_file()
                 if not (is_dir or is_file):
                     continue
-                if is_file and Path(entry.name).suffix.lower() not in VIDEO_EXTENSIONS:
-                    continue
                 entry_dict: dict[str, Any] = {
                     "name": entry.name + ("/" if is_dir else ""),
                     "name_lower": entry.name.lower(),
@@ -212,6 +210,28 @@ async def browse(
             "sort_order": sort_order,
         },
     )
+
+
+@app.post("/browse/delete")
+async def browse_delete(path: str = Form(...)) -> dict[str, bool]:
+    """删除文件或空目录，路径必须在 NFOFETCH_BROWSE_ROOT 范围内。"""
+    base_dir = Path(os.getenv("NFOFETCH_BROWSE_ROOT", os.getcwd())).resolve()
+
+    target = Path(path).expanduser().resolve()
+    try:
+        target.relative_to(base_dir)
+    except ValueError:
+        return {"ok": False}
+    if not target.exists():
+        return {"ok": False}
+    try:
+        if target.is_dir():
+            shutil.rmtree(target)
+        else:
+            target.unlink()
+    except OSError:
+        return {"ok": False}
+    return {"ok": True}
 
 
 @app.post("/scrape/fetch", response_class=HTMLResponse)

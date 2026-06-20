@@ -447,6 +447,32 @@
   content: "📄 ";
 }
 
+.nf-file-browser-item-wrapper {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.nf-file-browser-item-wrapper .nf-file-browser-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.nf-file-browser-delete-btn {
+  font-size: 0.7rem;
+  padding: 0.25rem 0.45rem;
+  border-radius: 0.375rem;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.nf-file-browser-delete-btn:hover {
+  background: #fee2e2;
+}
+
 .nf-file-browser-empty {
   font-size: 0.8rem;
   color: #6b7280;

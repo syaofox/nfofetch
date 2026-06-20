@@ -370,6 +370,28 @@
           }
         };
 
+        window.nfDeleteItem = function (path, event) {
+          if (event) event.stopPropagation();
+          if (!confirm("确定要删除 " + path + " 吗？")) return;
+          var formData = new FormData();
+          formData.append("path", path);
+          fetch("/browse/delete", { method: "POST", body: formData })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data.ok) {
+                var dirEl = document.querySelector(".nf-file-browser-path");
+                if (dirEl) {
+                  loadBrowser(dirEl.textContent.trim());
+                }
+              } else {
+                alert("删除失败");
+              }
+            })
+            .catch(function () {
+              alert("删除请求失败");
+            });
+        };
+
         window.nfRefreshBrowser = function (path) {
           loadBrowser(path);
         };
