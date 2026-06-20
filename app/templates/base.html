@@ -312,7 +312,9 @@
                 loadBrowser("");
               });
           } else {
-            loadBrowser(initial);
+            // 输入框存的是文件路径，浏览器需要打开文件所在目录
+            var idx = initial.lastIndexOf("/");
+            loadBrowser(idx !== -1 ? initial.substring(0, idx) : initial);
           }
         };
 
