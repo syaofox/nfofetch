@@ -19,6 +19,7 @@ class Settings:
     - NFOFETCH_BATCH_TIMEOUT: extrafanart 批量下载总超时秒数（默认 120）
     - NFOFETCH_SERIAL_WRITES: 串行写入图片，避免 FUSE 网络文件系统并发 I/O 断开（默认 false）
     - NFOFETCH_LOCK_ENABLED: 启用目录锁防止同目录并发刮削，多用户 Web 场景需要（默认 false）
+    - NFOFETCH_WRITE_DELAY: 每次 FUSE 写入操作前的停顿秒数，缓解网络文件系统断开（默认 0.2）
     """
 
     user_agent: str
@@ -30,6 +31,7 @@ class Settings:
     batch_timeout: int = 120
     serial_writes: bool = False
     lock_enabled: bool = False
+    write_delay: float = 0.2
 
 
 @lru_cache(maxsize=1)
@@ -56,6 +58,15 @@ def get_settings() -> Settings:
                 pass
         return default
 
+    def _parse_float_env(name: str, default: float) -> float:
+        val = os.getenv(name)
+        if val is not None:
+            try:
+                return float(val)
+            except (ValueError, TypeError):
+                pass
+        return default
+
     def _parse_bool_env(name: str, default: bool) -> bool:
         val = os.getenv(name)
         if val is not None:
@@ -72,4 +83,5 @@ def get_settings() -> Settings:
         batch_timeout=_parse_int_env("NFOFETCH_BATCH_TIMEOUT", 120),
         serial_writes=_parse_bool_env("NFOFETCH_SERIAL_WRITES", False),
         lock_enabled=_parse_bool_env("NFOFETCH_LOCK_ENABLED", False),
+        write_delay=_parse_float_env("NFOFETCH_WRITE_DELAY", 0.2),
     )

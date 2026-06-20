@@ -9,7 +9,7 @@ import httpx
 
 from app.config import Settings
 from app.retry import retry_request
-from app.services.file_utils import _TEMP_PREFIX
+from app.services.file_utils import _TEMP_PREFIX, _write_delay
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +104,7 @@ def _download_image(
     if tmp is None:
         return False
     try:
+        _write_delay(settings.write_delay)
         shutil.move(str(tmp), str(dest))
         return True
     except Exception:
@@ -130,6 +131,7 @@ def _download_image_with_crop(
         return False
     try:
         _crop_image(tmp, crop_direction)
+        _write_delay(settings.write_delay)
         shutil.move(str(tmp), str(dest))
         return True
     except Exception as exc:

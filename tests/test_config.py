@@ -22,6 +22,7 @@ def test_default_values() -> None:
     assert settings.http_timeout == 20
     assert settings.batch_timeout == 120
     assert settings.serial_writes is False
+    assert settings.write_delay == 0.2
     assert "Firefox" in settings.user_agent or "Mozilla" in settings.user_agent
 
 
@@ -132,3 +133,26 @@ def test_max_extra_images_negative(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("NFOFETCH_MAX_EXTRA_IMAGES", "-1")
     settings = get_settings()
     assert settings.max_extra_images == -1
+
+
+def test_write_delay_default() -> None:
+    settings = get_settings()
+    assert settings.write_delay == 0.2
+
+
+def test_write_delay_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("NFOFETCH_WRITE_DELAY", "0.5")
+    settings = get_settings()
+    assert settings.write_delay == 0.5
+
+
+def test_write_delay_env_zero(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("NFOFETCH_WRITE_DELAY", "0")
+    settings = get_settings()
+    assert settings.write_delay == 0.0
+
+
+def test_write_delay_env_invalid_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("NFOFETCH_WRITE_DELAY", "not-a-number")
+    settings = get_settings()
+    assert settings.write_delay == 0.2

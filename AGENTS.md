@@ -59,6 +59,22 @@ uv run pytest tests/test_scrape_path_update.py -v   # 仅跑新增的路径更�
 | `existing_names` 参数传递避免重复扫描 | 省 1 次 scandir |
 | extrafanart 批量 move（全部下载到 `/tmp` 再一次性 move 到 FUSE） | 减少 FUSE daemon 切换开销 |
 | `_download_to_temp` / `_download_image` 分离 | 支持批量 move |
+| `NFOFETCH_WRITE_DELAY=0.2` 每次写入前停顿 200ms | 给 FUSE daemon 喘息空间，缓解随机断开 |
+
+### 写入停顿（`NFOFETCH_WRITE_DELAY`）
+
+新增 `write_delay` 配置项（默认 0.2 秒），在每次 FUSE 文件写入（`shutil.move`、`rename`、`mkdir`）前插入 `time.sleep()`。
+
+| 停顿位置 | 文件 | 效果 |
+|---------|------|------|
+| `_download_image` / `_download_image_with_crop` | `image_utils.py` | 每张图片 move 到 FUSE 前停顿 |
+| `_atomic_write_text` | `file_utils.py` | NFO 写入前停顿 |
+| extrafanart 批量 move 循环 | `file_service.py` | 每个 extrafanart 文件 move 前停顿 |
+| poster→fanart 阶段之间 | `file_service.py` | 图片类型间停顿 |
+| extrafanart→NFO 之间 | `file_service.py` | 图片全部完成 → NFO 写入前停顿 |
+| rename 视频/目录后 | `file_service.py` | rename 后 → 下一个 FUSE 操作前停顿 |
+
+测试默认 `write_delay=0` 避免减慢。用户通过环境变量 `NFOFETCH_WRITE_DELAY=0.5` 调整。
 
 ## HTMX / 前端踩坑记录
 

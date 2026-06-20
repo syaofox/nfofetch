@@ -20,6 +20,7 @@ from app.services.file_utils import (
     _read_nfo_art_mapping,
     _read_nfo_url_hash,
     _url_hash,
+    _write_delay,
     run_with_timeout,
 )
 from app.services.image_utils import (
@@ -232,6 +233,8 @@ def _write_nfo_and_images(
 
             fanart_path = fanart_dest if fanart_ok else None  # type: ignore[no-redef]
 
+    _write_delay(settings.write_delay)
+
     # 3. extrafanart/*（顺序命名 01.jpg, 02.jpg…，不删除已有文件）
     extra_dir = movie_dir / "extrafanart"
     extra_dir.mkdir(exist_ok=True)
@@ -295,6 +298,7 @@ def _write_nfo_and_images(
                 )
             # 阶段二：批量 move 到 FUSE（集中连续写，减少 daemon 切换开销）
             for tmp, dest in batch_moves:
+                _write_delay(settings.write_delay)
                 try:
                     shutil.move(str(tmp), str(dest))
                     extra_paths.append(dest)
@@ -324,6 +328,8 @@ def _write_nfo_and_images(
                         if not future.done():
                             future.cancel()
 
+    _write_delay(settings.write_delay)
+
     # 写入 NFO（含 URL hash 信息）
     root = ET.fromstring(nfo_text)
     if poster_ok and poster_url_val:
@@ -343,7 +349,7 @@ def _write_nfo_and_images(
     ET.indent(root)
     final_nfo = ET.tostring(root, encoding="unicode")
     _report("nfo", 0, 1, "正在写入 NFO 文件…")
-    _atomic_write_text(nfo_path, final_nfo)
+    _atomic_write_text(nfo_path, final_nfo, delay=settings.write_delay)
 
     return nfo_path, poster_path, fanart_path, extra_paths
 
@@ -463,6 +469,8 @@ def save_assets_for_existing_video(
                     message=f"重命名失败：{e}",
                     metadata=metadata,
                 )
+        _write_delay(settings.write_delay)
+
         # 2. 重命名文件夹（在视频重命名之后、NFO 写入之前执行）
         if rename_dir and rename_dir.strip():
             fmt_dir = rename_dir.strip()
@@ -479,6 +487,8 @@ def save_assets_for_existing_video(
                     message=f"文件夹重命名失败：{e}",
                     metadata=metadata,
                 )
+        _write_delay(settings.write_delay)
+
         # 3. 去重检测：先 stat 判 NFO 存在，有 NFO 才全目录扫描
         nfo_exists = (movie_dir / "movie.nfo").exists()
         existing_names: set[str] = set()
@@ -597,7 +607,7 @@ def save_assets_for_existing_video(
                 el.text = fn
             ET.indent(root)
             final_nfo = ET.tostring(root, encoding="unicode")
-            _atomic_write_text(nfo_file, final_nfo)
+            _atomic_write_text(nfo_file, final_nfo, delay=settings.write_delay)
 
             return ScrapeResult(
                 success=True,

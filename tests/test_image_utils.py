@@ -55,7 +55,9 @@ class TestDownloadToTemp:
 
     def test_temp_file_in_system_tmp(self) -> None:
         """下载的临时文件应存放在系统临时目录，而非目标目录。"""
-        settings = Settings(user_agent="test-agent", http_proxy=None, javdb_cookie=None)
+        settings = Settings(
+            user_agent="test-agent", http_proxy=None, javdb_cookie=None, write_delay=0.0
+        )
         _fake_content = b"fake image data"
 
         with patch(
@@ -77,7 +79,9 @@ class TestDownloadToTemp:
 
     def test_returns_none_on_failure(self) -> None:
         """HTTP 请求失败时返回 None。"""
-        settings = Settings(user_agent="test-agent", http_proxy=None, javdb_cookie=None)
+        settings = Settings(
+            user_agent="test-agent", http_proxy=None, javdb_cookie=None, write_delay=0.0
+        )
 
         with patch(
             "app.services.image_utils.httpx.Client",
@@ -93,7 +97,9 @@ class TestDownloadImage:
 
     def test_goes_through_temp_then_moves(self, tmp_path: Path) -> None:
         """文件应先写入 /tmp，再移动到目标路径。"""
-        settings = Settings(user_agent="test-agent", http_proxy=None, javdb_cookie=None)
+        settings = Settings(
+            user_agent="test-agent", http_proxy=None, javdb_cookie=None, write_delay=0.0
+        )
         _fake_content = b"fake image data"
         dest = tmp_path / "poster.jpg"
 
@@ -111,7 +117,9 @@ class TestDownloadImage:
 
     def test_returns_false_on_failure(self, tmp_path: Path) -> None:
         """下载失败时返回 False，不写目标文件。"""
-        settings = Settings(user_agent="test-agent", http_proxy=None, javdb_cookie=None)
+        settings = Settings(
+            user_agent="test-agent", http_proxy=None, javdb_cookie=None, write_delay=0.0
+        )
         dest = tmp_path / "poster.jpg"
 
         with patch(
@@ -125,13 +133,35 @@ class TestDownloadImage:
         assert ok is False
         assert not dest.exists()
 
+    def test_respects_write_delay(self, tmp_path: Path) -> None:
+        """应调用 _write_delay 并传入 settings.write_delay。"""
+        settings = Settings(
+            user_agent="test-agent", http_proxy=None, javdb_cookie=None, write_delay=0.0
+        )
+        dest = tmp_path / "poster.jpg"
+        dest.write_text("placeholder")
+
+        with patch("app.services.image_utils._write_delay") as mock_delay:
+            with patch(
+                "app.services.image_utils._download_to_temp",
+                return_value=dest,
+            ):
+                ok = _download_image(
+                    "https://example.com/img.jpg", dest, settings, http_timeout=5
+                )
+
+        assert ok is True
+        mock_delay.assert_called_once_with(0.0)
+
 
 class TestDownloadImageWithCrop:
     """验证 _download_image_with_crop 的 /tmp 裁切路径。"""
 
     def test_crop_in_temp_then_move(self, tmp_path: Path) -> None:
         """需要裁切时，应在 /tmp 裁切后再移动到目标路径。"""
-        settings = Settings(user_agent="test-agent", http_proxy=None, javdb_cookie=None)
+        settings = Settings(
+            user_agent="test-agent", http_proxy=None, javdb_cookie=None, write_delay=0.0
+        )
 
         # 创建一张宽图用作裁切素材
         img = Image.new("RGB", (1200, 800), (255, 0, 0))
@@ -162,7 +192,9 @@ class TestDownloadImageWithCrop:
 
     def test_no_crop_uses_download_image(self, tmp_path: Path) -> None:
         """crop_direction='none' 时降级到 _download_image。"""
-        settings = Settings(user_agent="test-agent", http_proxy=None, javdb_cookie=None)
+        settings = Settings(
+            user_agent="test-agent", http_proxy=None, javdb_cookie=None, write_delay=0.0
+        )
         dest = tmp_path / "poster.jpg"
 
         with patch(
@@ -180,3 +212,32 @@ class TestDownloadImageWithCrop:
         mock_dl.assert_called_once_with(
             "https://example.com/img.jpg", dest, settings, http_timeout=5
         )
+
+    def test_crop_respects_write_delay(self, tmp_path: Path) -> None:
+        """crop 模式也应调用 _write_delay 并传入 settings.write_delay。"""
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0.15,
+        )
+        dest = tmp_path / "poster.jpg"
+        fake_tmp = tmp_path / "fake_tmp.jpg"
+        fake_tmp.write_text("fake")
+
+        with patch("app.services.image_utils._write_delay") as mock_delay2:
+            with patch(
+                "app.services.image_utils._download_to_temp",
+                return_value=fake_tmp,
+            ):
+                with patch("app.services.image_utils._crop_image"):
+                    ok = _download_image_with_crop(
+                        "https://example.com/img.jpg",
+                        dest,
+                        settings,
+                        crop_direction="center",
+                        http_timeout=5,
+                    )
+
+        assert ok is True
+        mock_delay2.assert_called_once_with(0.15)

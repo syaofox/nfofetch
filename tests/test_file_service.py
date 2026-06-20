@@ -482,6 +482,12 @@ class TestAtomicWriteText:
         _atomic_write_text(dest, "new")
         assert dest.read_text(encoding="utf-8") == "new"
 
+    def test_accepts_delay_parameter(self, tmp_path: Path) -> None:
+        """传入 delay 参数时不应影响写入结果。"""
+        dest = tmp_path / "test.txt"
+        _atomic_write_text(dest, "content with delay", delay=0.01)
+        assert dest.read_text(encoding="utf-8") == "content with delay"
+
 
 class TestScanDirNames:
     def test_returns_filenames(self, tmp_path: Path) -> None:
@@ -653,6 +659,7 @@ class TestSaveAssetsForExistingVideo:
             user_agent="test-agent",
             http_proxy=None,
             javdb_cookie=None,
+            write_delay=0,
             max_extra_images=2,
             http_timeout=5,
             batch_timeout=10,
@@ -685,6 +692,7 @@ class TestSaveAssetsForExistingVideo:
             user_agent="test-agent",
             http_proxy=None,
             javdb_cookie=None,
+            write_delay=0,
             max_extra_images=2,
             http_timeout=5,
             batch_timeout=10,
@@ -724,6 +732,7 @@ class TestSaveAssetsForExistingVideo:
             user_agent="test-agent",
             http_proxy=None,
             javdb_cookie=None,
+            write_delay=0,
             max_extra_images=2,
             http_timeout=5,
             batch_timeout=10,
@@ -754,6 +763,7 @@ class TestSaveAssetsForExistingVideo:
             user_agent="test-agent",
             http_proxy=None,
             javdb_cookie=None,
+            write_delay=0,
             max_extra_images=2,
             http_timeout=5,
             batch_timeout=10,
@@ -793,6 +803,7 @@ class TestSaveAssetsForExistingVideo:
             user_agent="test-agent",
             http_proxy=None,
             javdb_cookie=None,
+            write_delay=0,
             max_extra_images=2,
             http_timeout=5,
             batch_timeout=10,
@@ -827,6 +838,7 @@ class TestSaveAssetsForExistingVideo:
             user_agent="test-agent",
             http_proxy=None,
             javdb_cookie=None,
+            write_delay=0,
             max_extra_images=2,
             http_timeout=5,
             batch_timeout=10,
@@ -866,6 +878,7 @@ class TestSaveAssetsForExistingVideo:
             user_agent="test-agent",
             http_proxy=None,
             javdb_cookie=None,
+            write_delay=0,
             max_extra_images=2,
             http_timeout=5,
             batch_timeout=10,
@@ -909,6 +922,7 @@ class TestNoTempLeakAfterScrape:
             user_agent="test-agent",
             http_proxy=None,
             javdb_cookie=None,
+            write_delay=0,
             max_extra_images=2,
             http_timeout=5,
             batch_timeout=10,
@@ -954,6 +968,7 @@ class TestNoTempLeakAfterScrape:
             user_agent="test-agent",
             http_proxy=None,
             javdb_cookie=None,
+            write_delay=0,
             max_extra_images=2,
             http_timeout=5,
             batch_timeout=10,
@@ -988,6 +1003,7 @@ class TestNoTempLeakAfterScrape:
             user_agent="test-agent",
             http_proxy=None,
             javdb_cookie=None,
+            write_delay=0,
             max_extra_images=2,
             http_timeout=5,
             batch_timeout=10,
@@ -1023,6 +1039,7 @@ class TestNoTempLeakAfterScrape:
             user_agent="test-agent",
             http_proxy=None,
             javdb_cookie=None,
+            write_delay=0,
             max_extra_images=2,
             http_timeout=5,
             batch_timeout=10,
@@ -1065,6 +1082,7 @@ class TestExtrafanartHash:
             user_agent="test-agent",
             http_proxy=None,
             javdb_cookie=None,
+            write_delay=0,
             max_extra_images=2,
             http_timeout=5,
             batch_timeout=10,
@@ -1099,6 +1117,7 @@ class TestExtrafanartHash:
             user_agent="test-agent",
             http_proxy=None,
             javdb_cookie=None,
+            write_delay=0,
             max_extra_images=2,
             http_timeout=5,
             batch_timeout=10,
@@ -1161,6 +1180,7 @@ class TestNfoUrlHashSkip:
             user_agent="test-agent",
             http_proxy=None,
             javdb_cookie=None,
+            write_delay=0,
             max_extra_images=2,
             http_timeout=5,
             batch_timeout=10,
@@ -1201,6 +1221,7 @@ class TestNfoUrlHashSkip:
             user_agent="test-agent",
             http_proxy=None,
             javdb_cookie=None,
+            write_delay=0,
             max_extra_images=2,
             http_timeout=5,
             batch_timeout=10,

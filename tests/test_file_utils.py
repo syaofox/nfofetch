@@ -10,6 +10,7 @@ from app.services.file_utils import (
     _read_nfo_art_mapping,
     _read_nfo_url_hash,
     _url_hash,
+    _write_delay,
     run_with_timeout,
 )
 
@@ -112,3 +113,27 @@ class TestReadNfoArtMapping:
 
     def test_none_root(self) -> None:
         assert _read_nfo_art_mapping(None) == {}
+
+
+class TestWriteDelay:
+    def test_zero_delay_does_not_sleep(self) -> None:
+        """delay=0 时立即返回，不阻塞。"""
+        start = time.monotonic()
+        _write_delay(0)
+        elapsed = time.monotonic() - start
+        assert elapsed < 0.05
+
+    def test_positive_delay_sleeps(self) -> None:
+        """delay>0 时阻塞对应时长（误差容忍 0.05s）。"""
+        start = time.monotonic()
+        _write_delay(0.1)
+        elapsed = time.monotonic() - start
+        assert elapsed >= 0.05
+        assert elapsed < 0.2
+
+    def test_negative_delay_treated_as_zero(self) -> None:
+        """负数 delay 不阻塞。"""
+        start = time.monotonic()
+        _write_delay(-0.1)
+        elapsed = time.monotonic() - start
+        assert elapsed < 0.05

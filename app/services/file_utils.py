@@ -5,6 +5,7 @@ import logging
 import re
 import shutil
 import tempfile
+import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutureTimeoutError
 from pathlib import Path
 from typing import Any, Callable, TypeVar
@@ -33,6 +34,13 @@ def run_with_timeout(
 
 
 _TEMP_PREFIX = "._nfofetch_"
+
+
+def _write_delay(delay: float) -> None:
+    """FUSE 写入停顿：连续写入之间插入短暂延迟，降低网络文件系统断开风险。"""
+    if delay > 0:
+        time.sleep(delay)
+
 
 _ART_URL_HASH_LEN = 12
 
@@ -129,7 +137,7 @@ def _truncate_to_bytes(s: str, max_bytes: int) -> str:
     return b.decode("utf-8", errors="replace")
 
 
-def _atomic_write_text(path: Path, content: str) -> None:
+def _atomic_write_text(path: Path, content: str, delay: float = 0) -> None:
     """原子写入文本文件：先写系统临时文件，再 rename 覆盖目标。
 
     临时文件放在系统临时目录（/tmp），避免网盘同步工具误上传。
@@ -144,6 +152,7 @@ def _atomic_write_text(path: Path, content: str) -> None:
     ) as f:
         tmp_path = Path(f.name)
         f.write(content)
+    _write_delay(delay)
     try:
         shutil.move(str(tmp_path), str(path))
     except BaseException:
