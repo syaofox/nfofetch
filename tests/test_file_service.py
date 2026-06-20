@@ -1623,3 +1623,45 @@ class TestRenameVideosInDir:
         assert len(result) == 2
         assert (tmp_path / "ABP-123-1.mp4").exists()
         assert (tmp_path / "ABP-123-2.mp4").exists()
+
+    def test_single_file_omits_idx_dash(self, tmp_path: Path) -> None:
+        """单个文件时，{id}-{idx} 不应出现 -1 后缀。"""
+        video = tmp_path / "AAA-001.mp4"
+        video.write_text("v1")
+        meta = MovieMetadata(title="Test", number="ABP-123")
+        result = _rename_videos_in_dir(tmp_path, meta, "{id}-{idx}")
+        assert len(result) == 1
+        assert (tmp_path / "ABP-123.mp4").exists()
+        assert not (tmp_path / "ABP-123-1.mp4").exists()
+
+    def test_single_file_omits_idx_underscore(self, tmp_path: Path) -> None:
+        """单个文件时，{id}_{idx} 不应出现 _1 后缀。"""
+        video = tmp_path / "AAA-001.mp4"
+        video.write_text("v1")
+        meta = MovieMetadata(title="Test", number="ABP-123")
+        result = _rename_videos_in_dir(tmp_path, meta, "{id}_{idx}")
+        assert len(result) == 1
+        assert (tmp_path / "ABP-123.mp4").exists()
+        assert not (tmp_path / "ABP-123_1.mp4").exists()
+
+    def test_single_file_omits_idx_brackets(self, tmp_path: Path) -> None:
+        """单个文件时，[{idx}] {id} 不应出现 [1] 前缀。"""
+        video = tmp_path / "AAA-001.mp4"
+        video.write_text("v1")
+        meta = MovieMetadata(title="Test", number="ABP-123")
+        result = _rename_videos_in_dir(tmp_path, meta, "[{idx}] {id}")
+        assert len(result) == 1
+        assert (tmp_path / "ABP-123.mp4").exists()
+        assert not (tmp_path / "[1] ABP-123.mp4").exists()
+
+    def test_multi_file_still_uses_idx(self, tmp_path: Path) -> None:
+        """多个文件时保留 {idx} 序号。"""
+        v1 = tmp_path / "AAA-001.mp4"
+        v1.write_text("v1")
+        v2 = tmp_path / "BBB-002.mp4"
+        v2.write_text("v2")
+        meta = MovieMetadata(title="Test", number="ABP-123")
+        result = _rename_videos_in_dir(tmp_path, meta, "{id}-{idx}")
+        assert len(result) == 2
+        assert (tmp_path / "ABP-123-1.mp4").exists()
+        assert (tmp_path / "ABP-123-2.mp4").exists()
