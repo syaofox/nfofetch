@@ -186,10 +186,11 @@
       <div class="nf-form-group nf-write-section">
         <label class="nf-label">格式预设</label>
         <div class="nf-preset-row">
-          <select id="preset-select" class="nf-input" onchange="nfApplyPreset(this.value)">
+          <select id="preset-select" class="nf-preset-select" onchange="nfApplyPreset(this.value)">
             <option value="">-- 选择预设 --</option>
           </select>
-          <button type="button" class="nf-button nf-button-secondary" onclick="nfSavePreset()" title="保存当前为预设">保存</button>
+          <button type="button" class="nf-button nf-button-secondary nf-preset-btn" onclick="nfSavePreset()" title="保存当前为重命名格式预设">+</button>
+          <button type="button" class="nf-button nf-button-secondary nf-preset-btn nf-preset-delete" onclick="nfDeletePreset()" title="删除选中的用户预设">×</button>
         </div>
       </div>
 

@@ -591,11 +591,6 @@
               var rd = document.getElementById("rename_dir");
               if (rf) rf.value = preset.rename_format;
               if (rd && preset.rename_dir) rd.value = preset.rename_dir;
-              // 恢复选择框到空选项
-              setTimeout(function () {
-                var sel = document.getElementById("preset-select");
-                if (sel) sel.value = "";
-              }, 0);
             })
             .catch(function () {});
         };
@@ -615,6 +610,19 @@
           fetch(PRESETS_URL, {
             method: "POST",
             body: formData,
+          }).then(function () {
+            loadPresets();
+          }).catch(function () {});
+        };
+
+        window.nfDeletePreset = function () {
+          var sel = document.getElementById("preset-select");
+          if (!sel || !sel.value) return;
+          if (sel.value.indexOf("user:") !== 0) return;
+          var name = sel.options[sel.selectedIndex].textContent;
+          if (!confirm('确定删除预设"' + name + '"？')) return;
+          fetch(PRESETS_URL + "?name=" + encodeURIComponent(name), {
+            method: "DELETE",
           }).then(function () {
             loadPresets();
           }).catch(function () {});
