@@ -1665,3 +1665,20 @@ class TestRenameVideosInDir:
         assert len(result) == 2
         assert (tmp_path / "ABP-123-1.mp4").exists()
         assert (tmp_path / "ABP-123-2.mp4").exists()
+
+    def test_single_file_idx_with_resolution_vr(self, tmp_path: Path) -> None:
+        """单文件 {id}-{resolution}-{idx}_{vr} → {id}-{resolution}_{vr}。"""
+        from unittest.mock import patch
+
+        video = tmp_path / "AAA-001.mp4"
+        video.write_text("v1")
+        meta = MovieMetadata(title="Test", number="KMVR-242")
+        with patch(
+            "app.services.rename_utils._get_video_resolution",
+            return_value="2048x2048",
+        ):
+            result = _rename_videos_in_dir(
+                tmp_path, meta, "{id}-{resolution}-{idx}_{vr}"
+            )
+        assert len(result) == 1
+        assert (tmp_path / "KMVR-242-2048x2048_360_TB.mp4").exists()

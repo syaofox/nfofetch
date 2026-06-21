@@ -230,7 +230,10 @@ def _rename_videos_in_dir(
     n_files = len(video_files)
     # 单个文件时去掉 {idx}，避免产生 ABP-123-1 这样的多余序号
     if n_files == 1 and "{idx}" in format_str:
-        format_str = re.sub(r"[-_\s\[\]()]*\{idx\}[-_\s\[\]()]*", "", format_str)
+        format_str = format_str.replace("{idx}", "")
+        # 清理残留的重复分隔符（如 -{idx}_ 变成 -_ 后合并为 _）
+        format_str = re.sub(r"[-_]{2,}", lambda m: m.group(0)[-1], format_str)
+        format_str = format_str.strip(" -_")
     resolutions: list[str] = []
     needs_resolution = "{resolution}" in format_str or "{vr}" in format_str
     if n_files > 0 and needs_resolution:
