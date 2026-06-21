@@ -20,7 +20,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.config import get_settings
 from app.middleware import create_rate_limit_middleware
-from app.schemas import MovieMetadata, ScrapeResult, UserSettings
+from app.schemas import MovieMetadata, Preset, ScrapeResult, UserSettings
 from app.services.file_service import save_assets_for_existing_video
 from app.services.file_utils import VIDEO_EXTENSIONS
 from app.services.nfo_service import build_movie_nfo
@@ -443,6 +443,46 @@ async def api_update_settings(settings: UserSettings) -> dict[str, bool]:
     # 导致用户无法关闭开关。当前 UserSettings 无 bool 字段，暂无此问题。
     updated = current.model_copy(update=settings.model_dump(exclude_unset=True))
     save_user_settings(updated)
+    return {"ok": True}
+
+
+# 内置重命名格式预设
+_BUILT_IN_PRESETS: dict[str, Preset] = {
+    "VR": Preset(
+        rename_format="{id}-{resolution}-{idx}_{vr}",
+        rename_dir="[{actor:3}][{date}]{id}-{resolution}",
+    ),
+    "非VR": Preset(
+        rename_format="{id}-{resolution}-{idx}",
+        rename_dir="[{actor:3}][{date}]{id}-{resolution}",
+    ),
+}
+
+
+@app.get("/api/presets")
+async def api_get_presets() -> dict[str, dict[str, Preset]]:
+    """返回内置 + 用户自定义预设。"""
+    user = load_user_settings()
+    return {"built_in": _BUILT_IN_PRESETS, "user": user.presets}
+
+
+@app.post("/api/presets")
+async def api_save_preset(
+    name: str = Form(...), rename_format: str = Form(""), rename_dir: str = ""
+) -> dict[str, bool]:
+    """保存或覆盖一个用户预设。"""
+    settings = load_user_settings()
+    settings.presets[name] = Preset(rename_format=rename_format, rename_dir=rename_dir)
+    save_user_settings(settings)
+    return {"ok": True}
+
+
+@app.delete("/api/presets")
+async def api_delete_preset(name: str = Query(...)) -> dict[str, bool]:
+    """删除一个用户预设。"""
+    settings = load_user_settings()
+    settings.presets.pop(name, None)
+    save_user_settings(settings)
     return {"ok": True}
 
 

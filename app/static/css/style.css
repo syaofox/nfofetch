@@ -506,6 +506,16 @@
   margin-top: 0.5rem;
 }
 
+.nf-preset-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.nf-preset-row select {
+  flex: 1;
+}
+
 .nf-write-divider {
   margin: 1rem 0;
   border: none;

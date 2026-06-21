@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from pydantic import HttpUrl
 
-from app.schemas import Actor, MovieMetadata, ScrapeResult, SearchResult, UserSettings
+from app.schemas import (
+    Actor,
+    MovieMetadata,
+    Preset,
+    ScrapeResult,
+    SearchResult,
+    UserSettings,
+)
 
 
 def _url(s: str) -> HttpUrl:
@@ -69,9 +76,34 @@ class TestScrapeResult:
         assert r.extra_images == []
 
 
+class TestPreset:
+    def test_defaults(self) -> None:
+        p = Preset()
+        assert p.rename_format == ""
+        assert p.rename_dir == ""
+
+    def test_round_trip(self) -> None:
+        p = Preset(rename_format="{id}", rename_dir="{id}")
+        d = p.model_dump()
+        assert d["rename_format"] == "{id}"
+        assert d["rename_dir"] == "{id}"
+        restored = Preset.model_validate(d)
+        assert restored.rename_format == "{id}"
+        assert restored.rename_dir == "{id}"
+
+
 class TestUserSettings:
     def test_defaults(self) -> None:
         s = UserSettings()
         assert s.rename_format == "[{actor}][{date}]{id}"
         assert s.last_browse_path == ""
         assert s.download_concurrency == 4
+        assert s.presets == {}
+
+    def test_with_presets(self) -> None:
+        s = UserSettings()
+        s.presets["标准"] = Preset(rename_format="{id}", rename_dir="{id}")
+        d = s.model_dump()
+        restored = UserSettings.model_validate(d)
+        assert "标准" in restored.presets
+        assert restored.presets["标准"].rename_format == "{id}"

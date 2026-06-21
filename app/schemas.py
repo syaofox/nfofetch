@@ -88,6 +88,13 @@ class ScrapeResult(BaseModel):
     chosen_fanart_url: str | None = None
 
 
+class Preset(BaseModel):
+    """重命名格式预设，保存 rename_format + rename_dir 一对。"""
+
+    rename_format: str = ""
+    rename_dir: str = ""
+
+
 class UserSettings(BaseModel):
     """用户偏好设置，持久化到 JSON 文件。"""
 
@@ -97,3 +104,4 @@ class UserSettings(BaseModel):
     sort_by: str = "name"
     sort_order: str = "asc"
     download_concurrency: int = 4
+    presets: dict[str, Preset] = {}

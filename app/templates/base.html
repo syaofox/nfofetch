@@ -532,6 +532,108 @@
         }
       })();
 
+      // 重命名格式预设
+      (function () {
+        var PRESETS_URL = "/api/presets";
+        var presetSelect = null;
+
+        function populatePresets(data) {
+          presetSelect = document.getElementById("preset-select");
+          if (!presetSelect) return;
+          // 保留第一个 option（"-- 选择预设 --"）
+          while (presetSelect.options.length > 1) {
+            presetSelect.remove(1);
+          }
+          // 内置预设
+          var firstUser = true;
+          for (var key in data.built_in) {
+            var opt = document.createElement("option");
+            opt.value = "built_in:" + key;
+            opt.textContent = key;
+            presetSelect.appendChild(opt);
+          }
+          // 用户自定义预设
+          for (var key in data.user) {
+            if (firstUser) {
+              var sep = document.createElement("option");
+              sep.disabled = true;
+              sep.textContent = "── 我的预设 ──";
+              presetSelect.appendChild(sep);
+              firstUser = false;
+            }
+            var opt = document.createElement("option");
+            opt.value = "user:" + key;
+            opt.textContent = key;
+            presetSelect.appendChild(opt);
+          }
+        }
+
+        function loadPresets() {
+          fetch(PRESETS_URL)
+            .then(function (r) { return r.json(); })
+            .then(populatePresets)
+            .catch(function () {});
+        }
+
+        window.nfApplyPreset = function (value) {
+          if (!value) return;
+          fetch(PRESETS_URL)
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              var preset;
+              if (value.indexOf("built_in:") === 0) {
+                preset = data.built_in[value.slice(9)];
+              } else if (value.indexOf("user:") === 0) {
+                preset = data.user[value.slice(5)];
+              }
+              if (!preset) return;
+              var rf = document.getElementById("rename_format");
+              var rd = document.getElementById("rename_dir");
+              if (rf) rf.value = preset.rename_format;
+              if (rd && preset.rename_dir) rd.value = preset.rename_dir;
+              // 恢复选择框到空选项
+              setTimeout(function () {
+                var sel = document.getElementById("preset-select");
+                if (sel) sel.value = "";
+              }, 0);
+            })
+            .catch(function () {});
+        };
+
+        window.nfSavePreset = function () {
+          var rf = document.getElementById("rename_format");
+          var rd = document.getElementById("rename_dir");
+          // 先确保服务器上的 rename_format / rename_dir 是最新的
+          if (rf) saveSettingsField("rename_format", rf.value);
+          if (rd) saveSettingsField("rename_dir", rd.value);
+          var name = prompt("请输入预设名称：");
+          if (!name || name.trim() === "") return;
+          var formData = new FormData();
+          formData.append("name", name.trim());
+          formData.append("rename_format", rf ? rf.value : "");
+          formData.append("rename_dir", rd ? rd.value : "");
+          fetch(PRESETS_URL, {
+            method: "POST",
+            body: formData,
+          }).then(function () {
+            loadPresets();
+          }).catch(function () {});
+        };
+
+        // 在 settings 加载后也加载预设
+        document.body.addEventListener("htmx:afterSwap", function (evt) {
+          if (evt.detail && evt.detail.target && evt.detail.target.id === "result") {
+            setTimeout(loadPresets, 50);
+          }
+        });
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", loadPresets);
+        } else {
+          loadPresets();
+        }
+      })();
+
       // 图片单击设 poster，双击设 fanart
       (function () {
         document.body.addEventListener("click", function (e) {
