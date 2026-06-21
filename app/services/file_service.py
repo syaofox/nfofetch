@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import os
 import shutil
-import time
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from concurrent.futures import (
@@ -277,27 +276,43 @@ def _write_nfo_and_images(
     total_tasks = len(download_tasks)
     _report("extrafanart", 0, total_tasks, "正在下载剧照…")
     if total_tasks > 0:
-        if settings.serial_writes:
+        # 阶段一：并行下载到 /tmp（HTTP 不涉及 FUSE I/O，始终并行）
+        batch_moves: list[tuple[Path, Path]] = []
+        with ThreadPoolExecutor(max_workers=download_concurrency) as executor:
+            ft_map = {
+                executor.submit(
+                    _download_to_temp, url, settings, http_timeout=http_timeout
+                ): dest
+                for url, dest in download_tasks
+            }
             completed = 0
-            deadline = time.monotonic() + batch_timeout
-            # 阶段一：全部下载到 /tmp（HTTP 不涉及 FUSE I/O）
-            batch_moves: list[tuple[Path, Path]] = []
-            for url, dest in download_tasks:
-                if time.monotonic() > deadline:
-                    _report("extrafanart", completed, total_tasks, "下载超时，中止…")
-                    break
-                tmp = _download_to_temp(url, settings, http_timeout=http_timeout)
-                if tmp is not None:
-                    batch_moves.append((tmp, dest))
-                completed += 1
+            try:
+                for future in as_completed(ft_map, timeout=batch_timeout):
+                    dest = ft_map[future]
+                    tmp = future.result()
+                    if tmp is not None:
+                        batch_moves.append((tmp, dest))
+                    completed += 1
+                    _report(
+                        "extrafanart",
+                        completed,
+                        total_tasks,
+                        f"正在下载剧照 {completed}/{total_tasks}…",
+                    )
+            except _FutureTimeoutError:
+                for future in ft_map:
+                    if not future.done():
+                        future.cancel()
                 _report(
                     "extrafanart",
                     completed,
                     total_tasks,
-                    f"正在下载剧照 {completed}/{total_tasks}…",
+                    "下载超时，中止…",
                 )
-            # 阶段二：批量 move 到 FUSE（集中连续写，减少 daemon 切换开销）
-            move_count = len(batch_moves)
+
+        # 阶段二：批量 move 到 FUSE（serial_writes 时串行 + 停顿）
+        move_count = len(batch_moves)
+        if settings.serial_writes:
             for move_idx, (tmp, dest) in enumerate(batch_moves, 1):
                 _report(
                     "extrafanart",
@@ -312,28 +327,12 @@ def _write_nfo_and_images(
                 except Exception:
                     tmp.unlink(missing_ok=True)
         else:
-            with ThreadPoolExecutor(max_workers=download_concurrency) as executor:
-                fs = {
-                    executor.submit(download_image, url, dest): dest
-                    for url, dest in download_tasks
-                }
-                completed = 0
+            for tmp, dest in batch_moves:
                 try:
-                    for future in as_completed(fs, timeout=batch_timeout):
-                        dest = fs[future]
-                        if future.result():
-                            extra_paths.append(dest)
-                        completed += 1
-                        _report(
-                            "extrafanart",
-                            completed,
-                            total_tasks,
-                            f"正在下载剧照 {completed}/{total_tasks}…",
-                        )
-                except _FutureTimeoutError:
-                    for future in fs:
-                        if not future.done():
-                            future.cancel()
+                    shutil.move(str(tmp), str(dest))
+                    extra_paths.append(dest)
+                except Exception:
+                    tmp.unlink(missing_ok=True)
 
     _write_delay(settings.write_delay)
 
