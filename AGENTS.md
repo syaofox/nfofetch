@@ -74,7 +74,7 @@ uv run pytest tests/test_scrape_path_update.py -v   # 仅跑新增的路径更�
 | extrafanart→NFO 之间 | `file_service.py` | 图片全部完成 → NFO 写入前停顿 |
 | rename 视频/目录后 | `file_service.py` | rename 后 → 下一个 FUSE 操作前停顿 |
 
-测试默认 `write_delay=0` 避免减慢。用户通过环境变量 `NFOFETCH_WRITE_DELAY=0.5` 调整。
+测试默认 `write_delay=0` 避免减慢。用户可通过环境变量 `NFOFETCH_WRITE_DELAY=0.5` 或 UI 设置页调整。
 
 ## HTMX / 前端踩坑记录
 
@@ -130,16 +130,16 @@ HTML 规范规定 `innerHTML` 插入的 `<script>` 不执行。HTMX 内部会主
 
 - **临时文件放 `/tmp`**：`tempfile.NamedTemporaryFile(prefix="._nfofetch_")` + `shutil.move` 到目标目录，避免网盘同步工具上传扫描到半成品。
 - **重复刮削检测**：NFO 中 `<source_url>` 或 `<id>` 匹配即有记录；若已有同源记录，仍然重新下载图片并更新 NFO hash。
-- **目录锁默认关闭**：`NFOFETCH_LOCK_ENABLED=false`，单人使用不需锁。多用户 Web 场景需开启。
+- **目录锁默认关闭**：`NFOFETCH_LOCK_ENABLED=false`，单人使用不需锁。多用户 Web 场景需开启。可通过环境变量或 UI 设置页调整。
 - **`Path.resolve()` 禁用**：FUSE 上 `resolve()` 触发网络 stat 慢，改用 `absolute()`。
-- **文件浏览器记住的路径**：刮削完成后，服务端自动将 `last_browse_path` 更新为 `result.movie_dir`（`app/main.py:385-392`），同时内联 `<script>` 将 `#video_path` 输入框更新为新的视频路径（`scrape_result.html:147-156`）。下次打开文件浏览器时自动定位到新目录。
+- **文件浏览器记住的路径**：刮削完成后，服务端自动将 `last_browse_path` 更新为 `result.movie_dir`（`app/main.py:438`），同时内联 `<script>` 将 `#video_path` 输入框更新为新的视频路径（`scrape_result.html:147-156`）。下次打开文件浏览器时自动定位到新目录。
 
 ## 架构要点
 
 - **入口**: `app/main.py`（FastAPI）、`app/cli.py`（CLI）
 - **刮削器注册**: `app/scrapers/registry.py` — 新增站点注册到 `SCRAPERS` 列表
 - **HTML 解析**: `selectolax`；**HTTP 客户端**: 优先 `curl-cffi`，兜底 `httpx`
-- **配置**: `get_settings()` 由 `@lru_cache` 缓存，环境变量 → `Settings` dataclass
+- **配置**: `get_settings()` 由 `@lru_cache` 缓存，环境变量 → `Settings` dataclass。部分配置（cookie / serial_writes / lock_enabled / write_delay / max_extra_images）也可通过 UI 设置页调整，存储于 `UserSettings`（`schemas.py`），通过 `_merge_ui_settings()`（`app/main.py`）合并到 `Settings`，优先于环境变量。
 - **用户偏好**: 重命名格式、最后浏览路径等持久化到 JSON（`settings_service.py`，默认 `~/.config/nfofetch/settings.json`），启动时加载
 
 ## 特殊约定
