@@ -204,4 +204,4 @@ class TestJavdbCookie:
         assert "JavDB Cookie" in html
         assert "javdb_cookie" in html
         assert "nfSaveCookie" in html
-        assert "nfToggleCookieSection" in html
+        assert "nfOpenCookieModal" in html

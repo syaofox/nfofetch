@@ -9,6 +9,30 @@
   color: #e5e7eb;
 }
 
+.nf-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.nf-button-ghost {
+  align-self: flex-start;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  line-height: 1;
+}
+
+.nf-button-ghost:hover {
+  color: #e5e7eb;
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .nf-title {
   margin: 0;
   font-size: 1.75rem;
