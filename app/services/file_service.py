@@ -255,13 +255,19 @@ def _write_nfo_and_images(
     # 从 NFO 读取已有的 art_url 映射（url_hash → filename）
     art_mapping = _read_nfo_art_mapping(stored_root)
 
+    # 当前页面的 URL hash 集合（用于孤立检测）
+    current_hashes = {_url_hash(u) for u in all_extra_sources}
+
     # 对已有映射中的文件，确认磁盘上还存在
     existing_extra_by_hash: dict[str, Path] = {}
     for h, fn in art_mapping.items():
         p = extra_dir / fn
-        if fn in extra_names:
-            existing_extra_by_hash[h] = p
-            extra_paths.append(p)
+        if fn not in extra_names:
+            continue
+        if settings.delete_orphan_extrafanart and h not in current_hashes:
+            continue
+        existing_extra_by_hash[h] = p
+        extra_paths.append(p)
 
     # 计算下一个可用序号
     existing_nums = sorted(
@@ -595,11 +601,21 @@ def save_assets_for_existing_video(
             extra_dir.mkdir(exist_ok=True)
             extra_names = _scan_dir_names(extra_dir)
             art_mapping = _read_nfo_art_mapping(stored_root)
+
+            # 当前页面的 URL hash 集合（用于孤立检测）
+            all_extra: list[str] = []
+            all_extra.extend(str(u) for u in metadata.art)
+            all_extra.extend(str(u) for u in metadata.posters)
+            current_hashes = {_url_hash(u) for u in all_extra}
+
             # 只保留磁盘上还存在的映射
             valid_mapping: dict[str, str] = {}
             for h, fn in art_mapping.items():
-                if fn in extra_names:
-                    valid_mapping[h] = fn
+                if fn not in extra_names:
+                    continue
+                if settings.delete_orphan_extrafanart and h not in current_hashes:
+                    continue
+                valid_mapping[h] = fn
             existing_nums = sorted(
                 int(n.removesuffix(".jpg"))
                 for n in extra_names
@@ -607,9 +623,6 @@ def save_assets_for_existing_video(
             )
             next_idx = (existing_nums[-1] + 1) if existing_nums else 1
 
-            all_extra: list[str] = []
-            all_extra.extend(str(u) for u in metadata.art)
-            all_extra.extend(str(u) for u in metadata.posters)
             extra_downloads: list[tuple[str, Path]] = []
             for url in all_extra:
                 h = _url_hash(url)
