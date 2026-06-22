@@ -454,18 +454,72 @@
         window.nfExtractId = function () {
           var input = document.getElementById("url");
           if (!input) return;
+
+          function _closePopup() {
+            var popup = document.getElementById("nf-id-popup");
+            if (popup) popup.remove();
+          }
+
+          function _pick(id) {
+            input.value = id;
+            _closePopup();
+          }
+
+          _closePopup();
           var text = input.value;
+          var ids = [];
+
           // 标准番号：ABC-123 / ABC_123
-          var m = text.match(/([A-Za-z]{2,6})[-_]?(\d{2,8})/);
-          if (m) {
-            input.value = m[1].toUpperCase() + "-" + String(parseInt(m[2], 10)).padStart(3, "0");
-            return;
+          var reStd = /([A-Za-z]{2,6})[-_]?(\d{2,8})/g;
+          var m;
+          while ((m = reStd.exec(text)) !== null) {
+            ids.push(m[1].toUpperCase() + "-" + String(parseInt(m[2], 10)).padStart(3, "0"));
           }
           // 纯数字番号：101413-455 / 101413_455
-          var m2 = text.match(/(\d{4,})\s*[-_]\s*(\d{2,6})/);
-          if (m2) {
-            input.value = m2[1] + "-" + m2[2];
+          var reNum = /(\d{4,})\s*[-_]\s*(\d{2,6})/g;
+          while ((m = reNum.exec(text)) !== null) {
+            ids.push(m[1] + "-" + m[2]);
           }
+          // 去重
+          ids = ids.filter(function (v, i) { return ids.indexOf(v) === i; });
+
+          if (ids.length === 0) return;
+          if (ids.length === 1) { input.value = ids[0]; return; }
+
+          // 多匹配 → 弹出选择
+          var rect = input.getBoundingClientRect();
+          var popup = document.createElement("div");
+          popup.id = "nf-id-popup";
+          popup.className = "nf-id-popup";
+          popup.style.cssText = "top:" + (rect.bottom + window.scrollY + 4) + "px;left:" + (rect.left + window.scrollX) + "px;min-width:" + Math.max(rect.width, 200) + "px";
+          var title = document.createElement("div");
+          title.className = "nf-id-popup-title";
+          title.textContent = "选择番号：";
+          popup.appendChild(title);
+          ids.forEach(function (id) {
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "nf-id-popup-item";
+            btn.textContent = id;
+            btn.onclick = function () { _pick(id); };
+            popup.appendChild(btn);
+          });
+          var closeBtn = document.createElement("button");
+          closeBtn.type = "button";
+          closeBtn.className = "nf-id-popup-close";
+          closeBtn.textContent = "取消";
+          closeBtn.onclick = _closePopup;
+          popup.appendChild(closeBtn);
+          document.body.appendChild(popup);
+          // 点击外部关闭
+          setTimeout(function () {
+            document.addEventListener("click", function _handler(e) {
+              if (!popup.contains(e.target) && e.target !== input) {
+                _closePopup();
+                document.removeEventListener("click", _handler);
+              }
+            });
+          }, 0);
         };
       })();
 
