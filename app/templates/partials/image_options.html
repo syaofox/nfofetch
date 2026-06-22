@@ -23,23 +23,23 @@
             class="nf-image-thumb"
           />
           <div class="nf-image-option-controls">
-            <label>
+            <label class="nf-radio-custom">
               <input
                 type="radio"
                 name="poster_url"
                 value="{{ url }}"
                 {% if loop.index == 2 %}checked{% endif %}
               />
-              作为封面 poster
+              <span>作为封面 poster</span>
             </label>
-            <label>
+            <label class="nf-radio-custom">
               <input
                 type="radio"
                 name="fanart_url"
                 value="{{ url }}"
                 {% if loop.first %}checked{% endif %}
               />
-              作为背景 fanart
+              <span>作为背景 fanart</span>
             </label>
           </div>
         </div>
@@ -49,18 +49,18 @@
     <div class="nf-form-group nf-write-section" style="margin-top:12px">
       <p class="nf-hint">裁切方向（仅对封面 poster 生效）：</p>
       <div class="nf-inline-fields">
-        <label class="nf-label-inline nf-crop-label">
-          <input type="radio" name="crop_direction" value="none" checked /> 不裁切
-        </label>
-        <label class="nf-label-inline nf-crop-label">
-          <input type="radio" name="crop_direction" value="left" /> 左
-        </label>
-        <label class="nf-label-inline nf-crop-label">
-          <input type="radio" name="crop_direction" value="center" /> 中
-        </label>
-        <label class="nf-label-inline nf-crop-label">
-          <input type="radio" name="crop_direction" value="right" /> 右
-        </label>
+      <label class="nf-label-inline nf-crop-label nf-radio-custom">
+        <input type="radio" name="crop_direction" value="none" checked /> 不裁切
+      </label>
+      <label class="nf-label-inline nf-crop-label nf-radio-custom">
+        <input type="radio" name="crop_direction" value="left" /> 左
+      </label>
+      <label class="nf-label-inline nf-crop-label nf-radio-custom">
+        <input type="radio" name="crop_direction" value="center" /> 中
+      </label>
+      <label class="nf-label-inline nf-crop-label nf-radio-custom">
+        <input type="radio" name="crop_direction" value="right" /> 右
+      </label>
       </div>
     </div>
   </div>

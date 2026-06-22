@@ -127,23 +127,23 @@
                   class="nf-image-thumb"
                 />
                 <div class="nf-image-option-controls">
-                  <label>
+                  <label class="nf-radio-custom">
                     <input
                       type="radio"
                       name="poster_url"
                       value="{{ img_url }}"
                       {% if loop.index == 2 %}checked{% endif %}
                     />
-                    作为封面 poster
+                    <span>作为封面 poster</span>
                   </label>
-                  <label>
+                  <label class="nf-radio-custom">
                     <input
                       type="radio"
                       name="fanart_url"
                       value="{{ img_url }}"
                       {% if loop.first %}checked{% endif %}
                     />
-                    作为背景 fanart
+                    <span>作为背景 fanart</span>
                   </label>
                 </div>
               </div>
@@ -160,16 +160,16 @@
         <div class="nf-form-group nf-write-section">
           <p class="nf-hint">裁切方向（仅对封面 poster 生效）：</p>
           <div class="nf-inline-fields">
-            <label class="nf-label-inline nf-crop-label">
+            <label class="nf-label-inline nf-crop-label nf-radio-custom">
               <input type="radio" name="crop_direction" value="none" checked /> 不裁切
             </label>
-            <label class="nf-label-inline nf-crop-label">
+            <label class="nf-label-inline nf-crop-label nf-radio-custom">
               <input type="radio" name="crop_direction" value="left" /> 左
             </label>
-            <label class="nf-label-inline nf-crop-label">
+            <label class="nf-label-inline nf-crop-label nf-radio-custom">
               <input type="radio" name="crop_direction" value="center" /> 中
             </label>
-            <label class="nf-label-inline nf-crop-label">
+            <label class="nf-label-inline nf-crop-label nf-radio-custom">
               <input type="radio" name="crop_direction" value="right" /> 右
             </label>
           </div>
@@ -189,8 +189,8 @@
           <select id="preset-select" class="nf-preset-select" onchange="nfApplyPreset(this.value)">
             <option value="">-- 选择预设 --</option>
           </select>
-          <button type="button" class="nf-button nf-button-secondary nf-preset-btn" onclick="nfSavePreset()" title="保存当前为重命名格式预设">+</button>
-          <button type="button" class="nf-button nf-button-secondary nf-preset-btn nf-preset-delete" onclick="nfDeletePreset()" title="删除选中的用户预设">×</button>
+          <button type="button" class="nf-button nf-button-secondary nf-preset-btn nf-btn-ripple nf-btn-press" onclick="nfSavePreset()" title="保存当前为重命名格式预设">+</button>
+          <button type="button" class="nf-button nf-button-secondary nf-preset-btn nf-preset-delete nf-btn-ripple nf-btn-press" onclick="nfDeletePreset()" title="删除选中的用户预设">×</button>
         </div>
       </div>
 
@@ -266,7 +266,7 @@
       <button
         type="submit"
         id="write-button"
-        class="nf-button nf-button-write"
+        class="nf-button nf-button-write nf-btn-ripple"
         form="write-form"
         title="写入 NFO 与图片"
       >

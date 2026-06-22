@@ -16,6 +16,11 @@
     <div id="nf-loading-overlay" class="nf-loading-overlay">
       <div class="nf-loading-spinner"></div>
       <div id="nf-loading-text" class="nf-loading-text">处理中…</div>
+      <div class="nf-loading-dots">
+        <div class="nf-loading-dot"></div>
+        <div class="nf-loading-dot"></div>
+        <div class="nf-loading-dot"></div>
+      </div>
     </div>
     <div id="nf-delete-modal" class="nf-modal" style="display:none">
       <div class="nf-modal-backdrop"></div>
@@ -23,8 +28,8 @@
         <div class="nf-modal-title">确认删除</div>
         <div id="nf-delete-modal-path" class="nf-modal-body"></div>
         <div class="nf-modal-actions">
-          <button type="button" class="nf-button nf-button-secondary" id="nf-delete-cancel-btn">取消</button>
-          <button type="button" class="nf-button nf-button-danger" id="nf-delete-confirm-btn">删除</button>
+          <button type="button" class="nf-button nf-button-secondary nf-btn-ripple nf-btn-press" id="nf-delete-cancel-btn">取消</button>
+          <button type="button" class="nf-button nf-button-danger nf-btn-ripple nf-btn-press" id="nf-delete-confirm-btn">删除</button>
         </div>
       </div>
     </div>
@@ -535,18 +540,18 @@
           .then(function (r) { return r.json(); })
           .then(function (data) {
             if (data.ok) {
-              status.textContent = "✓ 已保存";
+              status.innerHTML = '<span class="nf-status-icon nf-status-success"><svg class="w-3 h-3" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span> 已保存';
               status.className = "nf-settings-status";
             } else {
-              status.textContent = "✗ 保存失败";
+              status.innerHTML = '<span class="nf-status-icon nf-status-error"><svg class="w-3 h-3" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></span> 保存失败';
               status.className = "nf-settings-status nf-error";
             }
           })
           .catch(function () {
-            status.textContent = "✗ 保存失败";
+            status.innerHTML = '<span class="nf-status-icon nf-status-error"><svg class="w-3 h-3" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></span> 保存失败';
             status.className = "nf-settings-status nf-error";
           });
-        setTimeout(function () { status.textContent = ""; }, 3000);
+        setTimeout(function () { status.innerHTML = ""; }, 3000);
       };
 
       // 重命名格式：从服务器 JSON 文件加载，变更时自动保存

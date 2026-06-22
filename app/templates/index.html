@@ -26,7 +26,7 @@
           />
           <button
             type="button"
-            class="nf-button nf-button-secondary"
+            class="nf-button nf-button-secondary nf-btn-ripple nf-btn-press"
             onclick="window.nfOpenFileBrowser()"
           >
             浏览…
@@ -55,7 +55,7 @@
           />
           <button
             type="button"
-            class="nf-button nf-button-secondary"
+            class="nf-button nf-button-secondary nf-btn-ripple nf-btn-press"
             onclick="window.nfExtractId()"
             title="从输入文本中提取日本 AV 番号"
           >
@@ -70,7 +70,7 @@
       <button
         id="scrape-button"
         type="submit"
-        class="nf-button"
+        class="nf-button nf-btn-ripple nf-btn-press"
         style="margin-top: 0.5rem;"
       >
         开始刮削
@@ -95,24 +95,30 @@
               placeholder="theme=auto; over18=1; _jdb_session=..."
               autocomplete="off"
             />
-            <button type="button" class="nf-button nf-button-secondary" onclick="nfToggleCookieVisibility()" title="显示/隐藏">👁</button>
+            <button type="button" class="nf-button nf-button-secondary nf-btn-ripple nf-btn-press" onclick="nfToggleCookieVisibility()" title="显示/隐藏">👁</button>
           </div>
         </div>
 
         <hr class="nf-settings-divider" />
 
         <div class="nf-settings-group">
-          <label class="nf-settings-label">
-            <input type="checkbox" id="serial_writes" />
-            <span>串行写入图片</span>
+          <label class="nf-toggle" for="serial_writes">
+            <input type="checkbox" id="serial_writes" class="nf-toggle-input" />
+            <span class="nf-toggle-track">
+              <span class="nf-toggle-knob"></span>
+            </span>
+            <span class="nf-toggle-label">串行写入图片</span>
           </label>
           <p class="nf-settings-desc">启用后 poster、fanart、extrafanart 逐个下载写入，避免 FUSE 网络文件系统并发 I/O 断开。</p>
         </div>
 
         <div class="nf-settings-group">
-          <label class="nf-settings-label">
-            <input type="checkbox" id="lock_enabled" />
-            <span>启用目录锁</span>
+          <label class="nf-toggle" for="lock_enabled">
+            <input type="checkbox" id="lock_enabled" class="nf-toggle-input" />
+            <span class="nf-toggle-track">
+              <span class="nf-toggle-knob"></span>
+            </span>
+            <span class="nf-toggle-label">启用目录锁</span>
           </label>
           <p class="nf-settings-desc">防止同目录并发刮削（多用户 Web 场景需要，单人使用建议关闭）。</p>
         </div>
@@ -136,7 +142,7 @@
         <hr class="nf-settings-divider" />
 
         <div style="display:flex; align-items:center; gap:0.75rem;">
-          <button type="button" class="nf-button" onclick="nfSaveSettings()">保存</button>
+          <button type="button" class="nf-button nf-btn-ripple nf-btn-press" onclick="nfSaveSettings()">保存</button>
           <span id="nf-settings-status" class="nf-settings-status"></span>
         </div>
       </div>
@@ -164,6 +170,9 @@
       width: 1rem;
       height: 1rem;
       cursor: pointer;
+    }
+    .nf-settings-label .nf-toggle {
+      margin-bottom: 0.25rem;
     }
     .nf-settings-desc {
       margin: 0.25rem 0 0;

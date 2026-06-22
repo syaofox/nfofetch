@@ -805,4 +805,398 @@
   background: #b91c1c;
 }
 
+/* ===== Micro-interactions ===== */
+
+/* Button ripple effect */
+.nf-btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.nf-btn-ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.4s ease, height 0.4s ease;
+}
+
+.nf-btn-ripple:active::after {
+  width: 400px;
+  height: 400px;
+}
+
+/* Scale feedback on press */
+.nf-btn-press {
+  transition: transform 0.15s ease;
+}
+
+.nf-btn-press:active {
+  transform: scale(0.97);
+}
+
+.nf-btn-press:not(.nf-button-write):hover {
+  transform: translateY(-1px);
+}
+
+/* Enhanced button transitions */
+.nf-button,
+.nf-button-secondary,
+.nf-button-danger,
+.nf-button-ghost {
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.nf-button:hover {
+  filter: brightness(1.08);
+}
+
+.nf-button-secondary:hover {
+  filter: brightness(0.95);
+}
+
+.nf-button-danger:hover {
+  filter: brightness(1.1);
+}
+
+.nf-button-ghost:hover {
+  color: #e5e7eb;
+  transform: scale(1.1);
+}
+
+/* Toggle Switch */
+.nf-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.nf-toggle-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.nf-toggle-track {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: #d1d5db;
+  border-radius: 12px;
+  flex-shrink: 0;
+  transition: background 0.25s ease;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.nf-toggle-input:checked + .nf-toggle-track {
+  background: #2563eb;
+}
+
+.nf-toggle-input:focus-visible + .nf-toggle-track {
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1), 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+
+.nf-toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.nf-toggle-input:checked + .nf-toggle-track .nf-toggle-knob {
+  transform: translateX(20px);
+}
+
+.nf-toggle-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+/* Custom radio buttons */
+.nf-radio-custom {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #374151;
+  transition: color 0.15s ease;
+}
+
+.nf-radio-custom input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #d1d5db;
+  border-radius: 50%;
+  margin: 0;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  flex-shrink: 0;
+}
+
+.nf-radio-custom input[type="radio"]:checked {
+  border-color: #2563eb;
+  border-width: 5px;
+}
+
+.nf-radio-custom input[type="radio"]:hover {
+  border-color: #93c5fd;
+}
+
+.nf-radio-custom input[type="radio"]:focus-visible {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+  outline: none;
+}
+
+/* Enhanced input focus */
+.nf-input:focus,
+.nf-input-file:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Loading dots animation */
+.nf-loading-dots {
+  display: flex;
+  gap: 6px;
+  margin-top: 0.75rem;
+  justify-content: center;
+}
+
+.nf-loading-dot {
+  width: 8px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  animation: nf-bounce 1.2s ease-in-out infinite;
+}
+
+.nf-loading-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.nf-loading-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes nf-bounce {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Success/Error animated states */
+.nf-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  animation: nf-status-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.nf-status-success {
+  background: #22c55e;
+}
+
+.nf-status-error {
+  background: #ef4444;
+}
+
+@keyframes nf-status-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* File browser item micro-interactions */
+.nf-file-browser-item {
+  transition: transform 0.12s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.nf-file-browser-item:hover {
+  background: #eff6ff;
+  transform: translateX(2px);
+}
+
+.nf-file-browser-item:active {
+  transform: scale(0.99);
+}
+
+.nf-file-browser-delete-btn {
+  transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.nf-file-browser-delete-btn:hover {
+  background: #fecaca;
+  border-color: #fca5a5;
+  transform: scale(1.05);
+}
+
+.nf-file-browser-delete-btn:active {
+  transform: scale(0.95);
+}
+
+/* Search item hover lift */
+.nf-search-item {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.nf-search-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.15);
+}
+
+.nf-search-item-btn:active {
+  transform: scale(0.99);
+}
+
+.nf-search-item-btn {
+  transition: transform 0.12s ease;
+}
+
+/* Card hover micro-lift */
+.nf-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.nf-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 20px -6px rgba(15, 23, 42, 0.15);
+}
+
+/* Modal open/close animation */
+.nf-modal-box {
+  animation: nf-modal-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes nf-modal-in {
+  0% {
+    transform: scale(0.9) translateY(10px);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.nf-modal-backdrop {
+  animation: nf-fade-in 0.2s ease;
+}
+
+@keyframes nf-fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* Settings save status animation */
+.nf-settings-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: #059669;
+  transition: opacity 0.3s ease;
+}
+
+.nf-settings-status.nf-error {
+  color: #dc2626;
+}
+
+/* Write button enhanced */
+.nf-button-write {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.nf-button-write:hover {
+  transform: scale(1.1);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.5);
+}
+
+.nf-button-write:active {
+  transform: scale(0.92);
+}
+
+/* Preset button micro-interactions */
+.nf-preset-btn {
+  transition: transform 0.12s ease, filter 0.12s ease, color 0.12s ease !important;
+}
+
+.nf-preset-btn:hover {
+  transform: scale(1.15);
+  filter: brightness(1.1);
+}
+
+.nf-preset-btn:active {
+  transform: scale(0.9);
+}
+
+/* Image option hover micro-interaction */
+.nf-image-option {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.nf-image-option:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+}
+
+.nf-image-thumb {
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.nf-image-thumb:active {
+  transform: scale(0.97);
+  opacity: 0.9;
+}
+
+/* Crop label micro-interaction */
+.nf-crop-label {
+  transition: color 0.15s ease, transform 0.12s ease;
+}
+
+.nf-crop-label:hover {
+  color: #2563eb;
+  transform: translateY(-1px);
+}
+
+/* Preset select focus */
+.nf-preset-select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
 

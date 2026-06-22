@@ -25,7 +25,7 @@
               {% if item.poster_url %}
                 <input type="hidden" name="search_poster_url" value="{{ item.poster_url }}" />
               {% endif %}
-              <button type="submit" class="nf-search-item-btn">
+              <button type="submit" class="nf-search-item-btn nf-btn-ripple nf-btn-press">
                 {% if item.poster_url %}
                   <img src="{{ item.poster_url }}" alt="{{ item.title }}" class="nf-search-item-poster" />
                 {% else %}
@@ -52,7 +52,7 @@
     <div class="nf-form-group">
       <button
         type="button"
-        class="nf-button nf-button-secondary"
+        class="nf-button nf-button-secondary nf-btn-ripple nf-btn-press"
         onclick="document.getElementById('result').innerHTML = ''"
       >
         重新搜索
