@@ -426,6 +426,13 @@ class JavdbScraper(BaseScraper):
             href = cover_link.attributes.get("href")
             if href:
                 posters.append(self._abspath_url(href, base_url))
+            else:
+                # 部分页面 <a> 无 href，尝试从内部 <img> 取 src
+                img = cover_link.css_first("img")
+                if img:
+                    url = self._get_img_url(img, base_url)
+                    if url:
+                        posters.append(url)
         if not posters:
             cover_selectors = [
                 "div.video-cover img",
@@ -463,6 +470,10 @@ class JavdbScraper(BaseScraper):
                     url = self._get_img_url(node, base_url)
                     if url and url not in art:
                         art.append(url)
+
+        # 若仍无剧照，将封面作为 fanart 兜底
+        if not art and posters:
+            art.append(posters[0])
 
         posters.sort()
         art.sort()

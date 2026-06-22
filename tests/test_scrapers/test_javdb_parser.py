@@ -907,7 +907,7 @@ class TestParseImages:
         tree = HTMLParser(html)
         posters, art = self.scraper._parse_images(tree, base_url="https://javdb.com")
         assert posters == ["https://example.com/cover.jpg"]
-        assert art == []
+        assert art == ["https://example.com/cover.jpg"]
 
     def test_no_duplicate_art(self) -> None:
         html = """
