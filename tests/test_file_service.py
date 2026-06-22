@@ -256,6 +256,29 @@ class TestFormatRename:
         )
         assert result == "女优A、男优B"
 
+    def test_actor_filter_limit_count(self) -> None:
+        """{actor:N} 使用过滤后的数量判断"等N人"后缀。"""
+        meta = MovieMetadata(
+            title="Test",
+            number="ABP-123",
+            actors=[
+                Actor(name="女优A", gender="female"),
+                Actor(name="女优B", gender="female"),
+                Actor(name="女优C", gender="female"),
+                Actor(name="男优X", gender="male"),
+                Actor(name="男优Y", gender="male"),
+            ],
+        )
+        # 过滤后有 3 个女演员，{actor:2} → 前2个 + "等3人"
+        result = _format_rename(
+            meta,
+            idx=1,
+            is_vr=False,
+            format_str="{actor:2}",
+            filter_actor_gender=True,
+        )
+        assert result == "女优A、女优B等3人"
+
     def test_actor_filter_keeps_none_gender(self) -> None:
         """gender 为 None（旧数据兼容）视为女演员保留。"""
         meta = MovieMetadata(
