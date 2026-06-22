@@ -1,5 +1,5 @@
 ##########
-# 构建阶段：只用于安装依赖
+# 构建阶段：使用 uv 安装依赖（基于 uv.lock 锁定版本）
 ##########
 FROM python:3.11-slim AS builder
 
@@ -8,27 +8,22 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 WORKDIR /app
 
-# 只复制依赖声明，最大化缓存利用率
-COPY pyproject.toml .
+# 安装 uv
+RUN pip install --no-cache-dir uv
 
-# 安装运行时依赖到单独前缀目录，后面拷贝进最终镜像
-RUN pip install --upgrade pip && \
-    pip install \
-      "fastapi>=0.115.0" \
-      "uvicorn[standard]>=0.30.0" \
-      "jinja2>=3.1.0,<3.2.0" \
-      "httpx>=0.27.0" \
-      "selectolax>=0.3.0" \
-      "pydantic>=2.0.0" \
-      "python-multipart>=0.0.9" \
-      "curl-cffi>=0.14.0" \
-      "Pillow>=10.0.0" \
-      "portalocker>=2.10.0" \
-      --prefix=/install
+# 先只复制依赖声明，最大化缓存利用率
+COPY pyproject.toml uv.lock ./
+
+# 仅安装依赖（不安装项目本身），后续 app/ 变更时跳过这层缓存
+RUN uv sync --frozen --no-dev --no-install-project
+
+# 拷贝应用代码后再安装项目自身
+COPY app app
+RUN uv sync --frozen --no-dev
 
 
 ##########
-# 运行阶段：尽量精简，只包含 Python + 依赖 + 应用代码
+# 运行阶段：只包含 Python + 依赖 + 应用代码
 ##########
 FROM python:3.11-slim AS runtime
 
@@ -44,12 +39,13 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-# 拷贝构建阶段安装好的依赖
-COPY --from=builder /install /usr/local
+# 拷贝构建阶段的虚拟环境（与 runtime 同一 Python 版本，路径兼容）
+COPY --from=builder /app/.venv /app/.venv
+
+ENV PATH="/app/.venv/bin:$PATH"
 
 # 拷贝应用代码
 COPY app app
-COPY pyproject.toml .
 
 # 入口脚本：启动时自动创建 /config、检查权限、设置 HOME
 COPY docker-entrypoint.sh /docker-entrypoint.sh
@@ -59,4 +55,3 @@ EXPOSE 8000
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-
