@@ -262,6 +262,12 @@ def _merge_ui_settings(settings: Settings) -> None:
         if user.filter_actor_gender is not None:
             settings.filter_actor_gender = user.filter_actor_gender
             logger.info(
+                "UI 设置: filter_actor_gender=%s",
+                settings.filter_actor_gender,
+            )
+        if user.download_concurrency is not None:
+            settings.download_concurrency = user.download_concurrency
+            logger.info(
                 "UI 设置: delete_orphan_extrafanart=%s",
                 settings.delete_orphan_extrafanart,
             )
@@ -381,7 +387,6 @@ async def scrape(
     crop_direction: str = Form(default="none"),
     rename_format: str | None = Form(default=None),
     rename_dir: str | None = Form(default=None),
-    download_concurrency: int = Form(default=4),
     task_id: str = Form(default=""),
     metadata_b64: str | None = Form(default=None),
 ) -> HTMLResponse:
@@ -433,7 +438,7 @@ async def scrape(
             crop_direction=crop_direction,
             rename_format=rename_format or None,
             rename_dir=rename_dir or None,
-            download_concurrency=download_concurrency,
+            download_concurrency=settings.download_concurrency,
             http_timeout=settings.http_timeout,
             batch_timeout=settings.batch_timeout,
             on_progress=on_progress,

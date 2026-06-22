@@ -161,6 +161,14 @@
           <p class="nf-settings-desc">启用后 {actor} 占位符只包含女演员，排除男演员。默认开启。</p>
         </div>
 
+        <div class="nf-settings-group">
+          <label class="nf-settings-label">
+            <span>剧照下载并发数</span>
+          </label>
+          <p class="nf-settings-desc">extrafanart 剧照下载时的并发请求数量，数值越大下载越快，但可能被源站限流。</p>
+          <input type="number" id="download_concurrency" class="nf-input nf-settings-num-input" step="1" min="1" max="16" placeholder="4" />
+        </div>
+
         <hr class="nf-settings-divider" />
 
         <div style="display:flex; align-items:center; gap:0.75rem;">

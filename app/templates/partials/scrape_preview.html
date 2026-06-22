@@ -233,27 +233,6 @@
       </div>
 
       <div class="nf-form-group nf-write-section">
-        <label class="nf-label">剧照下载设置</label>
-        <div class="nf-inline-fields">
-          <div class="nf-inline-field">
-            <label for="download_concurrency" class="nf-label-inline">并发数</label>
-            <input
-              type="number"
-              id="download_concurrency"
-              name="download_concurrency"
-              min="1"
-              max="16"
-              value="4"
-              class="nf-input nf-input-narrow"
-            />
-          </div>
-        </div>
-        <p class="nf-hint">
-          下载 extrafanart 剧照时的并发请求数量，数值越大下载越快，但可能被源站限流。
-        </p>
-      </div>
-
-      <div class="nf-form-group nf-write-section">
         <hr class="nf-write-divider" />
         {% if poster_candidates %}
           <p class="nf-hint">确认选择后，点击下方按钮将 NFO 和图片写入到视频所在目录。</p>
