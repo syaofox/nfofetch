@@ -75,6 +75,12 @@
   border-radius: 0.75rem;
   padding: 1.5rem;
   box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.12);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.nf-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 20px -6px rgba(15, 23, 42, 0.15);
 }
 
 .nf-card-result {
@@ -332,6 +338,12 @@
   object-fit: cover;
   background: #e5e7eb;
   cursor: pointer;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.nf-image-thumb:active {
+  transform: scale(0.97);
+  opacity: 0.9;
 }
 
 .nf-image-option-controls {
@@ -457,10 +469,16 @@
   cursor: pointer;
   font-size: 0.85rem;
   text-align: left;
+  transition: transform 0.12s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .nf-file-browser-item:hover {
   background: #eff6ff;
+  transform: translateX(2px);
+}
+
+.nf-file-browser-item:active {
+  transform: scale(0.99);
 }
 
 .nf-file-browser-item-name {
@@ -593,16 +611,16 @@
   border: none;
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
 .nf-button-write:hover {
-  transform: scale(1.08);
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
+  transform: scale(1.1);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.5);
 }
 
 .nf-button-write:active {
-  transform: scale(0.95);
+  transform: scale(0.92);
 }
 
 .nf-button-write:disabled {
@@ -625,11 +643,20 @@
   border-radius: 0.6rem;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
-  transition: box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .nf-search-item:hover {
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.15);
+}
+
+.nf-search-item-btn {
+  transition: transform 0.12s ease;
+}
+
+.nf-search-item-btn:active {
+  transform: scale(0.99);
 }
 
 .nf-search-item-form {
@@ -1039,20 +1066,7 @@
   }
 }
 
-/* File browser item micro-interactions */
-.nf-file-browser-item {
-  transition: transform 0.12s ease, background 0.15s ease, box-shadow 0.15s ease;
-}
-
-.nf-file-browser-item:hover {
-  background: #eff6ff;
-  transform: translateX(2px);
-}
-
-.nf-file-browser-item:active {
-  transform: scale(0.99);
-}
-
+/* File browser delete btn micro-interactions */
 .nf-file-browser-delete-btn {
   transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
 }
@@ -1065,34 +1079,6 @@
 
 .nf-file-browser-delete-btn:active {
   transform: scale(0.95);
-}
-
-/* Search item hover lift */
-.nf-search-item {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.nf-search-item:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.15);
-}
-
-.nf-search-item-btn:active {
-  transform: scale(0.99);
-}
-
-.nf-search-item-btn {
-  transition: transform 0.12s ease;
-}
-
-/* Card hover micro-lift */
-.nf-card {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.nf-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 20px -6px rgba(15, 23, 42, 0.15);
 }
 
 /* Modal open/close animation */
@@ -1134,20 +1120,6 @@
   color: #dc2626;
 }
 
-/* Write button enhanced */
-.nf-button-write {
-  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
-}
-
-.nf-button-write:hover {
-  transform: scale(1.1);
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.5);
-}
-
-.nf-button-write:active {
-  transform: scale(0.92);
-}
-
 /* Preset button micro-interactions */
 .nf-preset-btn {
   transition: transform 0.12s ease, filter 0.12s ease, color 0.12s ease !important;
@@ -1170,15 +1142,6 @@
 .nf-image-option:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
-}
-
-.nf-image-thumb {
-  transition: transform 0.12s ease, opacity 0.12s ease;
-}
-
-.nf-image-thumb:active {
-  transform: scale(0.97);
-  opacity: 0.9;
 }
 
 /* Crop label micro-interaction */

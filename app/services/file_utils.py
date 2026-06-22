@@ -155,6 +155,6 @@ def _atomic_write_text(path: Path, content: str, delay: float = 0) -> None:
     _write_delay(delay)
     try:
         shutil.move(str(tmp_path), str(path))
-    except BaseException:
+    except Exception:
         tmp_path.unlink(missing_ok=True)
         raise

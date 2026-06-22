@@ -5,8 +5,8 @@ import base64
 import functools
 import logging
 import os
-import shutil
 import re
+import shutil
 import threading
 import time
 import uuid
@@ -26,6 +26,8 @@ from app.services.file_utils import VIDEO_EXTENSIONS
 from app.services.nfo_service import build_movie_nfo
 from app.services.scrape_service import is_url, scrape_movie, search_movie
 from app.services.settings_service import load_user_settings, save_user_settings
+
+logger = logging.getLogger(__name__)
 
 _log_level = os.getenv("NFOFETCH_LOG_LEVEL", "WARNING").upper()
 logging.basicConfig(
@@ -171,7 +173,7 @@ async def browse(
         # FUSE 下先 stat 目录，尝试触发 rclone 缓存刷新
         current.stat()
     except OSError:
-        pass
+        logger.warning("stat 失败: %s", current)
     try:
         with os.scandir(current) as it:
             for entry in it:
@@ -252,7 +254,7 @@ def _merge_ui_settings(settings: Settings) -> None:
         if user.max_extra_images is not None:
             settings.max_extra_images = user.max_extra_images
     except Exception:
-        pass
+        logger.warning("合并 UI 设置失败", exc_info=True)
 
 
 @app.post("/scrape/fetch", response_class=HTMLResponse)

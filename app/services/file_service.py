@@ -63,7 +63,6 @@ def _write_nfo_and_images(
     nfo_text: str,
     metadata: MovieMetadata,
     settings: Settings,
-    max_extra_images: int,
     poster_url: str | None = None,
     fanart_url: str | None = None,
     crop_direction: str = "none",
@@ -88,7 +87,7 @@ def _write_nfo_and_images(
         try:
             stored_root = ET.parse(nfo_path).getroot()
         except Exception:
-            pass
+            logger.warning("NFO 解析失败（将重新生成）: %s", nfo_path, exc_info=True)
 
     # 下载图片
     poster_path: Path | None = None
@@ -396,7 +395,7 @@ def _check_reuse_existing(
             if id_el is not None and id_el.text == number:
                 return True
     except Exception:
-        pass
+        logger.warning("读取 NFO 失败（将重新刮削）: %s", nfo_path, exc_info=True)
     return False
 
 
@@ -538,7 +537,9 @@ def save_assets_for_existing_video(
             try:
                 stored_root = ET.parse(nfo_file).getroot()
             except Exception:
-                pass
+                logger.warning(
+                    "读取已有 NFO 失败（将重新生成）: %s", nfo_file, exc_info=True
+                )
 
             # poster：NFO URL hash 检测，不同才重新下载
             poster_dl_url = poster_url or (
@@ -659,7 +660,6 @@ def save_assets_for_existing_video(
             nfo_text=nfo_text,
             metadata=metadata,
             settings=settings,
-            max_extra_images=max_extra_images,
             poster_url=poster_url,
             fanart_url=fanart_url,
             crop_direction=crop_direction,

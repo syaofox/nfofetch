@@ -83,7 +83,7 @@ class JavdbScraper(BaseScraper):
 
         return retry_request(_request, max_retries=2)
 
-    def _validate_video_page(self, tree: HTMLParser, original_url: str) -> None:
+    def _validate_video_page(self, tree: HTMLParser) -> None:
         """检查 HTML 是否为有效的 JavDB 影片详情页，若不是则抛出明确异常。"""
         has_video_detail = bool(tree.css_first("div.video-detail")) or bool(
             tree.css_first("nav.movie-panel-info")
@@ -119,7 +119,7 @@ class JavdbScraper(BaseScraper):
 
         html = self._request_page(url, settings)
         tree = HTMLParser(html)
-        self._validate_video_page(tree, url)
+        self._validate_video_page(tree)
         metadata = self._parse_metadata(tree, base_url=url)
         metadata.source_url = url  # type: ignore[assignment]
         return metadata
@@ -143,7 +143,7 @@ class JavdbScraper(BaseScraper):
         year, premiered = self._parse_dates(tree)
         runtime = self._parse_runtime(tree)
         genres = self._parse_genres(tree)
-        actors = self._parse_actors(tree, base_url)
+        actors = self._parse_actors(tree)
         studio, label, series = self._parse_companies(tree)
         directors, rating = self._parse_directors_and_rating(tree)
         posters, art = self._parse_images(tree, base_url)
@@ -320,7 +320,7 @@ class JavdbScraper(BaseScraper):
                     genres.append(text)
         return genres
 
-    def _parse_actors(self, tree: HTMLParser, base_url: str) -> list[Actor]:
+    def _parse_actors(self, tree: HTMLParser) -> list[Actor]:
         actors: list[Actor] = []
         # 当前结构：
         # <div class="panel-block">

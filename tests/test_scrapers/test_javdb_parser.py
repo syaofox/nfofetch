@@ -96,7 +96,7 @@ class TestValidateVideoPage:
         """
         tree = HTMLParser(html)
         # 不应抛出异常
-        self.scraper._validate_video_page(tree, "https://javdb.com/v/test")
+        self.scraper._validate_video_page(tree)
 
     def test_minimal_valid_page_passes(self) -> None:
         """只有 video-detail 没有 nav.movie-panel-info 也应通过。"""
@@ -106,7 +106,7 @@ class TestValidateVideoPage:
         </div>
         """
         tree = HTMLParser(html)
-        self.scraper._validate_video_page(tree, "https://javdb.com/v/test")
+        self.scraper._validate_video_page(tree)
 
     def test_over18_page_raises(self) -> None:
         html = """
@@ -120,7 +120,7 @@ class TestValidateVideoPage:
         """
         tree = HTMLParser(html)
         with pytest.raises(ValueError, match="年龄验证"):
-            self.scraper._validate_video_page(tree, "https://javdb.com/v/test")
+            self.scraper._validate_video_page(tree)
 
     def test_login_page_raises(self) -> None:
         html = """
@@ -132,7 +132,7 @@ class TestValidateVideoPage:
         """
         tree = HTMLParser(html)
         with pytest.raises(ValueError, match="需要登录"):
-            self.scraper._validate_video_page(tree, "https://javdb.com/v/test")
+            self.scraper._validate_video_page(tree)
 
     def test_login_with_over18_raises_login(self) -> None:
         """同时有登录表单和 over18 弹窗时优先报告登录问题。"""
@@ -149,18 +149,18 @@ class TestValidateVideoPage:
         """
         tree = HTMLParser(html)
         with pytest.raises(ValueError, match="需要登录"):
-            self.scraper._validate_video_page(tree, "https://javdb.com/v/test")
+            self.scraper._validate_video_page(tree)
 
     def test_missing_video_detail_raises(self) -> None:
         html = "<html><body><p>Some random content</p></body></html>"
         tree = HTMLParser(html)
         with pytest.raises(ValueError, match="无法获取影片信息"):
-            self.scraper._validate_video_page(tree, "https://javdb.com/v/test")
+            self.scraper._validate_video_page(tree)
 
     def test_empty_html_raises(self) -> None:
         tree = HTMLParser("")
         with pytest.raises(ValueError, match="无法获取影片信息"):
-            self.scraper._validate_video_page(tree, "https://javdb.com/v/test")
+            self.scraper._validate_video_page(tree)
 
 
 class TestParseNumber:
@@ -568,7 +568,7 @@ class TestParseActors:
         </nav>
         """
         tree = HTMLParser(html)
-        result = self.scraper._parse_actors(tree, base_url="https://javdb.com")
+        result = self.scraper._parse_actors(tree)
         assert len(result) == 2
         assert result[0] == Actor(name="藤咲舞", role=None, thumb=None)
         assert result[1] == Actor(name="葵つかさ", role=None, thumb=None)
@@ -583,7 +583,7 @@ class TestParseActors:
         </nav>
         """
         tree = HTMLParser(html)
-        result = self.scraper._parse_actors(tree, base_url="https://javdb.com")
+        result = self.scraper._parse_actors(tree)
         assert result == [Actor(name="田中丽奈", role=None, thumb=None)]
 
     def test_no_actors_panel(self) -> None:
@@ -594,11 +594,11 @@ class TestParseActors:
           </div>
         </nav>"""
         tree = HTMLParser(html)
-        assert self.scraper._parse_actors(tree, base_url="https://javdb.com") == []
+        assert self.scraper._parse_actors(tree) == []
 
     def test_empty_html(self) -> None:
         tree = HTMLParser("")
-        assert self.scraper._parse_actors(tree, base_url="https://javdb.com") == []
+        assert self.scraper._parse_actors(tree) == []
 
     def test_actors_with_empty_name_skipped(self) -> None:
         html = """
@@ -614,7 +614,7 @@ class TestParseActors:
         </nav>
         """
         tree = HTMLParser(html)
-        result = self.scraper._parse_actors(tree, base_url="https://javdb.com")
+        result = self.scraper._parse_actors(tree)
         assert len(result) == 2
         assert result[0].name == "有用"
         assert result[1].name == "也有用"
