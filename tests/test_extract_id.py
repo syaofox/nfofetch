@@ -19,9 +19,13 @@ class TestExtractIdJs:
         """匹配标准番号正则在 JS 中。"""
         assert "([A-Za-z]{2,6})[-_]?(\\d{2,8})" in self.HTML
 
-    def test_numeric_id_regex(self) -> None:
-        """匹配纯数字番号正则在 JS 中。"""
-        assert "(\\d{4,})\\s*[-_]\\s*(\\d{2,6})" in self.HTML
+    def test_numeric_id_regex_hyphen(self) -> None:
+        """匹配纯数字番号连字符版。"""
+        assert "(\\d{4,})\\s*-\\s*(\\d{2,6})" in self.HTML
+
+    def test_numeric_id_regex_underscore(self) -> None:
+        """匹配纯数字番号下划线版（与连字符版不同）。"""
+        assert "(\\d{4,})\\s*_\\s*(\\d{2,6})" in self.HTML
 
     def test_multi_match_popup(self) -> None:
         """多匹配时弹出选择窗口。"""

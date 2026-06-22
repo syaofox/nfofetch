@@ -475,10 +475,15 @@
           while ((m = reStd.exec(text)) !== null) {
             ids.push(m[1].toUpperCase() + "-" + String(parseInt(m[2], 10)).padStart(3, "0"));
           }
-          // 纯数字番号：101413-455 / 101413_455
-          var reNum = /(\d{4,})\s*[-_]\s*(\d{2,6})/g;
-          while ((m = reNum.exec(text)) !== null) {
+          // 纯数字番号：101413-455（连字符版）
+          var reNumH = /(\d{4,})\s*-\s*(\d{2,6})/g;
+          while ((m = reNumH.exec(text)) !== null) {
             ids.push(m[1] + "-" + m[2]);
+          }
+          // 纯数字番号：101413_455（下划线版，与连字符版为不同番号）
+          var reNumU = /(\d{4,})\s*_\s*(\d{2,6})/g;
+          while ((m = reNumU.exec(text)) !== null) {
+            ids.push(m[1] + "_" + m[2]);
           }
           // 去重
           ids = ids.filter(function (v, i) { return ids.indexOf(v) === i; });

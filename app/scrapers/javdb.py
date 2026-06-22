@@ -227,8 +227,12 @@ class JavdbScraper(BaseScraper):
         m = re.search(r"([A-Za-z]{2,6})[-_]?(\d{2,8})", title)
         if m:
             return f"{m.group(1).upper()}-{str(int(m.group(2))).zfill(3)}"
-        # 纯数字番号如 101413-455 / 101413_455 → 101413-455（下划线转为连字符）
-        m = re.search(r"(\d{4,})\s*[-_]?\s*(\d{2,6})", title)
+        # 纯数字番号 101413-455（连字符版）
+        m = re.search(r"(\d{4,})\s*-\s*(\d{2,6})", title)
+        if m:
+            return f"{m.group(1)}-{m.group(2)}"
+        # 纯数字番号 101413_455（下划线版，与连字符版为不同番号）
+        m = re.search(r"(\d{4,})\s*_\s*(\d{2,6})", title)
         if m:
             return f"{m.group(1)}-{m.group(2)}"
         return None
