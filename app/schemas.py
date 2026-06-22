@@ -104,4 +104,5 @@ class UserSettings(BaseModel):
     sort_by: str = "name"
     sort_order: str = "asc"
     download_concurrency: int = 4
+    javdb_cookie: str = ""
     presets: dict[str, Preset] = {}

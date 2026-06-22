@@ -18,7 +18,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.middleware import create_rate_limit_middleware
 from app.schemas import MovieMetadata, Preset, ScrapeResult, UserSettings
 from app.services.file_service import save_assets_for_existing_video
@@ -237,6 +237,16 @@ async def browse_delete(path: str = Form(...)) -> dict[str, bool]:
     return {"ok": True}
 
 
+def _merge_ui_cookie(settings: Settings) -> None:
+    """从 UserSettings 合并 UI 设置的 javdb cookie（优先于环境变量）。"""
+    try:
+        user = load_user_settings()
+        if user.javdb_cookie:
+            settings.javdb_cookie = user.javdb_cookie
+    except Exception:
+        pass
+
+
 @app.post("/scrape/fetch", response_class=HTMLResponse)
 async def scrape_fetch(
     request: Request,
@@ -251,6 +261,7 @@ async def scrape_fetch(
     - 番号/关键字：先搜索影片，用户选择后再刮取
     """
     settings = get_settings()
+    _merge_ui_cookie(settings)
     error: str | None = None
     metadata = None
     poster_candidates: list[str] = []
@@ -299,6 +310,7 @@ async def search_and_select(
 ) -> HTMLResponse:
     """搜索影片并显示结果列表供用户选择。"""
     settings = get_settings()
+    _merge_ui_cookie(settings)
     error: str | None = None
     results: list = []
 
@@ -356,6 +368,7 @@ async def scrape(
     优先使用前端传回的 metadata_b64（预览时已抓取），避免重复 HTTP 请求。
     """
     settings = get_settings()
+    _merge_ui_cookie(settings)
     if task_id:
         _update_task(task_id, phase="preparing", current=0, total=0, detail="正在准备…")
 

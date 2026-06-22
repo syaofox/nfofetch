@@ -454,6 +454,50 @@
         };
       })();
 
+      window.nfToggleCookieSection = function () {
+        var section = document.getElementById("nf-cookie-section");
+        var toggle = document.getElementById("nf-cookie-toggle");
+        if (section && toggle) {
+          var shown = section.style.display !== "none";
+          section.style.display = shown ? "none" : "block";
+          toggle.textContent = shown ? "▶" : "▼";
+        }
+      };
+
+      window.nfToggleCookieVisibility = function () {
+        var input = document.getElementById("javdb_cookie");
+        if (input) {
+          input.type = input.type === "password" ? "text" : "password";
+        }
+      };
+
+      window.nfSaveCookie = function () {
+        var input = document.getElementById("javdb_cookie");
+        var status = document.getElementById("nf-cookie-status");
+        if (!input || !status) return;
+        var val = input.value;
+        fetch("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ javdb_cookie: val }),
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.ok) {
+              status.textContent = "✓ 已保存";
+              status.className = "nf-cookie-status";
+            } else {
+              status.textContent = "✗ 保存失败";
+              status.className = "nf-cookie-status nf-error";
+            }
+          })
+          .catch(function () {
+            status.textContent = "✗ 保存失败";
+            status.className = "nf-cookie-status nf-error";
+          });
+        setTimeout(function () { status.textContent = ""; }, 3000);
+      };
+
       // 重命名格式：从服务器 JSON 文件加载，变更时自动保存
       (function () {
         var SETTINGS_URL = "/api/settings";
@@ -474,6 +518,10 @@
               var dc = document.getElementById("download_concurrency");
               if (dc && data.download_concurrency) {
                 dc.value = data.download_concurrency;
+              }
+              var ck = document.getElementById("javdb_cookie");
+              if (ck && data.javdb_cookie) {
+                ck.value = data.javdb_cookie;
               }
             })
             .catch(function () {});

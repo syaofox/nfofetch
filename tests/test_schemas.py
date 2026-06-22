@@ -107,3 +107,14 @@ class TestUserSettings:
         restored = UserSettings.model_validate(d)
         assert "标准" in restored.presets
         assert restored.presets["标准"].rename_format == "{id}"
+
+    def test_javdb_cookie_default(self) -> None:
+        s = UserSettings()
+        assert s.javdb_cookie == ""
+
+    def test_javdb_cookie_round_trip(self) -> None:
+        s = UserSettings(javdb_cookie="theme=auto; over18=1; _jdb_session=xxx")
+        d = s.model_dump()
+        assert d["javdb_cookie"] == "theme=auto; over18=1; _jdb_session=xxx"
+        restored = UserSettings.model_validate(d)
+        assert restored.javdb_cookie == "theme=auto; over18=1; _jdb_session=xxx"

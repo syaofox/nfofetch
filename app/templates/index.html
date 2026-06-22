@@ -78,7 +78,58 @@
     </section>
   </form>
 
+  <section class="nf-card">
+    <h2 class="nf-card-title" style="cursor:pointer; user-select:none;" onclick="nfToggleCookieSection()">
+      🔑 JavDB Cookie 设置 <span id="nf-cookie-toggle">▶</span>
+    </h2>
+    <div id="nf-cookie-section" class="nf-cookie-section" style="display:none;">
+      <p class="nf-card-desc">
+        从浏览器开发者工具（F12 → Application → Cookies）复制完整 Cookie 字符串，
+        保存后无需重启服务即可生效。
+      </p>
+      <div class="nf-form-group">
+        <label for="javdb_cookie" class="nf-label">Cookie 字符串</label>
+        <input
+          type="password"
+          id="javdb_cookie"
+          name="javdb_cookie"
+          class="nf-input nf-cookie-input"
+          placeholder="theme=auto; over18=1; _jdb_session=..."
+          autocomplete="off"
+        />
+      </div>
+      <div class="nf-cookie-actions">
+        <button type="button" class="nf-button" onclick="nfSaveCookie()">保存 Cookie</button>
+        <span id="nf-cookie-status" class="nf-cookie-status"></span>
+        <button type="button" class="nf-button nf-button-secondary" onclick="nfToggleCookieVisibility()">显示/隐藏</button>
+      </div>
+    </div>
+  </section>
+
   <section id="result" class="nf-result">
     <!-- HTMX 将在这里渲染刮削结果 -->
   </section>
+
+  <style>
+    .nf-cookie-section {
+      margin-top: 0.5rem;
+    }
+    .nf-cookie-input {
+      font-family: monospace;
+      font-size: 0.8rem;
+    }
+    .nf-cookie-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+    .nf-cookie-status {
+      font-size: 0.85rem;
+      color: #059669;
+    }
+    .nf-cookie-status.nf-error {
+      color: #dc2626;
+    }
+  </style>
 {% endblock %}
