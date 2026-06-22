@@ -440,9 +440,16 @@
           var input = document.getElementById("url");
           if (!input) return;
           var text = input.value;
+          // 标准番号：ABC-123 / ABC_123
           var m = text.match(/([A-Za-z]{2,6})[-_]?(\d{2,8})/);
           if (m) {
             input.value = m[1].toUpperCase() + "-" + String(parseInt(m[2], 10)).padStart(3, "0");
+            return;
+          }
+          // 纯数字番号：101413-455 / 101413_455
+          var m2 = text.match(/(\d{4,})\s*[-_]\s*(\d{2,6})/);
+          if (m2) {
+            input.value = m2[1] + "-" + m2[2];
           }
         };
       })();
