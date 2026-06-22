@@ -590,6 +590,35 @@ class TestRenameSingleVideo:
         assert result.name.startswith("ABP-123")
         assert result.name != "ABP-123.mp4"  # 有冲突后缀
 
+    def test_skip_if_same_name_with_vr_format(self, tmp_path: Path) -> None:
+        """格式含 {vr}，文件名已匹配（快速匹配成功，不应调 ffprobe）。"""
+        from unittest.mock import patch
+
+        meta = MovieMetadata(title="Test", number="KMVR-242")
+        video = tmp_path / "KMVR-242_180_LR.mp4"
+        video.write_text("fake")
+        with patch(
+            "app.services.rename_utils._get_video_resolution",
+        ) as mock_res:
+            result = _rename_single_video(video, meta, "{id}_{vr}")
+        assert result == video
+        mock_res.assert_not_called()
+
+    def test_skip_if_same_name_with_resolution_format(self, tmp_path: Path) -> None:
+        """格式含 {resolution}，文件名已匹配（需 ffprobe 确认，但跳过重命名）。"""
+        from unittest.mock import patch
+
+        meta = MovieMetadata(title="Test", number="ABP-123")
+        video = tmp_path / "ABP-123_1920x1080.mp4"
+        video.write_text("fake")
+        with patch(
+            "app.services.rename_utils._get_video_resolution",
+            return_value="1920x1080",
+        ) as mock_res:
+            result = _rename_single_video(video, meta, "{id}_{resolution}")
+        assert result == video
+        mock_res.assert_called_once()
+
 
 class TestRenameDirectory:
     def test_rename_directory(self, tmp_path: Path) -> None:
@@ -624,6 +653,43 @@ class TestRenameDirectory:
         meta = MovieMetadata(title="Test", number="ABP-123")
         with pytest.raises(OSError, match="目标文件夹已存在"):
             _rename_directory(old_dir, meta, video, "{id}")
+
+    def test_skip_if_same_name_with_vr_format(self, tmp_path: Path) -> None:
+        """格式含 {vr}，目录名已匹配（快速匹配成功，不应调 ffprobe）。"""
+        from unittest.mock import patch
+
+        meta = MovieMetadata(title="Test", number="KMVR-242")
+        dir_path = tmp_path / "KMVR-242_180_LR"
+        dir_path.mkdir()
+        video = dir_path / "movie.mp4"
+        video.write_text("fake")
+        with patch(
+            "app.services.file_service._get_video_resolution",
+        ) as mock_res:
+            new_dir, new_video = _rename_directory(dir_path, meta, video, "{id}_{vr}")
+        assert new_dir == dir_path
+        assert new_video == video
+        mock_res.assert_not_called()
+
+    def test_skip_if_same_name_with_resolution_format(self, tmp_path: Path) -> None:
+        """格式含 {resolution}，目录名已匹配（需 ffprobe 确认，但跳过重命名）。"""
+        from unittest.mock import patch
+
+        meta = MovieMetadata(title="Test", number="ABP-123")
+        dir_path = tmp_path / "ABP-123_1920x1080"
+        dir_path.mkdir()
+        video = dir_path / "movie.mp4"
+        video.write_text("fake")
+        with patch(
+            "app.services.file_service._get_video_resolution",
+            return_value="1920x1080",
+        ) as mock_res:
+            new_dir, new_video = _rename_directory(
+                dir_path, meta, video, "{id}_{resolution}"
+            )
+        assert new_dir == dir_path
+        assert new_video == video
+        mock_res.assert_called_once()
 
 
 class TestDirLock:
@@ -1682,3 +1748,44 @@ class TestRenameVideosInDir:
             )
         assert len(result) == 1
         assert (tmp_path / "KMVR-242-2048x2048_360_TB.mp4").exists()
+
+    def test_skip_if_single_file_already_matches(self, tmp_path: Path) -> None:
+        """单文件已匹配格式（含 {idx} 自动清理），跳过整批重命名。"""
+        meta = MovieMetadata(title="Test", number="ABP-123")
+        video = tmp_path / "ABP-123.mp4"
+        video.write_text("fake")
+        result = _rename_videos_in_dir(tmp_path, meta, "{id}-{idx}")
+        assert result == {}
+        assert video.exists()
+
+    def test_skip_if_all_multi_files_match(self, tmp_path: Path) -> None:
+        """多文件均已匹配格式，跳过整批重命名。"""
+        meta = MovieMetadata(title="Test", number="ABP-123")
+        v1 = tmp_path / "ABP-123-1.mp4"
+        v1.write_text("v1")
+        v2 = tmp_path / "ABP-123-2.mp4"
+        v2.write_text("v2")
+        result = _rename_videos_in_dir(tmp_path, meta, "{id}-{idx}")
+        assert result == {}
+        assert v1.exists()
+        assert v2.exists()
+
+    def test_partial_match_still_renames(self, tmp_path: Path) -> None:
+        """部分文件已匹配仍需重命名其他文件。"""
+        meta = MovieMetadata(title="Test", number="ABP-123")
+        v1 = tmp_path / "ABP-123-1.mp4"
+        v1.write_text("v1")
+        v2 = tmp_path / "old_name.mp4"
+        v2.write_text("v2")
+        result = _rename_videos_in_dir(tmp_path, meta, "{id}-{idx}")
+        assert len(result) == 2
+        assert (tmp_path / "ABP-123-2.mp4").exists()
+
+    def test_different_format_still_renames(self, tmp_path: Path) -> None:
+        """文件名不同（格式变更场景）仍触发重命名。"""
+        meta = MovieMetadata(title="Test", number="ABP-123")
+        video = tmp_path / "old_name.mp4"
+        video.write_text("fake")
+        result = _rename_videos_in_dir(tmp_path, meta, "{id}-{idx}")
+        assert len(result) == 1
+        assert (tmp_path / "ABP-123.mp4").exists()

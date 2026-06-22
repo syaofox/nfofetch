@@ -181,16 +181,27 @@ def _rename_single_video(
     metadata: MovieMetadata,
     format_str: str,
 ) -> Path:
-    """仅重命名指定的单个视频文件，返回新路径。"""
+    """仅重命名指定的单个视频文件，返回新路径。
+
+    快速匹配：先用空分辨率生成预期名，若文件已匹配则跳过 ffprobe 和重命名。
+    """
     movie_dir = video_path.parent
     ext = video_path.suffix
     is_vr = _is_vr(metadata)
+
+    # 快速匹配：用空分辨率生成预期名，若文件名已匹配则直接返回（省 ffprobe）
     resolution = ""
-    if "{resolution}" in format_str or "{vr}" in format_str:
-        resolution = _get_video_resolution(video_path)
     base_name = _format_rename(metadata, 1, is_vr, format_str, resolution=resolution)
     ext_bytes = len(ext.encode("utf-8"))
     max_base_bytes = max(1, MAX_FILENAME_BYTES - ext_bytes - RESERVED_SUFFIX_BYTES)
+    base_name = _truncate_to_bytes(base_name, max_base_bytes)
+    if movie_dir / (base_name + ext) == video_path:
+        return video_path
+
+    # 需要分辨率信息时再调 ffprobe
+    if "{resolution}" in format_str or "{vr}" in format_str:
+        resolution = _get_video_resolution(video_path)
+    base_name = _format_rename(metadata, 1, is_vr, format_str, resolution=resolution)
     base_name = _truncate_to_bytes(base_name, max_base_bytes)
     new_path = movie_dir / (base_name + ext)
     n = 1
@@ -234,8 +245,24 @@ def _rename_videos_in_dir(
         # 清理残留的重复分隔符（如 -{idx}_ 变成 -_ 后合并为 _）
         format_str = re.sub(r"[-_]{2,}", lambda m: m.group(0)[-1], format_str)
         format_str = format_str.strip(" -_")
-    resolutions: list[str] = []
+
+    # 快速匹配：所有文件已有符合格式的名称时跳过整批重命名
     needs_resolution = "{resolution}" in format_str or "{vr}" in format_str
+    if not needs_resolution:
+        all_match = True
+        for i, old_path in enumerate(video_files, start=1):
+            ext = old_path.suffix
+            base = _format_rename(metadata, i, is_vr, format_str, resolution="")
+            ext_bytes = len(ext.encode("utf-8"))
+            max_base = max(1, MAX_FILENAME_BYTES - ext_bytes - RESERVED_SUFFIX_BYTES)
+            base = _truncate_to_bytes(base, max_base)
+            if old_path != movie_dir / (base + ext):
+                all_match = False
+                break
+        if all_match:
+            return {}
+
+    resolutions: list[str] = []
     if n_files > 0 and needs_resolution:
         # 仅在格式用到分辨率时运行 ffprobe，避免 FUSE 上不必要的网络 I/O
         with ThreadPoolExecutor(max_workers=min(n_files, 4)) as executor:

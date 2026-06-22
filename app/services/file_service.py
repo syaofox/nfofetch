@@ -406,15 +406,26 @@ def _rename_directory(
     video_path: Path,
     format_str: str,
 ) -> tuple[Path, Path]:
-    """重命名视频所在文件夹，返回 (新目录, 更新后的视频路径)。"""
+    """重命名视频所在文件夹，返回 (新目录, 更新后的视频路径)。
+
+    快速匹配：先用空分辨率生成预期目录名，若已匹配则跳过 ffprobe 和重命名。
+    """
     is_vr = _is_vr(metadata)
+    # 快速匹配：用空分辨率生成预期目录名，若已匹配则直接返回（省 ffprobe）
     resolution = ""
+    new_dir_name = _format_dir_rename(
+        metadata, is_vr, format_str, resolution=resolution
+    )
+    parent = movie_dir.parent
+    new_dir = parent / new_dir_name
+    if new_dir == movie_dir:
+        return movie_dir, video_path
+    # 需要分辨率信息时再调 ffprobe
     if "{resolution}" in format_str or "{vr}" in format_str:
         resolution = _get_video_resolution(video_path)
     new_dir_name = _format_dir_rename(
         metadata, is_vr, format_str, resolution=resolution
     )
-    parent = movie_dir.parent
     new_dir = parent / new_dir_name
     if new_dir == movie_dir:
         return movie_dir, video_path
