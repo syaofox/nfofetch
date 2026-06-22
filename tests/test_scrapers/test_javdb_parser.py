@@ -204,6 +204,47 @@ class TestParseNumber:
         tree = HTMLParser(html)
         assert self.scraper._parse_number(tree) == "XYZ-999"
 
+    def test_english_label_id_with_clipboard(self) -> None:
+        """英文标签 ID:，含 data-clipboard-text。"""
+        html = """
+        <nav class="movie-panel-info">
+          <div class="panel-block first-block">
+            <strong>ID:</strong>
+            <span class="value"><a>101413</a>-455</span>
+            <a class="button copy-to-clipboard" data-clipboard-text="101413-455">Copy</a>
+          </div>
+        </nav>
+        """
+        tree = HTMLParser(html)
+        assert self.scraper._parse_number(tree) == "101413-455"
+
+    def test_english_label_id_via_span(self) -> None:
+        """英文标签 ID:，无 clipboard，从 span.value 提取。"""
+        html = """
+        <nav class="movie-panel-info">
+          <div class="panel-block first-block">
+            <strong>ID:</strong>
+            <span class="value">101413-455</span>
+          </div>
+        </nav>
+        """
+        tree = HTMLParser(html)
+        assert self.scraper._parse_number(tree) == "101413-455"
+
+    def test_numeric_id_via_clipboard(self) -> None:
+        """纯数字番号如 101413-455，从 clipboard 提取。"""
+        html = """
+        <nav class="movie-panel-info">
+          <div class="panel-block first-block">
+            <strong>番號:</strong>
+            <span class="value"><a>101413</a>-455</span>
+            <a class="button copy-to-clipboard" data-clipboard-text="101413-455">Copy</a>
+          </div>
+        </nav>
+        """
+        tree = HTMLParser(html)
+        assert self.scraper._parse_number(tree) == "101413-455"
+
     def test_fallback_regex_from_title(self) -> None:
         html = """
         <div class="video-detail">
@@ -230,6 +271,18 @@ class TestParseNumber:
         html = "<h2>ABC-01</h2>"
         tree = HTMLParser(html)
         assert self.scraper._parse_number(tree) == "ABC-001"
+
+    def test_fallback_numeric_regex_from_title(self) -> None:
+        """兜底：纯数字番号如 101413-455 从标题中提取。"""
+        html = """
+        <div class="video-detail">
+          <h2 class="title is-4">
+            <strong class="current-title">101413-455 スーパーアイドル野外露出浴衣生姦</strong>
+          </h2>
+        </div>
+        """
+        tree = HTMLParser(html)
+        assert self.scraper._parse_number(tree) == "101413-455"
 
     def test_no_number_found(self) -> None:
         html = "<html><body><p>No number here</p></body></html>"

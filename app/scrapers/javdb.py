@@ -200,17 +200,15 @@ class JavdbScraper(BaseScraper):
         return node.text(strip=True) if node else None
 
     def _parse_number(self, tree: HTMLParser) -> str | None:
-        # 当前结构：
-        # <div class="panel-block first-block">
-        #   <strong>番號:</strong>
-        #   &nbsp;<span class="value"><a>IPVR</a>-335</span>
-        #   ...
-        #   <a class="button ... copy-to-clipboard" data-clipboard-text="IPVR-335">
+        # 当前结构（中文/英文）：
+        # <strong>番號:</strong> 或 <strong>ID:</strong>
+        # <span class="value"><a>IPVR</a>-335</span> 或 <span class="value"><a>101413</a>-455</span>
+        # <a class="button copy-to-clipboard" data-clipboard-text="IPVR-335">
         # 优先读 data-clipboard-text，其次 span.value 文本。
         for block in tree.css("nav.movie-panel-info div.panel-block"):
             label = block.css_first("strong")
             label_text = label.text(strip=True) if label else ""
-            if "番號" in label_text or "番号" in label_text:
+            if any(x in label_text for x in ("番號", "番号", "ID", "Id", "id")):
                 # 1) data-clipboard-text
                 btn = block.css_first("a.copy-to-clipboard")
                 if btn:
@@ -222,12 +220,17 @@ class JavdbScraper(BaseScraper):
                 if value_span and value_span.text():
                     return value_span.text(strip=True)
 
-        # 兜底：从标题中提取形如 `ABC-123` 的番号
+        # 兜底：从标题中提取形如 `ABC-123` 或 `101413-455` 的番号
         title = self._parse_title(tree) or ""
 
+        # 标准番号如 ABC-123 / ABC_123 → ABC-123
         m = re.search(r"([A-Za-z]{2,6})[-_]?(\d{2,8})", title)
         if m:
             return f"{m.group(1).upper()}-{str(int(m.group(2))).zfill(3)}"
+        # 纯数字番号如 101413-455 → 101413-455（数字开头，连字符后跟数字）
+        m = re.search(r"(\d{4,})\s*-?\s*(\d{2,6})", title)
+        if m:
+            return f"{m.group(1)}-{m.group(2)}"
         return None
 
     def _parse_plot(self, tree: HTMLParser) -> str | None:
