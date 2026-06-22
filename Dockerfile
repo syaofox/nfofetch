@@ -44,8 +44,9 @@ COPY --from=builder /app/.venv /app/.venv
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-# 拷贝应用代码
+# 拷贝应用代码 + 版本信息
 COPY app app
+COPY pyproject.toml .
 
 # 入口脚本：启动时自动创建 /config、检查权限、设置 HOME
 COPY docker-entrypoint.sh /docker-entrypoint.sh
