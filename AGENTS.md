@@ -11,7 +11,8 @@ nfofetch: FastAPI + HTMX 影片刮削工具，从 javdb 抓取信息并生成 Je
 ## 关键命令
 
 ```bash
-uv sync                          # 安装依赖
+uv sync                          # 安装依赖（修改 pyproject.toml 后必跑）
+uv lock                          # 更新 uv.lock（修改 pyproject.toml 后必跑，如版本号变更需提交 uv.lock）
 uv run uvicorn app.main:app --reload  # 开发服务器
 uv run python -m app.cli --url <URL> --video <PATH>  # CLI 模式
 uv run ruff check --fix . && uv run ruff format . && uv run mypy app/ tests/ && uv run pytest   # 提交前必跑
@@ -147,4 +148,4 @@ HTML 规范规定 `innerHTML` 插入的 `<script>` 不执行。HTMX 内部会主
 - 所有文件 `from __future__ import annotations`
 - 类型 `str | None` 而非 `Optional[str]`
 - 纯单元测试（`tests/`），pytest 管理，不依赖网络
-- 依赖声明在 `pyproject.toml`，Dockerfile 重复列了 `pip install` 行，新增需同步
+- 依赖声明在 `pyproject.toml`，Dockerfile 使用 `uv sync --frozen` 基于 `uv.lock` 安装；更新依赖或版本号后务必提交 `uv.lock`
