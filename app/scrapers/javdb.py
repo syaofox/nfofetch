@@ -83,6 +83,33 @@ class JavdbScraper(BaseScraper):
 
         return retry_request(_request, max_retries=2)
 
+    def _validate_video_page(self, tree: HTMLParser, original_url: str) -> None:
+        """检查 HTML 是否为有效的 JavDB 影片详情页，若不是则抛出明确异常。"""
+        has_video_detail = bool(tree.css_first("div.video-detail")) or bool(
+            tree.css_first("nav.movie-panel-info")
+        )
+        has_login_form = bool(tree.css_first("form#new_user, form.new_user"))
+        has_login_link = bool(tree.css_first('a[href*="/users/new"]'))
+        has_over18 = bool(
+            tree.css_first("div.over18-modal, div.modal.is-active.over18-modal")
+        )
+
+        # 登录页（含 over18 弹窗）优先报告登录问题
+        if has_login_form or (has_login_link and not has_video_detail):
+            raise ValueError(
+                "需要登录 JavDB 或 JAVDB_COOKIE 已过期，请更新 JAVDB_COOKIE 环境变量。"
+            )
+        # 独立年龄验证墙（无登录表单时）
+        if has_over18:
+            raise ValueError(
+                "JavDB 返回了年龄验证页面，请确保 JAVDB_COOKIE 包含有效的 over18 cookie。"
+            )
+        # 影片详情页核心结构缺失
+        if not has_video_detail:
+            raise ValueError(
+                "无法获取影片信息，可能该页面已被删除或 JavDB 结构已变更。"
+            )
+
     def scrape(self, url: str, settings: Settings) -> MovieMetadata:
         parsed = urlparse(url)
         # 如果用户用了主域名 javdb.com，尝试改成当前常见镜像域名，减少被墙/403 概率。
@@ -92,6 +119,7 @@ class JavdbScraper(BaseScraper):
 
         html = self._request_page(url, settings)
         tree = HTMLParser(html)
+        self._validate_video_page(tree, url)
         metadata = self._parse_metadata(tree, base_url=url)
         metadata.source_url = url  # type: ignore[assignment]
         return metadata
@@ -161,6 +189,7 @@ class JavdbScraper(BaseScraper):
             "h2.video-title",
             "div.video-title h2",
             "main h2",
+            "h1",
         ]
         for sel in candidates:
             node = tree.css_first(sel)

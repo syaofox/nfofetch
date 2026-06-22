@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from selectolax.parser import HTMLParser
 
 from app.schemas import Actor
@@ -73,6 +74,93 @@ class TestParseTitle:
         """
         tree = HTMLParser(html)
         assert self.scraper._parse_title(tree) == "ABC-123 テスト!! 【完全版】"
+
+    def test_fallback_h1(self) -> None:
+        html = "<h1>H1 Title Fallback</h1>"
+        tree = HTMLParser(html)
+        assert self.scraper._parse_title(tree) == "H1 Title Fallback"
+
+
+class TestValidateVideoPage:
+    def setup_method(self) -> None:
+        self.scraper = JavdbScraper()
+
+    def test_valid_page_passes(self) -> None:
+        html = """
+        <div class="video-detail">
+          <h2 class="title is-4"><strong class="current-title">Title</strong></h2>
+        </div>
+        <nav class="movie-panel-info"><div class="panel-block first-block">
+          <strong>番號:</strong><span class="value">ABC-123</span>
+        </div></nav>
+        """
+        tree = HTMLParser(html)
+        # 不应抛出异常
+        self.scraper._validate_video_page(tree, "https://javdb.com/v/test")
+
+    def test_minimal_valid_page_passes(self) -> None:
+        """只有 video-detail 没有 nav.movie-panel-info 也应通过。"""
+        html = """
+        <div class="video-detail">
+          <h2 class="title is-4"><strong class="current-title">Title</strong></h2>
+        </div>
+        """
+        tree = HTMLParser(html)
+        self.scraper._validate_video_page(tree, "https://javdb.com/v/test")
+
+    def test_over18_page_raises(self) -> None:
+        html = """
+        <div class="modal is-active over18-modal">
+          <div class="modal-background"></div>
+          <div class="modal-card">
+            <header class="modal-card-head"><p class="modal-card-title">請注意</p></header>
+            <section class="modal-card-body">您必須已達您當地的法定年齡</section>
+          </div>
+        </div>
+        """
+        tree = HTMLParser(html)
+        with pytest.raises(ValueError, match="年龄验证"):
+            self.scraper._validate_video_page(tree, "https://javdb.com/v/test")
+
+    def test_login_page_raises(self) -> None:
+        html = """
+        <form id="new_user" action="/login">
+          <input name="user[login]">
+          <input name="user[password]" type="password">
+        </form>
+        <a href="/users/new">注册</a>
+        """
+        tree = HTMLParser(html)
+        with pytest.raises(ValueError, match="需要登录"):
+            self.scraper._validate_video_page(tree, "https://javdb.com/v/test")
+
+    def test_login_with_over18_raises_login(self) -> None:
+        """同时有登录表单和 over18 弹窗时优先报告登录问题。"""
+        html = """
+        <form id="new_user" action="/login">
+          <input name="user[login]">
+        </form>
+        <div class="modal is-active over18-modal">
+          <div class="modal-card">
+            <section class="modal-card-body">年龄验证</section>
+          </div>
+        </div>
+        <a href="/users/new">注册</a>
+        """
+        tree = HTMLParser(html)
+        with pytest.raises(ValueError, match="需要登录"):
+            self.scraper._validate_video_page(tree, "https://javdb.com/v/test")
+
+    def test_missing_video_detail_raises(self) -> None:
+        html = "<html><body><p>Some random content</p></body></html>"
+        tree = HTMLParser(html)
+        with pytest.raises(ValueError, match="无法获取影片信息"):
+            self.scraper._validate_video_page(tree, "https://javdb.com/v/test")
+
+    def test_empty_html_raises(self) -> None:
+        tree = HTMLParser("")
+        with pytest.raises(ValueError, match="无法获取影片信息"):
+            self.scraper._validate_video_page(tree, "https://javdb.com/v/test")
 
 
 class TestParseNumber:
