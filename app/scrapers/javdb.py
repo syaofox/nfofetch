@@ -420,19 +420,19 @@ class JavdbScraper(BaseScraper):
 
         # 封面：视频详情页大图
         # <div class="column column-video-cover">
-        #   <a href="https://...covers/...jpg"><img src="...covers/...jpg" class="video-cover"></a>
+        #   <a href=".../play?..."><img src="https://...covers/...jpg" class="video-cover"></a>
+        # 注意：<a> 的 href 可能是播放页链接而非图片直链，优先取内部 <img> 的 src
         cover_link = tree.css_first("div.column-video-cover a")
         if cover_link:
-            href = cover_link.attributes.get("href")
-            if href:
-                posters.append(self._abspath_url(href, base_url))
+            img = cover_link.css_first("img")
+            if img:
+                url = self._get_img_url(img, base_url)
+                if url:
+                    posters.append(url)
             else:
-                # 部分页面 <a> 无 href，尝试从内部 <img> 取 src
-                img = cover_link.css_first("img")
-                if img:
-                    url = self._get_img_url(img, base_url)
-                    if url:
-                        posters.append(url)
+                href = cover_link.attributes.get("href")
+                if href:
+                    posters.append(self._abspath_url(href, base_url))
         if not posters:
             cover_selectors = [
                 "div.video-cover img",
