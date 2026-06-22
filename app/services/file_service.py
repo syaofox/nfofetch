@@ -358,7 +358,9 @@ def _write_nfo_and_images(
     for art_url, dest_path in extra_art_write:
         all_art[_url_hash(art_url)] = dest_path.name
     if settings.delete_orphan_extrafanart:
-        _delete_orphan_extrafanart(extra_dir, set(all_art.values()))
+        valid = set(all_art.values())
+        logger.info("删除孤立剧照: extra_dir=%s valid=%s", extra_dir, valid)
+        _delete_orphan_extrafanart(extra_dir, valid)
     for h, fn in all_art.items():
         el = ET.SubElement(root, "art_url")
         el.set("hash", h)
@@ -646,7 +648,11 @@ def save_assets_for_existing_video(
             for url, dest in extra_downloads:
                 all_art[_url_hash(url)] = dest.name
             if settings.delete_orphan_extrafanart:
-                _delete_orphan_extrafanart(extra_dir, set(all_art.values()))
+                valid = set(all_art.values())
+                logger.info(
+                    "删除孤立剧照(reuse): extra_dir=%s valid=%s", extra_dir, valid
+                )
+                _delete_orphan_extrafanart(extra_dir, valid)
             for h, fn in all_art.items():
                 el = ET.SubElement(root, "art_url")
                 el.set("hash", h)
