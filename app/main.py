@@ -253,6 +253,8 @@ def _merge_ui_settings(settings: Settings) -> None:
             settings.write_delay = user.write_delay
         if user.max_extra_images is not None:
             settings.max_extra_images = user.max_extra_images
+        if user.delete_orphan_extrafanart is not None:
+            settings.delete_orphan_extrafanart = user.delete_orphan_extrafanart
     except Exception:
         logger.warning("合并 UI 设置失败", exc_info=True)
 

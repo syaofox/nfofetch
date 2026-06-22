@@ -558,6 +558,12 @@
             if (mx && data.max_extra_images !== null) {
               mx.value = data.max_extra_images;
             }
+            var delCb = document.getElementById("delete_orphan_extrafanart");
+            if (delCb && data.delete_orphan_extrafanart !== null) {
+              delCb.checked = data.delete_orphan_extrafanart;
+            } else if (delCb) {
+              delCb.checked = false;
+            }
           })
           .catch(function () {});
       };
@@ -582,6 +588,7 @@
         var lockCb = document.getElementById("lock_enabled");
         var wd = document.getElementById("write_delay");
         var mx = document.getElementById("max_extra_images");
+        var delCb = document.getElementById("delete_orphan_extrafanart");
         var status = document.getElementById("nf-settings-status");
         if (!status) return;
         var body = {
@@ -590,6 +597,7 @@
           lock_enabled: lockCb ? lockCb.checked : false,
           write_delay: wd && wd.value !== "" ? parseFloat(wd.value) : null,
           max_extra_images: mx && mx.value !== "" ? parseInt(mx.value, 10) : null,
+          delete_orphan_extrafanart: delCb ? delCb.checked : false,
         };
         fetch("/api/settings", {
           method: "POST",

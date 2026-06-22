@@ -57,6 +57,16 @@ def _scan_dir_names(movie_dir: Path, timeout: float = 30.0) -> set[str]:
         return set()
 
 
+def _delete_orphan_extrafanart(extra_dir: Path, valid_names: set[str]) -> None:
+    """删除 extrafanart 目录中不在 valid_names 里的 .jpg 文件。"""
+    if not extra_dir.is_dir():
+        return
+    for p in list(extra_dir.iterdir()):
+        if p.suffix.lower() == ".jpg" and p.name not in valid_names:
+            p.unlink(missing_ok=True)
+            logger.info("删除孤立剧照: %s", p.name)
+
+
 def _write_nfo_and_images(
     *,
     movie_dir: Path,
@@ -347,6 +357,8 @@ def _write_nfo_and_images(
     all_art.update(art_mapping)
     for art_url, dest_path in extra_art_write:
         all_art[_url_hash(art_url)] = dest_path.name
+    if settings.delete_orphan_extrafanart:
+        _delete_orphan_extrafanart(extra_dir, set(all_art.values()))
     for h, fn in all_art.items():
         el = ET.SubElement(root, "art_url")
         el.set("hash", h)
@@ -633,6 +645,8 @@ def save_assets_for_existing_video(
             all_art.update(valid_mapping)
             for url, dest in extra_downloads:
                 all_art[_url_hash(url)] = dest.name
+            if settings.delete_orphan_extrafanart:
+                _delete_orphan_extrafanart(extra_dir, set(all_art.values()))
             for h, fn in all_art.items():
                 el = ET.SubElement(root, "art_url")
                 el.set("hash", h)

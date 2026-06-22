@@ -8,6 +8,7 @@ import pytest
 from app.schemas import Actor, MovieMetadata
 from app.services.file_service import (
     _check_reuse_existing,
+    _delete_orphan_extrafanart,
     _rename_directory,
     _scan_dir_names,
 )
@@ -1789,3 +1790,42 @@ class TestRenameVideosInDir:
         result = _rename_videos_in_dir(tmp_path, meta, "{id}-{idx}")
         assert len(result) == 1
         assert (tmp_path / "ABP-123.mp4").exists()
+
+
+class TestDeleteOrphanExtrafanart:
+    """验证 _delete_orphan_extrafanart 删除孤立剧照。"""
+
+    def test_deletes_orphan_jpg(self, tmp_path: Path) -> None:
+        """不在 valid_names 中的 .jpg 被删除。"""
+        extra = tmp_path / "extrafanart"
+        extra.mkdir()
+        orphan = extra / "01.jpg"
+        orphan.write_text("old")
+        keep = extra / "02.jpg"
+        keep.write_text("keep")
+        _delete_orphan_extrafanart(extra, {"02.jpg"})
+        assert not orphan.exists()
+        assert keep.exists()
+
+    def test_deletes_all_when_empty_valid_names(self, tmp_path: Path) -> None:
+        """valid_names 为空时所有 .jpg 都被视为孤立并删除。"""
+        extra = tmp_path / "extrafanart"
+        extra.mkdir()
+        f = extra / "01.jpg"
+        f.write_text("data")
+        _delete_orphan_extrafanart(extra, set())
+        assert not f.exists()
+
+    def test_ignores_non_jpg_files(self, tmp_path: Path) -> None:
+        """非 .jpg 文件不受影响。"""
+        extra = tmp_path / "extrafanart"
+        extra.mkdir()
+        txt = extra / "readme.txt"
+        txt.write_text("note")
+        _delete_orphan_extrafanart(extra, set())
+        assert txt.exists()
+
+    def test_no_directory_does_nothing(self, tmp_path: Path) -> None:
+        """extrafanart 目录不存在时不做任何事。"""
+        extra = tmp_path / "extrafanart"
+        _delete_orphan_extrafanart(extra, {"01.jpg"})  # should not raise

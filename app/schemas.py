@@ -109,4 +109,5 @@ class UserSettings(BaseModel):
     lock_enabled: bool | None = None
     write_delay: float | None = None
     max_extra_images: int | None = None
+    delete_orphan_extrafanart: bool | None = None
     presets: dict[str, Preset] = {}

@@ -256,5 +256,6 @@ class TestJavdbCookie:
         assert "lock_enabled" in html
         assert "write_delay" in html
         assert "max_extra_images" in html
+        assert "delete_orphan_extrafanart" in html
         assert "nfSaveSettings" in html
         assert "nfOpenSettingsModal" in html
