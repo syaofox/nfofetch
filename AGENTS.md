@@ -149,3 +149,4 @@ HTML 规范规定 `innerHTML` 插入的 `<script>` 不执行。HTMX 内部会主
 - 类型 `str | None` 而非 `Optional[str]`
 - 纯单元测试（`tests/`），pytest 管理，不依赖网络
 - 依赖声明在 `pyproject.toml`，Dockerfile 使用 `uv sync --frozen` 基于 `uv.lock` 安装；更新依赖或版本号后务必提交 `uv.lock`
+- 版本号 `VERSION` 在 `app/main.py` 启动时从 `pyproject.toml` 读取（`PROJECT_ROOT / "pyproject.toml"`），**Dockerfile 运行阶段必须拷贝 `pyproject.toml`**，否则 UI 右下角显示 `v0.0.0`
