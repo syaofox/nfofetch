@@ -107,4 +107,6 @@ class UserSettings(BaseModel):
     javdb_cookie: str = ""
     serial_writes: bool | None = None
     lock_enabled: bool | None = None
+    write_delay: float | None = None
+    max_extra_images: int | None = None
     presets: dict[str, Preset] = {}

@@ -117,6 +117,22 @@
           <p class="nf-settings-desc">防止同目录并发刮削（多用户 Web 场景需要，单人使用建议关闭）。</p>
         </div>
 
+        <div class="nf-settings-group">
+          <label class="nf-settings-label">
+            <span>FUSE 写入停顿（秒）</span>
+          </label>
+          <p class="nf-settings-desc">每次文件写入前的停顿秒数，网络文件系统不稳定时调大（如 0.5）。设为 0 关闭。</p>
+          <input type="number" id="write_delay" class="nf-input nf-settings-num-input" step="0.1" min="0" max="5" placeholder="0.2" />
+        </div>
+
+        <div class="nf-settings-group">
+          <label class="nf-settings-label">
+            <span>最大剧照数</span>
+          </label>
+          <p class="nf-settings-desc">extrafanart 最大保存数量，设为 0 完全禁用。</p>
+          <input type="number" id="max_extra_images" class="nf-input nf-settings-num-input" step="1" min="0" max="50" placeholder="8" />
+        </div>
+
         <hr class="nf-settings-divider" />
 
         <div style="display:flex; align-items:center; gap:0.75rem;">
@@ -164,6 +180,10 @@
       flex: 1;
       font-family: monospace;
       font-size: 0.8rem;
+    }
+    .nf-settings-num-input {
+      width: 6rem;
+      margin-top: 0.3rem;
     }
     .nf-settings-divider {
       border: none;

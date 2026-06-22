@@ -140,3 +140,25 @@ class TestUserSettings:
         assert d["lock_enabled"] is True
         restored = UserSettings.model_validate(d)
         assert restored.lock_enabled is True
+
+    def test_write_delay_default(self) -> None:
+        s = UserSettings()
+        assert s.write_delay is None
+
+    def test_write_delay_round_trip(self) -> None:
+        s = UserSettings(write_delay=0.5)
+        d = s.model_dump()
+        assert d["write_delay"] == 0.5
+        restored = UserSettings.model_validate(d)
+        assert restored.write_delay == 0.5
+
+    def test_max_extra_images_default(self) -> None:
+        s = UserSettings()
+        assert s.max_extra_images is None
+
+    def test_max_extra_images_round_trip(self) -> None:
+        s = UserSettings(max_extra_images=16)
+        d = s.model_dump()
+        assert d["max_extra_images"] == 16
+        restored = UserSettings.model_validate(d)
+        assert restored.max_extra_images == 16

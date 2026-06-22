@@ -247,6 +247,10 @@ def _merge_ui_settings(settings: Settings) -> None:
             settings.serial_writes = user.serial_writes
         if user.lock_enabled is not None:
             settings.lock_enabled = user.lock_enabled
+        if user.write_delay is not None:
+            settings.write_delay = user.write_delay
+        if user.max_extra_images is not None:
+            settings.max_extra_images = user.max_extra_images
     except Exception:
         pass
 

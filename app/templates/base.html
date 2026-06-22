@@ -486,6 +486,14 @@
             } else if (lockCb) {
               lockCb.checked = false;
             }
+            var wd = document.getElementById("write_delay");
+            if (wd && data.write_delay !== null) {
+              wd.value = data.write_delay;
+            }
+            var mx = document.getElementById("max_extra_images");
+            if (mx && data.max_extra_images !== null) {
+              mx.value = data.max_extra_images;
+            }
           })
           .catch(function () {});
       };
@@ -508,12 +516,16 @@
         var cookieInput = document.getElementById("javdb_cookie");
         var serialCb = document.getElementById("serial_writes");
         var lockCb = document.getElementById("lock_enabled");
+        var wd = document.getElementById("write_delay");
+        var mx = document.getElementById("max_extra_images");
         var status = document.getElementById("nf-settings-status");
         if (!status) return;
         var body = {
           javdb_cookie: cookieInput ? cookieInput.value : "",
           serial_writes: serialCb ? serialCb.checked : false,
           lock_enabled: lockCb ? lockCb.checked : false,
+          write_delay: wd && wd.value !== "" ? parseFloat(wd.value) : null,
+          max_extra_images: mx && mx.value !== "" ? parseInt(mx.value, 10) : null,
         };
         fetch("/api/settings", {
           method: "POST",
