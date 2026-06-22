@@ -237,12 +237,16 @@ async def browse_delete(path: str = Form(...)) -> dict[str, bool]:
     return {"ok": True}
 
 
-def _merge_ui_cookie(settings: Settings) -> None:
-    """从 UserSettings 合并 UI 设置的 javdb cookie（优先于环境变量）。"""
+def _merge_ui_settings(settings: Settings) -> None:
+    """从 UserSettings 合并 UI 设置（优先于环境变量）。"""
     try:
         user = load_user_settings()
         if user.javdb_cookie:
             settings.javdb_cookie = user.javdb_cookie
+        if user.serial_writes is not None:
+            settings.serial_writes = user.serial_writes
+        if user.lock_enabled is not None:
+            settings.lock_enabled = user.lock_enabled
     except Exception:
         pass
 
@@ -261,7 +265,7 @@ async def scrape_fetch(
     - 番号/关键字：先搜索影片，用户选择后再刮取
     """
     settings = get_settings()
-    _merge_ui_cookie(settings)
+    _merge_ui_settings(settings)
     error: str | None = None
     metadata = None
     poster_candidates: list[str] = []
@@ -310,7 +314,7 @@ async def search_and_select(
 ) -> HTMLResponse:
     """搜索影片并显示结果列表供用户选择。"""
     settings = get_settings()
-    _merge_ui_cookie(settings)
+    _merge_ui_settings(settings)
     error: str | None = None
     results: list = []
 
@@ -368,7 +372,7 @@ async def scrape(
     优先使用前端传回的 metadata_b64（预览时已抓取），避免重复 HTTP 请求。
     """
     settings = get_settings()
-    _merge_ui_cookie(settings)
+    _merge_ui_settings(settings)
     if task_id:
         _update_task(task_id, phase="preparing", current=0, total=0, detail="正在准备…")
 

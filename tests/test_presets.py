@@ -146,8 +146,29 @@ class TestJavdbCookie:
         assert resp.json() == {"ok": True}
         assert saved.get("javdb_cookie") == "theme=auto; over18=1; _jdb_session=yyy"
 
-    def test_merge_ui_cookie_overrides_env(self) -> None:
-        """_merge_ui_cookie 应使用 UI 设置的 cookie 覆盖 env cookie。"""
+    def test_save_serial_writes_and_lock(self, client: TestClient) -> None:
+        saved: dict[str, Any] = {}
+        mock_user = UserSettings()
+
+        def _mock_save(settings: Any) -> None:
+            saved["serial_writes"] = settings.serial_writes
+            saved["lock_enabled"] = settings.lock_enabled
+
+        with patch(
+            "app.main.load_user_settings",
+            return_value=mock_user,
+        ):
+            with patch("app.main.save_user_settings", side_effect=_mock_save):
+                resp = client.post(
+                    "/api/settings",
+                    json={"serial_writes": True, "lock_enabled": True},
+                )
+        assert resp.status_code == 200
+        assert saved.get("serial_writes") is True
+        assert saved.get("lock_enabled") is True
+
+    def test_merge_ui_settings_overrides_env(self) -> None:
+        """_merge_ui_settings 应使用 UI 设置覆盖 env。"""
         from app.config import Settings
 
         env_settings = Settings(
@@ -164,15 +185,21 @@ class TestJavdbCookie:
         )
         with patch(
             "app.main.load_user_settings",
-            return_value=UserSettings(javdb_cookie="ui_cookie"),
+            return_value=UserSettings(
+                javdb_cookie="ui_cookie",
+                serial_writes=True,
+                lock_enabled=True,
+            ),
         ):
-            from app.main import _merge_ui_cookie
+            from app.main import _merge_ui_settings
 
-            _merge_ui_cookie(env_settings)
+            _merge_ui_settings(env_settings)
         assert env_settings.javdb_cookie == "ui_cookie"
+        assert env_settings.serial_writes is True
+        assert env_settings.lock_enabled is True
 
-    def test_merge_ui_cookie_empty_keeps_env(self) -> None:
-        """UI cookie 为空时应保留环境变量中的 cookie。"""
+    def test_merge_ui_settings_none_keeps_env(self) -> None:
+        """UI 设置值为 None 时应保留环境变量。"""
         from app.config import Settings
 
         env_settings = Settings(
@@ -183,25 +210,32 @@ class TestJavdbCookie:
             max_extra_images=8,
             http_timeout=20,
             batch_timeout=120,
-            serial_writes=False,
-            lock_enabled=False,
+            serial_writes=True,
+            lock_enabled=True,
             write_delay=0.0,
         )
         with patch(
             "app.main.load_user_settings",
-            return_value=UserSettings(javdb_cookie=""),
+            return_value=UserSettings(
+                javdb_cookie="",
+                serial_writes=None,
+                lock_enabled=None,
+            ),
         ):
-            from app.main import _merge_ui_cookie
+            from app.main import _merge_ui_settings
 
-            _merge_ui_cookie(env_settings)
+            _merge_ui_settings(env_settings)
         assert env_settings.javdb_cookie == "env_cookie"
+        assert env_settings.serial_writes is True
+        assert env_settings.lock_enabled is True
 
-    def test_index_template_has_cookie_section(self, client: TestClient) -> None:
+    def test_index_template_has_settings_modal(self, client: TestClient) -> None:
         """首页模板应包含 cookie 设置相关元素。"""
         resp = client.get("/")
         assert resp.status_code == 200
         html = resp.text
-        assert "JavDB Cookie" in html
         assert "javdb_cookie" in html
-        assert "nfSaveCookie" in html
-        assert "nfOpenCookieModal" in html
+        assert "serial_writes" in html
+        assert "lock_enabled" in html
+        assert "nfSaveSettings" in html
+        assert "nfOpenSettingsModal" in html

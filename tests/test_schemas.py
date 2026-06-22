@@ -118,3 +118,25 @@ class TestUserSettings:
         assert d["javdb_cookie"] == "theme=auto; over18=1; _jdb_session=xxx"
         restored = UserSettings.model_validate(d)
         assert restored.javdb_cookie == "theme=auto; over18=1; _jdb_session=xxx"
+
+    def test_serial_writes_default(self) -> None:
+        s = UserSettings()
+        assert s.serial_writes is None
+
+    def test_lock_enabled_default(self) -> None:
+        s = UserSettings()
+        assert s.lock_enabled is None
+
+    def test_serial_writes_round_trip(self) -> None:
+        s = UserSettings(serial_writes=True)
+        d = s.model_dump()
+        assert d["serial_writes"] is True
+        restored = UserSettings.model_validate(d)
+        assert restored.serial_writes is True
+
+    def test_lock_enabled_round_trip(self) -> None:
+        s = UserSettings(lock_enabled=True)
+        d = s.model_dump()
+        assert d["lock_enabled"] is True
+        restored = UserSettings.model_validate(d)
+        assert restored.lock_enabled is True

@@ -78,27 +78,50 @@
     </section>
   </form>
 
-  <!-- Cookie 设置模态框 -->
-  <div id="nf-cookie-modal" class="nf-modal" style="display:none">
-    <div class="nf-modal-backdrop" onclick="nfCloseCookieModal()"></div>
+  <!-- 设置模态框 -->
+  <div id="nf-settings-modal" class="nf-modal" style="display:none">
+    <div class="nf-modal-backdrop" onclick="nfCloseSettingsModal()"></div>
     <div class="nf-modal-box">
-      <div class="nf-modal-title">JavDB Cookie 设置</div>
+      <div class="nf-modal-title">设置</div>
       <div class="nf-modal-body">
-        <p style="margin-bottom:0.75rem; font-size:0.85rem; color:#6b7280;">
-          从浏览器开发者工具（F12 → Application → Cookies）复制完整 Cookie 字符串，保存后无需重启服务即可生效。
-        </p>
-        <input
-          type="password"
-          id="javdb_cookie"
-          class="nf-input nf-cookie-input"
-          placeholder="theme=auto; over18=1; _jdb_session=..."
-          autocomplete="off"
-          style="width:100%; box-sizing:border-box;"
-        />
-        <div style="display:flex; align-items:center; gap:0.75rem; margin-top:0.75rem;">
-          <button type="button" class="nf-button" onclick="nfSaveCookie()">保存</button>
-          <button type="button" class="nf-button nf-button-secondary" onclick="nfToggleCookieVisibility()">显示/隐藏</button>
-          <span id="nf-cookie-status" class="nf-cookie-status"></span>
+        <div class="nf-settings-group">
+          <label for="javdb_cookie" class="nf-settings-label">JavDB Cookie</label>
+          <p class="nf-settings-desc">从浏览器 F12 → Application → Cookies 复制完整 Cookie 字符串。</p>
+          <div class="nf-settings-cookie-row">
+            <input
+              type="password"
+              id="javdb_cookie"
+              class="nf-input nf-settings-cookie-input"
+              placeholder="theme=auto; over18=1; _jdb_session=..."
+              autocomplete="off"
+            />
+            <button type="button" class="nf-button nf-button-secondary" onclick="nfToggleCookieVisibility()" title="显示/隐藏">👁</button>
+          </div>
+        </div>
+
+        <hr class="nf-settings-divider" />
+
+        <div class="nf-settings-group">
+          <label class="nf-settings-label">
+            <input type="checkbox" id="serial_writes" />
+            <span>串行写入图片</span>
+          </label>
+          <p class="nf-settings-desc">启用后 poster、fanart、extrafanart 逐个下载写入，避免 FUSE 网络文件系统并发 I/O 断开。</p>
+        </div>
+
+        <div class="nf-settings-group">
+          <label class="nf-settings-label">
+            <input type="checkbox" id="lock_enabled" />
+            <span>启用目录锁</span>
+          </label>
+          <p class="nf-settings-desc">防止同目录并发刮削（多用户 Web 场景需要，单人使用建议关闭）。</p>
+        </div>
+
+        <hr class="nf-settings-divider" />
+
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+          <button type="button" class="nf-button" onclick="nfSaveSettings()">保存</button>
+          <span id="nf-settings-status" class="nf-settings-status"></span>
         </div>
       </div>
     </div>
@@ -109,15 +132,49 @@
   </section>
 
   <style>
-    .nf-cookie-input {
+    .nf-settings-group {
+      margin-bottom: 1rem;
+    }
+    .nf-settings-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #111827;
+      cursor: pointer;
+    }
+    .nf-settings-label input[type="checkbox"] {
+      width: 1rem;
+      height: 1rem;
+      cursor: pointer;
+    }
+    .nf-settings-desc {
+      margin: 0.25rem 0 0;
+      font-size: 0.8rem;
+      color: #6b7280;
+      line-height: 1.4;
+    }
+    .nf-settings-cookie-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.4rem;
+    }
+    .nf-settings-cookie-input {
+      flex: 1;
       font-family: monospace;
       font-size: 0.8rem;
     }
-    .nf-cookie-status {
+    .nf-settings-divider {
+      border: none;
+      border-top: 1px solid #e5e7eb;
+      margin: 0.75rem 0;
+    }
+    .nf-settings-status {
       font-size: 0.85rem;
       color: #059669;
     }
-    .nf-cookie-status.nf-error {
+    .nf-settings-status.nf-error {
       color: #dc2626;
     }
   </style>

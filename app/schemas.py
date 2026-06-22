@@ -105,4 +105,6 @@ class UserSettings(BaseModel):
     sort_order: str = "asc"
     download_concurrency: int = 4
     javdb_cookie: str = ""
+    serial_writes: bool | None = None
+    lock_enabled: bool | None = None
     presets: dict[str, Preset] = {}
