@@ -21,6 +21,7 @@ class Settings:
     - NFOFETCH_LOCK_ENABLED: 启用目录锁防止同目录并发刮削，多用户 Web 场景需要（默认 false）
     - NFOFETCH_WRITE_DELAY: 每次 FUSE 写入操作前的停顿秒数，缓解网络文件系统断开（默认 0.2）
     - NFOFETCH_DELETE_ORPHAN_EXTRAFANART: 重新刮削时删除网页上不再存在的本地剧照（默认 false）
+    - NFOFETCH_FILTER_ACTOR_GENDER: {actor} 占位符只包含女演员（默认 true）
     """
 
     user_agent: str
@@ -34,6 +35,7 @@ class Settings:
     lock_enabled: bool = False
     write_delay: float = 0.2
     delete_orphan_extrafanart: bool = False
+    filter_actor_gender: bool = True
 
 
 @lru_cache(maxsize=1)
@@ -89,4 +91,5 @@ def get_settings() -> Settings:
         delete_orphan_extrafanart=_parse_bool_env(
             "NFOFETCH_DELETE_ORPHAN_EXTRAFANART", False
         ),
+        filter_actor_gender=_parse_bool_env("NFOFETCH_FILTER_ACTOR_GENDER", True),
     )

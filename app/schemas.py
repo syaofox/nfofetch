@@ -9,6 +9,7 @@ class Actor(BaseModel):
     name: str
     role: str | None = None
     thumb: HttpUrl | None = None
+    gender: str | None = None
 
 
 class MovieMetadata(BaseModel):
@@ -110,4 +111,5 @@ class UserSettings(BaseModel):
     write_delay: float | None = None
     max_extra_images: int | None = None
     delete_orphan_extrafanart: bool | None = None
+    filter_actor_gender: bool | None = None
     presets: dict[str, Preset] = {}

@@ -217,6 +217,78 @@ class TestFormatRename:
         result = _format_rename(meta, idx=1, is_vr=False, format_str="{actor}")
         assert result == "田中丽奈、佐藤健"
 
+    def test_actor_filter_female_only(self) -> None:
+        """filter_actor_gender=True 时只保留女演员。"""
+        meta = MovieMetadata(
+            title="Test",
+            number="ABP-123",
+            actors=[
+                Actor(name="女优A", gender="female"),
+                Actor(name="男优B", gender="male"),
+                Actor(name="女优C", gender="female"),
+            ],
+        )
+        result = _format_rename(
+            meta,
+            idx=1,
+            is_vr=False,
+            format_str="{actor}",
+            filter_actor_gender=True,
+        )
+        assert result == "女优A、女优C"
+
+    def test_actor_filter_disabled_keeps_all(self) -> None:
+        """filter_actor_gender=False 时保留所有演员。"""
+        meta = MovieMetadata(
+            title="Test",
+            number="ABP-123",
+            actors=[
+                Actor(name="女优A", gender="female"),
+                Actor(name="男优B", gender="male"),
+            ],
+        )
+        result = _format_rename(
+            meta,
+            idx=1,
+            is_vr=False,
+            format_str="{actor}",
+            filter_actor_gender=False,
+        )
+        assert result == "女优A、男优B"
+
+    def test_actor_filter_keeps_none_gender(self) -> None:
+        """gender 为 None（旧数据兼容）视为女演员保留。"""
+        meta = MovieMetadata(
+            title="Test",
+            number="ABP-123",
+            actors=[Actor(name="未知"), Actor(name="男优", gender="male")],
+        )
+        result = _format_rename(
+            meta,
+            idx=1,
+            is_vr=False,
+            format_str="{actor}",
+            filter_actor_gender=True,
+        )
+        assert result == "未知"
+
+    def test_actor_filter_in_dir_rename(self) -> None:
+        """_format_dir_rename 也支持过滤。"""
+        meta = MovieMetadata(
+            title="Test",
+            actors=[
+                Actor(name="女优A", gender="female"),
+                Actor(name="男优B", gender="male"),
+            ],
+        )
+        result = _format_dir_rename(
+            meta,
+            is_vr=False,
+            format_str="{actor}",
+            filter_actor_gender=True,
+        )
+        assert result == "女优A"
+
     def test_date_premiered(self) -> None:
         meta = MovieMetadata(title="Test", premiered="2024-03-15")
         result = _format_rename(meta, idx=1, is_vr=False, format_str="{date}")

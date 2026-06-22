@@ -564,6 +564,12 @@
             } else if (delCb) {
               delCb.checked = false;
             }
+            var genderCb = document.getElementById("filter_actor_gender");
+            if (genderCb && data.filter_actor_gender !== null) {
+              genderCb.checked = data.filter_actor_gender;
+            } else if (genderCb) {
+              genderCb.checked = true;
+            }
           })
           .catch(function () {});
       };
@@ -589,6 +595,7 @@
         var wd = document.getElementById("write_delay");
         var mx = document.getElementById("max_extra_images");
         var delCb = document.getElementById("delete_orphan_extrafanart");
+        var genderCb = document.getElementById("filter_actor_gender");
         var status = document.getElementById("nf-settings-status");
         if (!status) return;
         var body = {
@@ -598,6 +605,7 @@
           write_delay: wd && wd.value !== "" ? parseFloat(wd.value) : null,
           max_extra_images: mx && mx.value !== "" ? parseInt(mx.value, 10) : null,
           delete_orphan_extrafanart: delCb ? delCb.checked : false,
+          filter_actor_gender: genderCb ? genderCb.checked : true,
         };
         fetch("/api/settings", {
           method: "POST",

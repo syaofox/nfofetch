@@ -331,6 +331,7 @@ class JavdbScraper(BaseScraper):
         #   <strong>演員:</strong>
         #   &nbsp;<span class="value">
         #     <a href="/actors/...">藤咲舞</a><strong class="symbol female">♀</strong>
+        #     <a href="/actors/...">男性名</a><strong class="symbol male">♂</strong>
         #   </span>
         # </div>
         for block in tree.css("nav.movie-panel-info div.panel-block"):
@@ -344,7 +345,16 @@ class JavdbScraper(BaseScraper):
                     name = a.text(strip=True)
                     if not name:
                         continue
-                    actors.append(Actor(name=name, role=None, thumb=None))
+                    # 检查 <a> 后的兄弟元素是否为性别符号
+                    gender: str | None = None
+                    sibling = a.next
+                    if sibling is not None and sibling.tag == "strong":
+                        cls = sibling.attributes.get("class") or ""
+                        if "female" in cls:
+                            gender = "female"
+                        elif "male" in cls:
+                            gender = "male"
+                    actors.append(Actor(name=name, gender=gender))
         return actors
 
     def _parse_companies(

@@ -88,18 +88,29 @@ def _get_video_resolution(video_path: Path) -> str:
         return ""
 
 
+def _filter_actors_by_gender(
+    actors: list[Actor], filter_actor_gender: bool
+) -> list[Actor]:
+    """若启用过滤，只保留女演员（gender 为 None 时也保留，兼容旧数据）。"""
+    if not filter_actor_gender:
+        return actors
+    return [a for a in actors if a.gender != "male"]
+
+
 def _format_rename(
     metadata: MovieMetadata,
     idx: int,
     is_vr: bool,
     format_str: str,
     resolution: str = "",
+    filter_actor_gender: bool = True,
 ) -> str:
     """根据格式字符串生成新文件名（不含扩展名）。"""
     id_val = metadata.number or ""
     year_val = str(metadata.year) if metadata.year else ""
     date_val = metadata.premiered or metadata.releasedate or ""
-    actor_val = "、".join(a.name for a in metadata.actors)
+    actors_for_display = _filter_actors_by_gender(metadata.actors, filter_actor_gender)
+    actor_val = "、".join(a.name for a in actors_for_display)
     title_val = metadata.title or ""
     vr_val = ""
     if is_vr:
@@ -117,7 +128,7 @@ def _format_rename(
     result = result.replace("{id}", id_val)
     result = result.replace("{year}", year_val)
     result = result.replace("{date}", date_val)
-    actors_all = metadata.actors
+    actors_all = actors_for_display
     result = re.sub(
         r"\{actor(?::(\d+))?\}",
         lambda m: (
@@ -138,12 +149,14 @@ def _format_dir_rename(
     is_vr: bool,
     format_str: str,
     resolution: str = "",
+    filter_actor_gender: bool = True,
 ) -> str:
     """根据格式字符串生成新文件夹名。"""
     id_val = metadata.number or ""
     year_val = str(metadata.year) if metadata.year else ""
     date_val = metadata.premiered or metadata.releasedate or ""
-    actor_val = "、".join(a.name for a in metadata.actors)
+    actors_for_display = _filter_actors_by_gender(metadata.actors, filter_actor_gender)
+    actor_val = "、".join(a.name for a in actors_for_display)
     title_val = metadata.title or ""
     vr_val = ""
     if is_vr:
@@ -161,7 +174,7 @@ def _format_dir_rename(
     result = result.replace("{id}", id_val)
     result = result.replace("{year}", year_val)
     result = result.replace("{date}", date_val)
-    actors_all = metadata.actors
+    actors_all = actors_for_display
     result = re.sub(
         r"\{actor(?::(\d+))?\}",
         lambda m: (
@@ -180,6 +193,7 @@ def _rename_single_video(
     video_path: Path,
     metadata: MovieMetadata,
     format_str: str,
+    filter_actor_gender: bool = True,
 ) -> Path:
     """仅重命名指定的单个视频文件，返回新路径。
 
@@ -191,7 +205,14 @@ def _rename_single_video(
 
     # 快速匹配：用空分辨率生成预期名，若文件名已匹配则直接返回（省 ffprobe）
     resolution = ""
-    base_name = _format_rename(metadata, 1, is_vr, format_str, resolution=resolution)
+    base_name = _format_rename(
+        metadata,
+        1,
+        is_vr,
+        format_str,
+        resolution=resolution,
+        filter_actor_gender=filter_actor_gender,
+    )
     ext_bytes = len(ext.encode("utf-8"))
     max_base_bytes = max(1, MAX_FILENAME_BYTES - ext_bytes - RESERVED_SUFFIX_BYTES)
     base_name = _truncate_to_bytes(base_name, max_base_bytes)
@@ -201,7 +222,14 @@ def _rename_single_video(
     # 需要分辨率信息时再调 ffprobe
     if "{resolution}" in format_str or "{vr}" in format_str:
         resolution = _get_video_resolution(video_path)
-    base_name = _format_rename(metadata, 1, is_vr, format_str, resolution=resolution)
+    base_name = _format_rename(
+        metadata,
+        1,
+        is_vr,
+        format_str,
+        resolution=resolution,
+        filter_actor_gender=filter_actor_gender,
+    )
     base_name = _truncate_to_bytes(base_name, max_base_bytes)
     new_path = movie_dir / (base_name + ext)
     n = 1
@@ -218,6 +246,7 @@ def _rename_videos_in_dir(
     movie_dir: Path,
     metadata: MovieMetadata,
     format_str: str,
+    filter_actor_gender: bool = True,
 ) -> dict[Path, Path]:
     """重命名目录下所有视频文件，返回 旧路径 -> 新路径 映射。"""
     video_files: list[Path] = []
@@ -252,7 +281,14 @@ def _rename_videos_in_dir(
         all_match = True
         for i, old_path in enumerate(video_files, start=1):
             ext = old_path.suffix
-            base = _format_rename(metadata, i, is_vr, format_str, resolution="")
+            base = _format_rename(
+                metadata,
+                i,
+                is_vr,
+                format_str,
+                resolution="",
+                filter_actor_gender=filter_actor_gender,
+            )
             ext_bytes = len(ext.encode("utf-8"))
             max_base = max(1, MAX_FILENAME_BYTES - ext_bytes - RESERVED_SUFFIX_BYTES)
             base = _truncate_to_bytes(base, max_base)
@@ -273,7 +309,12 @@ def _rename_videos_in_dir(
     for i, old_path in enumerate(video_files, start=1):
         resolution = resolutions[i - 1] if resolutions else ""
         base_name = _format_rename(
-            metadata, i, is_vr, format_str, resolution=resolution
+            metadata,
+            i,
+            is_vr,
+            format_str,
+            resolution=resolution,
+            filter_actor_gender=filter_actor_gender,
         )
         ext = old_path.suffix
         ext_bytes = len(ext.encode("utf-8"))
@@ -296,6 +337,7 @@ def _rename_videos_in_dir(
             is_vr,
             format_str,
             resolution=resolutions[i - 1] if resolutions else "",
+            filter_actor_gender=filter_actor_gender,
         )
         ext = temp_p.suffix
         ext_bytes = len(ext.encode("utf-8"))

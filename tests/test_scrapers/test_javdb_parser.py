@@ -570,8 +570,8 @@ class TestParseActors:
         tree = HTMLParser(html)
         result = self.scraper._parse_actors(tree)
         assert len(result) == 2
-        assert result[0] == Actor(name="藤咲舞", role=None, thumb=None)
-        assert result[1] == Actor(name="葵つかさ", role=None, thumb=None)
+        assert result[0] == Actor(name="藤咲舞", gender="female")
+        assert result[1] == Actor(name="葵つかさ", gender="female")
 
     def test_simplified_chinese_label(self) -> None:
         html = """
@@ -599,6 +599,42 @@ class TestParseActors:
     def test_empty_html(self) -> None:
         tree = HTMLParser("")
         assert self.scraper._parse_actors(tree) == []
+
+    def test_actors_male_symbol(self) -> None:
+        """男演员 gender 为 male。"""
+        html = """
+        <nav class="movie-panel-info">
+          <div class="panel-block">
+            <strong>演員:</strong>
+            <span class="value">
+              <a href="/actors/1">男性名</a><strong class="symbol male">♂</strong>
+            </span>
+          </div>
+        </nav>
+        """
+        tree = HTMLParser(html)
+        result = self.scraper._parse_actors(tree)
+        assert len(result) == 1
+        assert result[0] == Actor(name="男性名", gender="male")
+
+    def test_actors_mixed_gender(self) -> None:
+        """男女混合时分别标记。"""
+        html = """
+        <nav class="movie-panel-info">
+          <div class="panel-block">
+            <strong>演員:</strong>
+            <span class="value">
+              <a href="/actors/1">A子</a><strong class="symbol female">♀</strong>
+              <a href="/actors/2">B男</a><strong class="symbol male">♂</strong>
+            </span>
+          </div>
+        </nav>
+        """
+        tree = HTMLParser(html)
+        result = self.scraper._parse_actors(tree)
+        assert len(result) == 2
+        assert result[0] == Actor(name="A子", gender="female")
+        assert result[1] == Actor(name="B男", gender="male")
 
     def test_actors_with_empty_name_skipped(self) -> None:
         html = """

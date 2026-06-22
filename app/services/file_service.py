@@ -424,6 +424,7 @@ def _rename_directory(
     metadata: MovieMetadata,
     video_path: Path,
     format_str: str,
+    filter_actor_gender: bool = True,
 ) -> tuple[Path, Path]:
     """重命名视频所在文件夹，返回 (新目录, 更新后的视频路径)。
 
@@ -433,7 +434,11 @@ def _rename_directory(
     # 快速匹配：用空分辨率生成预期目录名，若已匹配则直接返回（省 ffprobe）
     resolution = ""
     new_dir_name = _format_dir_rename(
-        metadata, is_vr, format_str, resolution=resolution
+        metadata,
+        is_vr,
+        format_str,
+        resolution=resolution,
+        filter_actor_gender=filter_actor_gender,
     )
     parent = movie_dir.parent
     new_dir = parent / new_dir_name
@@ -443,7 +448,11 @@ def _rename_directory(
     if "{resolution}" in format_str or "{vr}" in format_str:
         resolution = _get_video_resolution(video_path)
     new_dir_name = _format_dir_rename(
-        metadata, is_vr, format_str, resolution=resolution
+        metadata,
+        is_vr,
+        format_str,
+        resolution=resolution,
+        filter_actor_gender=filter_actor_gender,
     )
     new_dir = parent / new_dir_name
     if new_dir == movie_dir:
@@ -497,10 +506,20 @@ def save_assets_for_existing_video(
                 on_progress("rename_video", 0, 1, "正在重命名视频文件…")
             try:
                 if "{idx}" in fmt:
-                    renames = _rename_videos_in_dir(movie_dir, metadata, fmt)
+                    renames = _rename_videos_in_dir(
+                        movie_dir,
+                        metadata,
+                        fmt,
+                        filter_actor_gender=settings.filter_actor_gender,
+                    )
                     final_video_path = renames.get(video_path, video_path)
                 else:
-                    final_video_path = _rename_single_video(video_path, metadata, fmt)
+                    final_video_path = _rename_single_video(
+                        video_path,
+                        metadata,
+                        fmt,
+                        filter_actor_gender=settings.filter_actor_gender,
+                    )
             except OSError as e:
                 return ScrapeResult(
                     success=False,
@@ -520,6 +539,7 @@ def save_assets_for_existing_video(
                     metadata,
                     final_video_path,
                     fmt_dir,
+                    filter_actor_gender=settings.filter_actor_gender,
                 )
             except OSError as e:
                 return ScrapeResult(

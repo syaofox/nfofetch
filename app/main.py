@@ -259,6 +259,12 @@ def _merge_ui_settings(settings: Settings) -> None:
                 "UI 设置: delete_orphan_extrafanart=%s",
                 settings.delete_orphan_extrafanart,
             )
+        if user.filter_actor_gender is not None:
+            settings.filter_actor_gender = user.filter_actor_gender
+            logger.info(
+                "UI 设置: delete_orphan_extrafanart=%s",
+                settings.delete_orphan_extrafanart,
+            )
     except Exception:
         logger.warning("合并 UI 设置失败", exc_info=True)
 
