@@ -1,6 +1,6 @@
 # AGENTS.md
 
-nfofetch: FastAPI + HTMX 影片刮削工具，从 javdb / jav321 抓取信息并生成 Jellyfin 兼容的 NFO/图片。
+nfofetch: FastAPI + HTMX 影片刮削工具，从多个站点抓取信息并生成 Jellyfin 兼容的 NFO/图片。
 
 ## 重要事项
 - 实际修改前，要先评估此次修改的合理性与可行性。
@@ -140,7 +140,7 @@ HTML 规范规定 `innerHTML` 插入的 `<script>` 不执行。HTMX 内部会主
 - **入口**: `app/main.py`（FastAPI）、`app/cli.py`（CLI）
 - **刮削器注册**: `app/scrapers/registry.py` — 新增站点注册到 `SCRAPERS` 列表
 - **HTML 解析**: `selectolax`；**HTTP 客户端**: 优先 `curl-cffi`，兜底 `httpx`
-- **配置**: `get_settings()` 由 `@lru_cache` 缓存，环境变量 → `Settings` dataclass。部分配置（cookie / serial_writes / lock_enabled / write_delay / max_extra_images）也可通过 UI 设置页调整，存储于 `UserSettings`（`schemas.py`），通过 `_merge_ui_settings()`（`app/main.py`）合并到 `Settings`，优先于环境变量。
+- **配置**: `get_settings()` 由 `@lru_cache` 缓存，环境变量 → `Settings` dataclass。部分配置（cookie / serial_writes / lock_enabled / write_delay / max_extra_images / delete_orphan_extrafanart / filter_actor_gender / download_concurrency / auto_trim_white_borders / enabled_scrapers）也可通过 UI 设置页调整，存储于 `UserSettings`（`schemas.py`），通过 `_merge_ui_settings()`（`app/main.py`）合并到 `Settings`，优先于环境变量。
 - **用户偏好**: 重命名格式、最后浏览路径等持久化到 JSON（`settings_service.py`，默认 `~/.config/nfofetch/settings.json`），启动时加载
 
 ## 特殊约定
