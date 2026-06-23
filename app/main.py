@@ -331,6 +331,9 @@ async def scrape_fetch(
     else:
         return await search_and_select(request, url, video_path=video_path)
 
+    parsed_url = urllib.parse.urlparse(url)
+    default_poster_first = "jav321" in parsed_url.netloc.lower()
+
     return templates.TemplateResponse(
         request,
         "partials/scrape_preview.html",
@@ -342,6 +345,7 @@ async def scrape_fetch(
             "error": error,
             "url": url,
             "video_path": video_path,
+            "default_poster_first": default_poster_first,
         },
     )
 

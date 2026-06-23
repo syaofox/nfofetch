@@ -24,11 +24,13 @@
           />
           <div class="nf-image-option-controls">
             <label class="nf-img-pill">
-              <input type="radio" name="poster_url" value="{{ url }}"{% if loop.index == 2 %} checked{% endif %} hidden />
+              <input type="radio" name="poster_url" value="{{ url }}"
+                {%- if (default_poster_first and loop.first) or (not default_poster_first and loop.index == 2) %} checked{% endif %} hidden />
               <span class="nf-img-pill-text">poster</span>
             </label>
             <label class="nf-img-pill">
-              <input type="radio" name="fanart_url" value="{{ url }}"{% if loop.first %} checked{% endif %} hidden />
+              <input type="radio" name="fanart_url" value="{{ url }}"
+                {%- if (default_poster_first and loop.index == 2) or (not default_poster_first and loop.first) %} checked{% endif %} hidden />
               <span class="nf-img-pill-text">fanart</span>
             </label>
           </div>
