@@ -127,7 +127,6 @@ htmx.trigger(form, "submit");
 // HTMX 自动接管后续：加载遮罩、任务ID注入、进度轮询等
 ```
 
-
 ### `escapejs` 过滤器
 
 在 `app/main.py` 中注册了自定义 Jinja2 过滤器 `escapejs`，用于安全地将 Python 字符串嵌入 JavaScript 字符串上下文（单/双引号、反斜杠、换行符均被转义）。用法：
@@ -171,6 +170,11 @@ htmx.trigger(form, "submit");
 - **自定义上传图片**：`POST /api/upload-poster` 接收文件 → 保存到 `NFOFETCH_BROWSE_ROOT/.nfofetch_uploads/` → 返回本地路径。写入时 `custom_poster_path` 覆盖 `poster_url`，`_download_to_temp` 检测到本地路径直接复制不走 HTTP。
 - **文件浏览器记住的路径**：刮削完成后，服务端自动将 `last_browse_path` 更新为 `result.movie_dir`（`app/main.py:438`），同时内联 `<script>` 将 `#video_path` 输入框更新为新的视频路径（`scrape_result.html:147-156`）。下次打开文件浏览器时自动定位到新目录。
 - **move_to_subdir**：写入后自动将视频移动到子目录。执行顺序：`move_to_subdir` → `rename_format` → `rename_dir`（仅未启用 move_to_subdir 时执行）。子目录名复用 `rename_dir` 格式（空则 `{id}`）。分集检测 `_is_split_base()` 识别 `-CD1`/`-part1`/`_1` 等后缀。设置持久化到 `UserSettings`，通过 checkbox `change` 事件和 `htmx:beforeRequest` 双重自动保存。
+- **重命名文件数预览**（`POST /api/rename-preview`）：接受 `video_path`/`rename_format`/`move_to_subdir`，返回 `{count: N}`。按钮点击先调此接口检查，`count > 3` 时弹出确认弹窗。关键逻辑：
+  - `rename_format` 为空 → count=0
+  - 不含 `{idx}` → count=1（仅选中文件）
+  - 含 `{idx}` 且 `move_to_subdir=false` → 扫描目录内所有视频
+  - 含 `{idx}` 且 `move_to_subdir=true` → 用 `_strip_split_suffix` 提取基名，`_count_split_group` 只统计同基名文件（含 `-CD1`/`_part2`/`_1` 等），**不统计移入子目录后目录内其他视频**
 
 ## 架构要点
 
@@ -180,6 +184,7 @@ htmx.trigger(form, "submit");
 - **配置**: `get_settings()` 由 `@lru_cache` 缓存，环境变量 → `Settings` dataclass。部分配置（cookie / serial_writes / lock_enabled / write_delay / max_extra_images / delete_orphan_extrafanart / filter_actor_gender / download_concurrency / auto_trim_white_borders / enabled_scrapers）也可通过 UI 设置页调整，存储于 `UserSettings`（`schemas.py`），通过 `_merge_ui_settings()`（`app/main.py`）合并到 `Settings`，优先于环境变量。
 - **用户偏好**: 重命名格式、最后浏览路径等持久化到 JSON（`settings_service.py`，默认 `~/.config/nfofetch/settings.json`），启动时加载
 - **注意区分 Settings 和 UserSettings**：`Settings`（`config.py`）由环境变量驱动，`UserSettings`（`schemas.py`）由 UI 操作驱动。部分字段（`serial_writes`/`lock_enabled`/`write_delay` 等）通过 `_merge_ui_settings()` 合并到 `Settings` 中统一使用；另一些字段（如 `move_to_subdir`/`rename_format`/`rename_dir`/`last_browse_path`）仅由表单直接传递或 UI 自行读写，不进入 `Settings`。
+- **重名前确认**：`rename_utils.py` 新增 `_count_files_to_rename` / `_count_split_group` / `_strip_split_suffix`，`main.py` 新增 `POST /api/rename-preview` 供前端写入前预览计数。详见「文件操作约定」。
 
 ## 特殊约定
 
