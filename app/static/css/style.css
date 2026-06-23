@@ -1235,6 +1235,49 @@
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
 }
 
+/* 裁切标签切换 */
+.nf-crop-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  width: fit-content;
+}
+
+.nf-crop-tab {
+  padding: 0.3rem 0.7rem;
+  border: none;
+  background: #ffffff;
+  color: #374151;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+
+.nf-crop-tab + .nf-crop-tab {
+  border-left: 1px solid #d1d5db;
+}
+
+.nf-crop-tab:hover {
+  background: #f3f4f6;
+}
+
+.nf-crop-tab-active {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.nf-crop-tab-active:hover {
+  background: #2563eb;
+}
+
+.nf-crop-panel {
+  margin-top: 0.25rem;
+}
+
 /* 精确裁切按钮 */
 .nf-crop-btn {
   display: inline-flex;

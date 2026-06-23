@@ -506,37 +506,52 @@
           if (modal) modal.style.display = "none";
         };
 
-        window.nfConfirmCrop = function () {
-          if (!_nfCropper) return;
-          var data = _nfCropper.getData(true);
-          document.getElementById("crop_x").value = Math.round(data.x);
-          document.getElementById("crop_y").value = Math.round(data.y);
-          document.getElementById("crop_w").value = Math.round(data.width);
-          document.getElementById("crop_h").value = Math.round(data.height);
-          var hint = document.getElementById("crop-hint");
-          if (hint) {
-            hint.style.display = "";
-            hint.textContent = "已设置精确裁切区域（" + Math.round(data.width) + "x" + Math.round(data.height) + "）。";
-          }
-          // 标记按钮为激活状态
-          var btn = document.getElementById("nf-crop-btn");
-          if (btn) btn.classList.add("nf-crop-btn-active");
-          window.nfCloseCropModal();
-        };
-
-        // 选择方向裁切时清除精确裁切状态
-        document.addEventListener("change", function (e) {
-          if (e.target && e.target.name === "crop_direction") {
+        window.nfSwitchCropTab = function (tab) {
+          var dirPanel = document.getElementById("nf-crop-panel-direction");
+          var prePanel = document.getElementById("nf-crop-panel-precise");
+          var tabs = document.querySelectorAll(".nf-crop-tab");
+          tabs.forEach(function (t) { t.classList.remove("nf-crop-tab-active"); });
+          if (tab === "direction") {
+            dirPanel.style.display = "";
+            prePanel.style.display = "none";
+            tabs[0].classList.add("nf-crop-tab-active");
+            // 切换到方向裁切时清除精确裁切数据
             document.getElementById("crop_x").value = "0";
             document.getElementById("crop_y").value = "0";
             document.getElementById("crop_w").value = "0";
             document.getElementById("crop_h").value = "0";
             var btn = document.getElementById("nf-crop-btn");
-            if (btn) btn.classList.remove("nf-crop-btn-active");
+            if (btn) { btn.classList.remove("nf-crop-btn-active"); btn.textContent = "选择裁切区域…"; }
             var hint = document.getElementById("crop-hint");
             if (hint) hint.style.display = "none";
+          } else {
+            dirPanel.style.display = "none";
+            prePanel.style.display = "";
+            tabs[1].classList.add("nf-crop-tab-active");
           }
-        });
+        };
+
+        window.nfConfirmCrop = function () {
+          if (!_nfCropper) return;
+          var data = _nfCropper.getData(true);
+          var w = Math.round(data.width);
+          var h = Math.round(data.height);
+          document.getElementById("crop_x").value = Math.round(data.x);
+          document.getElementById("crop_y").value = Math.round(data.y);
+          document.getElementById("crop_w").value = w;
+          document.getElementById("crop_h").value = h;
+          var hint = document.getElementById("crop-hint");
+          if (hint) {
+            hint.style.display = "";
+            hint.textContent = "已设置精确裁切区域（" + w + "x" + h + "）。";
+          }
+          var btn = document.getElementById("nf-crop-btn");
+          if (btn) {
+            btn.classList.add("nf-crop-btn-active");
+            btn.textContent = "已裁切 " + w + "×" + h;
+          }
+          window.nfCloseCropModal();
+        };
 
         window.nfCloseFileBrowser = function () {
           var container = document.getElementById("file-browser-container");
