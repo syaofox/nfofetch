@@ -390,7 +390,7 @@
           for (var i = 0; i < items.length; i++) {
             var name = items[i].getAttribute("data-name") || "";
             var match = !q || name.indexOf(q) !== -1;
-            items[i].style.display = match ? "" : "none";
+            items[i].parentElement.style.display = match ? "" : "none";
             if (match) visible++;
           }
           if (empty) {
