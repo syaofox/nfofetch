@@ -116,7 +116,7 @@ def _format_rename(
     filter_actor_gender: bool = True,
 ) -> str:
     """根据格式字符串生成新文件名（不含扩展名）。"""
-    id_val = metadata.number or ""
+    id_val = (metadata.number or "").upper()
     year_val = str(metadata.year) if metadata.year else ""
     date_val = metadata.premiered or metadata.releasedate or ""
     actors_for_display = _filter_actors_by_gender(metadata.actors, filter_actor_gender)
@@ -171,7 +171,7 @@ def _format_dir_rename(
     filter_actor_gender: bool = True,
 ) -> str:
     """根据格式字符串生成新文件夹名。"""
-    id_val = metadata.number or ""
+    id_val = (metadata.number or "").upper()
     year_val = str(metadata.year) if metadata.year else ""
     date_val = metadata.premiered or metadata.releasedate or ""
     actors_for_display = _filter_actors_by_gender(metadata.actors, filter_actor_gender)
