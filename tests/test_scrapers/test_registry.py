@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.scrapers.jav321 import Jav321Scraper
 from app.scrapers.javdb import JavdbScraper
+from app.scrapers.javhoo import JavhooScraper
 from app.scrapers.registry import SCRAPERS, get_default_scraper, get_scraper
 
 
@@ -14,6 +15,9 @@ class TestScrapers:
 
     def test_second_scraper_is_jav321(self) -> None:
         assert isinstance(SCRAPERS[1], Jav321Scraper)
+
+    def test_third_scraper_is_javhoo(self) -> None:
+        assert isinstance(SCRAPERS[2], JavhooScraper)
 
 
 class TestGetScraper:
@@ -28,6 +32,10 @@ class TestGetScraper:
     def test_returns_jav321_for_jav321_url(self) -> None:
         scraper = get_scraper("https://en.jav321.com/video/sone00614")
         assert isinstance(scraper, Jav321Scraper)
+
+    def test_returns_javhoo_for_javhoo_url(self) -> None:
+        scraper = get_scraper("https://www.javhoo.com/en/ABF-360")
+        assert isinstance(scraper, JavhooScraper)
 
 
 class TestGetDefaultScraper:

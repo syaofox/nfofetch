@@ -3,11 +3,13 @@ from __future__ import annotations
 from app.scrapers.base import BaseScraper
 from app.scrapers.jav321 import Jav321Scraper
 from app.scrapers.javdb import JavdbScraper
+from app.scrapers.javhoo import JavhooScraper
 
 
 SCRAPERS: list[BaseScraper] = [
     JavdbScraper(),
     Jav321Scraper(),
+    JavhooScraper(),
 ]
 
 
