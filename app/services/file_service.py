@@ -480,6 +480,7 @@ def save_assets_for_existing_video(
     crop_direction: str = "none",
     crop_box: CropBox = None,
     custom_poster_path: str | None = None,
+    move_to_subdir: bool = False,
     rename_format: str | None = None,
     rename_dir: str | None = None,
     download_concurrency: int = 4,
@@ -538,7 +539,28 @@ def save_assets_for_existing_video(
                 )
         _write_delay(settings.write_delay)
 
-        # 2. 重命名文件夹（在视频重命名之后、NFO 写入之前执行）
+        # 2. 移动到子目录（在视频重命名之后、文件夹重命名之前执行）
+        if move_to_subdir:
+            subdir_fmt = (rename_dir or "").strip() or "{id}"
+            if on_progress:
+                on_progress("move_dir", 0, 1, "正在移动到子目录…")
+            try:
+                movie_dir, final_video_path = _move_video_to_subdir(
+                    movie_dir,
+                    final_video_path,
+                    metadata,
+                    subdir_fmt,
+                    settings,
+                )
+            except OSError as e:
+                return ScrapeResult(
+                    success=False,
+                    message=f"移动到子目录失败：{e}",
+                    metadata=metadata,
+                )
+        _write_delay(settings.write_delay)
+
+        # 3. 重命名文件夹（在视频重命名之后、NFO 写入之前执行）
         if rename_dir and rename_dir.strip():
             fmt_dir = rename_dir.strip()
             if on_progress:
@@ -559,7 +581,7 @@ def save_assets_for_existing_video(
                 )
         _write_delay(settings.write_delay)
 
-        # 3. 去重检测：先 stat 判 NFO 存在，有 NFO 才全目录扫描
+        # 4. 去重检测：先 stat 判 NFO 存在，有 NFO 才全目录扫描
         nfo_exists = (movie_dir / "movie.nfo").exists()
         existing_names: set[str] = set()
         reuse = False
@@ -718,7 +740,7 @@ def save_assets_for_existing_video(
                 chosen_fanart_url=fanart_url,
             )
 
-        # 4. 正常写入 NFO + 图片
+        # 5. 正常写入 NFO + 图片
         nfo_path, poster_path, fanart_path, extra_paths = _write_nfo_and_images(  # type: ignore[assignment]
             movie_dir=movie_dir,
             nfo_text=nfo_text,
@@ -751,3 +773,101 @@ def save_assets_for_existing_video(
     finally:
         if lock_acquired:
             _release_dir_lock(movie_dir)
+
+
+def _is_split_base(name: str) -> tuple[str, str | None]:
+    """检测文件名是否包含分集后缀（CD1/part1/_1 等），返回 (基名, 后缀)。
+
+    例如 "IPVR-335-CD1.mp4" → ("IPVR-335", "-CD1")
+         "ABF-360_part2.mp4" → ("ABF-360", "_part2")
+         "IPVR-335.mp4"      → ("IPVR-335", None)
+    """
+    import re as _re
+
+    stem, _ = os.path.splitext(name)
+    m = _re.search(r"[-_](?:CD|PART)(\d+)$", stem, _re.IGNORECASE)
+    if m:
+        return stem[: m.start()], m.group(0)
+    m = _re.search(r"[-_](\d{1,2})$", stem)
+    if m:
+        return stem[: m.start()], m.group(0)
+    return stem, None
+
+
+def _move_video_to_subdir(
+    movie_dir: Path,
+    video_path: Path,
+    metadata: MovieMetadata,
+    subdir_format: str,
+    settings: Settings,
+) -> tuple[Path, Path]:
+    """将视频文件移动到按格式命名的子目录中，并返回 (new_movie_dir, new_video_path)。
+
+    如果视频是分集（如 XXX-123-CD1、XXX-123-CD2），同基名的视频会一起移动。
+    """
+    from app.services.rename_utils import _get_video_resolution
+
+    is_vr = _is_vr(metadata)
+    resolution = _get_video_resolution(video_path)
+    subdir_name = _format_dir_rename(
+        metadata,
+        is_vr,
+        subdir_format,
+        resolution=resolution,
+        filter_actor_gender=settings.filter_actor_gender,
+    )
+    new_dir = movie_dir / subdir_name
+    if new_dir == movie_dir:
+        return movie_dir, video_path
+    if new_dir.exists():
+        raise OSError(f"目标子目录已存在：{subdir_name}")
+    new_dir.mkdir(parents=True)
+
+    # 收集需要移动的视频文件（含分集）
+    video_exts = (
+        ".mp4",
+        ".mkv",
+        ".avi",
+        ".wmv",
+        ".mov",
+        ".webm",
+        ".m4v",
+        ".flv",
+        ".ts",
+        ".m2ts",
+        ".mpg",
+        ".mpeg",
+        ".vob",
+        ".3gp",
+        ".ogm",
+        ".divx",
+        ".f4v",
+        ".iso",
+        ".rmvb",
+        ".rm",
+        ".asf",
+        ".mts",
+        ".m2t",
+        ".3g2",
+        ".qt",
+    )
+    base_name, _ = _is_split_base(video_path.name)
+    to_move: list[Path] = [video_path]
+    for f in movie_dir.iterdir():
+        if f == video_path or not f.is_file() or f.suffix.lower() not in video_exts:
+            continue
+        fb, _ = _is_split_base(f.name)
+        if fb == base_name:
+            to_move.append(f)
+
+    _write_delay(settings.write_delay)
+    for src in to_move:
+        shutil.move(str(src), str(new_dir / src.name))
+    new_video_path = new_dir / video_path.name
+    logger.info(
+        "移动到子目录: %s → %s（共 %d 个视频文件）",
+        video_path.name,
+        subdir_name,
+        len(to_move),
+    )
+    return new_dir, new_video_path

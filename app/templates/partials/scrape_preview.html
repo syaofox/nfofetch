@@ -252,6 +252,15 @@
       </div>
 
       <div class="nf-form-group nf-write-section">
+        <label class="nf-toggle" for="move_to_subdir" style="margin-bottom:0.5rem;">
+          <input type="checkbox" id="move_to_subdir" name="move_to_subdir" class="nf-toggle-input" {% if default_move_to_subdir %}checked{% endif %} />
+          <span class="nf-toggle-track"><span class="nf-toggle-knob"></span></span>
+          <span class="nf-toggle-label">写入后自动移动到子目录</span>
+        </label>
+        <p class="nf-hint">开启后，NFO/图片将与视频一同移动到按格式命名的子目录中。分集视频（如 XXX-CD1/ XXX-CD2）会自动合并到同一子目录。</p>
+      </div>
+
+      <div class="nf-form-group nf-write-section">
         <hr class="nf-write-divider" />
         {% if poster_candidates %}
           <p class="nf-hint">确认选择后，点击下方按钮将 NFO 和图片写入到视频所在目录。</p>

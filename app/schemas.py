@@ -116,4 +116,5 @@ class UserSettings(BaseModel):
     filter_actor_gender: bool | None = None
     auto_trim_white_borders: bool | None = None
     enabled_scrapers: list[str] | None = None
+    move_to_subdir: bool | None = None
     presets: dict[str, Preset] = {}

@@ -426,6 +426,7 @@ async def scrape_fetch(
             "url": url,
             "video_path": video_path,
             "default_poster_first": default_poster_first,
+            "default_move_to_subdir": load_user_settings().move_to_subdir or False,
         },
     )
 
@@ -490,6 +491,7 @@ async def scrape(
     crop_w: int = Form(default=0),
     crop_h: int = Form(default=0),
     custom_poster_path: str | None = Form(default=None),
+    move_to_subdir: bool = Form(default=False),
     rename_format: str | None = Form(default=None),
     rename_dir: str | None = Form(default=None),
     task_id: str = Form(default=""),
@@ -545,6 +547,7 @@ async def scrape(
             if crop_w > 0 and crop_h > 0
             else None,
             custom_poster_path=custom_poster_path,
+            move_to_subdir=move_to_subdir,
             rename_format=rename_format or None,
             rename_dir=rename_dir or None,
             download_concurrency=settings.download_concurrency,

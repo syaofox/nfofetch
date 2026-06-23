@@ -9,6 +9,8 @@ from app.schemas import Actor, MovieMetadata
 from app.services.file_service import (
     _check_reuse_existing,
     _delete_orphan_extrafanart,
+    _is_split_base,
+    _move_video_to_subdir,
     _rename_directory,
     _scan_dir_names,
 )
@@ -1949,3 +1951,128 @@ class TestDeleteOrphanExtrafanart:
         """extrafanart 目录不存在时不做任何事。"""
         extra = tmp_path / "extrafanart"
         _delete_orphan_extrafanart(extra, {"01.jpg"})  # should not raise
+
+
+class TestIsSplitBase:
+    def test_single_file(self) -> None:
+        base, suffix = _is_split_base("IPVR-335.mp4")
+        assert base == "IPVR-335"
+        assert suffix is None
+
+    def test_cd_split(self) -> None:
+        base, suffix = _is_split_base("IPVR-335-CD1.mp4")
+        assert base == "IPVR-335"
+        assert suffix == "-CD1"
+
+    def test_cd_split_lower(self) -> None:
+        base, suffix = _is_split_base("abf-360_cd2.mp4")
+        assert base == "abf-360"
+        assert suffix == "_cd2"
+
+    def test_part_split(self) -> None:
+        base, suffix = _is_split_base("NSPS-123_part1.mp4")
+        assert base == "NSPS-123"
+        assert suffix == "_part1"
+
+    def test_number_suffix_split(self) -> None:
+        base, suffix = _is_split_base("ABC-123_1.mp4")
+        assert base == "ABC-123"
+        assert suffix == "_1"
+
+    def test_number_suffix_hyphen(self) -> None:
+        base, suffix = _is_split_base("XXX-001-2.mp4")
+        assert base == "XXX-001"
+        assert suffix == "-2"
+
+    def test_no_extension(self) -> None:
+        base, suffix = _is_split_base("test.mp4")
+        assert base == "test"
+        assert suffix is None
+
+
+class TestMoveVideoToSubdir:
+    def test_moves_single_video(
+        self, tmp_path: Path, sample_movie_metadata: MovieMetadata
+    ) -> None:
+        from app.config import Settings
+
+        settings = Settings(
+            user_agent="test", http_proxy=None, javdb_cookie=None, write_delay=0.0
+        )
+        num = sample_movie_metadata.number or "ABP-123"
+        video = tmp_path / f"{num}.mp4"
+        video.write_text("video content")
+        new_dir, new_video = _move_video_to_subdir(
+            tmp_path,
+            video,
+            sample_movie_metadata,
+            "{id}",
+            settings,
+        )
+        assert new_dir.name == num
+        assert new_video.exists()
+        assert not video.exists()
+        assert new_video.parent == new_dir
+
+    def test_moves_split_videos(
+        self, tmp_path: Path, sample_movie_metadata: MovieMetadata
+    ) -> None:
+        from app.config import Settings
+
+        settings = Settings(
+            user_agent="test", http_proxy=None, javdb_cookie=None, write_delay=0.0
+        )
+        num = sample_movie_metadata.number or "ABP-123"
+        v1 = tmp_path / f"{num}-CD1.mp4"
+        v2 = tmp_path / f"{num}-CD2.mp4"
+        v1.write_text("v1")
+        v2.write_text("v2")
+        new_dir, new_video = _move_video_to_subdir(
+            tmp_path,
+            v1,
+            sample_movie_metadata,
+            "{id}",
+            settings,
+        )
+        assert (new_dir / f"{num}-CD1.mp4").exists()
+        assert (new_dir / f"{num}-CD2.mp4").exists()
+        assert not v1.exists()
+        assert not v2.exists()
+
+    def test_subdir_format(self, tmp_path: Path) -> None:
+        from app.config import Settings
+        from app.schemas import MovieMetadata
+
+        settings = Settings(
+            user_agent="test", http_proxy=None, javdb_cookie=None, write_delay=0.0
+        )
+        meta = MovieMetadata(title="Test", number="ABC-123", year=2025)
+        video = tmp_path / "ABC-123.mp4"
+        video.write_text("content")
+        new_dir, _ = _move_video_to_subdir(
+            tmp_path,
+            video,
+            meta,
+            "[{actor}]{id}",
+            settings,
+        )
+        assert new_dir.name == "ABC-123"  # no actors, just {id}
+
+    def test_existing_target_raises(
+        self, tmp_path: Path, sample_movie_metadata: MovieMetadata
+    ) -> None:
+        from app.config import Settings
+
+        settings = Settings(
+            user_agent="test", http_proxy=None, javdb_cookie=None, write_delay=0.0
+        )
+        num = sample_movie_metadata.number or "ABP-123"
+        video = tmp_path / f"{num}.mp4"
+        video.write_text("content")
+        (tmp_path / num).mkdir()
+        import pytest
+
+        with pytest.raises(OSError):
+            _move_video_to_subdir(
+                tmp_path, video, sample_movie_metadata, "{id}", settings
+            )
