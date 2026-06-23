@@ -19,6 +19,7 @@ _VIDEO_PAGE = """<!DOCTYPE html>
 <div class="widget pods_widget_field"><h3>製作商:</h3><span><a href="https://www.javhoo.com/en/studio/prestige">プレステージ</a></span></div>
 <div class="widget pods_widget_field"><h3>系列:</h3><span class="series"><a href="https://www.javhoo.com/en/series/xxx">異常な愛情</a></span></div>
 <div class="widget pods_widget_field"><h3>類別:</h3><p><span><a href="https://www.javhoo.com/en/genre/fhd">フルハイビジョン(FHD)</a></span><span><a href="https://www.javhoo.com/en/genre/乳交">乳交</a></span><span><a href="https://www.javhoo.com/en/genre/巨乳">巨乳</a></span></p></div>
+<div class="widget pods_widget_field"><h3>演員:</h3><p><span><a href="https://www.javhoo.com/en/star/kawai-asuna">河合あすな</a></span></p></div>
 </div>
 <h3>樣品圖像</h3>
 <div class="the_excerpt">
@@ -167,6 +168,31 @@ class TestParseSeries:
         assert self.scraper._parse_series(tree) is None
 
 
+class TestParseActors:
+    def setup_method(self) -> None:
+        self.scraper = JavhooScraper()
+
+    def test_extracts_actors(self) -> None:
+        tree = HTMLParser(_VIDEO_PAGE)
+        actors = self.scraper._parse_actors(tree)
+        assert len(actors) == 1
+        assert actors[0].name == "河合あすな"
+
+    def test_no_actors_node(self) -> None:
+        tree = HTMLParser("<html></html>")
+        assert self.scraper._parse_actors(tree) == []
+
+    def test_multiple_actors(self) -> None:
+        html = """<html><body><div class="sidebar">
+<div class="widget pods_widget_field"><h3>演員:</h3><p><span><a href="/a">松島かえで</a></span><span><a href="/b">二宮和香</a></span></p></div>
+</div></body></html>"""
+        tree = HTMLParser(html)
+        actors = self.scraper._parse_actors(tree)
+        assert len(actors) == 2
+        assert actors[0].name == "松島かえで"
+        assert actors[1].name == "二宮和香"
+
+
 class TestParseImages:
     def setup_method(self) -> None:
         self.scraper = JavhooScraper()
@@ -199,6 +225,8 @@ class TestParseMetadata:
         assert len(meta.genres) == 3
         assert len(meta.posters) == 1
         assert len(meta.art) == 3
+        assert len(meta.actors) == 1
+        assert meta.actors[0].name == "河合あすな"
 
 
 class TestParseSearchResults:

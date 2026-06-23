@@ -9,7 +9,7 @@ from selectolax.parser import HTMLParser
 
 from app.config import Settings
 from app.retry import retry_request
-from app.schemas import MovieMetadata, SearchResult
+from app.schemas import Actor, MovieMetadata, SearchResult
 from app.scrapers.base import BaseScraper
 
 try:
@@ -103,7 +103,7 @@ class JavhooScraper(BaseScraper):
             releasedate=self._parse_premiered(tree),
             runtime=self._parse_runtime(tree),
             genres=self._parse_genres(tree),
-            actors=[],
+            actors=self._parse_actors(tree),
             studio=self._parse_studio(tree),
             series=self._parse_series(tree),
             rating=None,
@@ -205,6 +205,21 @@ class JavhooScraper(BaseScraper):
                 if a:
                     return a.text(strip=True)
         return None
+
+    def _parse_actors(self, tree: HTMLParser) -> list[Actor]:
+        for widget in tree.css(".widget.pods_widget_field"):
+            h3 = widget.css_first("h3")
+            if not h3:
+                continue
+            label = h3.text(strip=True)
+            if "演員" in label or "Actor" in label or "演员" in label:
+                actors: list[Actor] = []
+                for a in widget.css("a"):
+                    name = a.text(strip=True)
+                    if name:
+                        actors.append(Actor(name=name))
+                return actors
+        return []
 
     def _parse_images(
         self, tree: HTMLParser, base_url: str
