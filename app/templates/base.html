@@ -469,19 +469,15 @@
           if (_nfCropper) { _nfCropper.destroy(); _nfCropper = null; }
         }
 
-        function _loadImageToCropper(src, isReplace) {
+        function _loadImageToCropper(src) {
           var img = document.getElementById("nf-crop-image");
           if (!img) return;
-          if (_nfCropper && isReplace) {
-            _nfCropper.replace(src);
-            document.getElementById("nf-crop-drop-hint").textContent = "已加载自定义图片（裁切坐标以当前显示为准）";
-            return;
-          }
           _destroyCropper();
           img.src = src;
           img.onload = function () {
             _nfCropper = new Cropper(img, _cropperOpts(img));
-            document.getElementById("nf-crop-drop-hint").textContent = "拖拽图片到此处或 Ctrl+V 粘贴";
+            document.getElementById("nf-crop-drop-hint").textContent =
+              img.naturalWidth + "×" + img.naturalHeight + " — 拖拽/粘贴可替换";
           };
         }
 
@@ -495,7 +491,7 @@
           var trimCb = document.getElementById("auto_trim_white_borders");
           var autoTrim = trimCb ? trimCb.checked : false;
           var cropUrl = "/api/crop-image?url=" + encodeURIComponent(imgUrl) + "&auto_trim=" + (autoTrim ? "1" : "0");
-          _loadImageToCropper(cropUrl, false);
+          _loadImageToCropper(cropUrl);
         };
 
         // 拖拽支持
@@ -517,7 +513,7 @@
           if (!file || !file.type.startsWith("image/")) return;
           var reader = new FileReader();
           reader.onload = function (ev) {
-            _loadImageToCropper(ev.target.result, true);
+            _loadImageToCropper(ev.target.result);
           };
           reader.readAsDataURL(file);
         });
@@ -533,7 +529,7 @@
               if (!blob) continue;
               var reader = new FileReader();
               reader.onload = function (ev) {
-                _loadImageToCropper(ev.target.result, true);
+                _loadImageToCropper(ev.target.result);
               };
               reader.readAsDataURL(blob);
               break;
