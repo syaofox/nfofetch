@@ -93,6 +93,12 @@ uv run pytest tests/test_scrape_path_update.py -v   # 仅跑新增的路径更�
 
 HTML 规范规定 `innerHTML` 插入的 `<script>` 不执行。HTMX 内部会主动查找并执行它们，所以依赖 HTMX 的 script 执行没问题。但如果用原生 `fetch` + `innerHTML` 手动插入内容，需要自行处理脚本执行。
 
+### 坑 3：`escapejs` 在测试环境的 Jinja2 中不可用
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| 测试渲染模板时报 `No filter named 'escapejs'` | `escapejs` 只在 `app/main.py` 中注册，测试中创建的独立 `Jinja2Templates` 实例没有该过滤器 | 改用 `data-*` 属性传值代替 onclick 中内联 JS（如 `data-poster-url="{{ url }}"` → `onclick="fn(this)"` → JS 读 `getAttribute`） |
+
 ### `escapejs` 过滤器
 
 在 `app/main.py` 中注册了自定义 Jinja2 过滤器 `escapejs`，用于安全地将 Python 字符串嵌入 JavaScript 字符串上下文（单/双引号、反斜杠、换行符均被转义）。用法：
@@ -133,6 +139,7 @@ HTML 规范规定 `innerHTML` 插入的 `<script>` 不执行。HTMX 内部会主
 - **重复刮削检测**：NFO 中 `<source_url>` 或 `<id>` 匹配即有记录；若已有同源记录，仍然重新下载图片并更新 NFO hash。
 - **目录锁默认关闭**：`NFOFETCH_LOCK_ENABLED=false`，单人使用不需锁。多用户 Web 场景需开启。可通过环境变量或 UI 设置页调整。
 - **`Path.resolve()` 禁用**：FUSE 上 `resolve()` 触发网络 stat 慢，改用 `absolute()`。
+- **自定义上传图片**：`POST /api/upload-poster` 接收文件 → 保存到 `NFOFETCH_BROWSE_ROOT/.nfofetch_uploads/` → 返回本地路径。写入时 `custom_poster_path` 覆盖 `poster_url`，`_download_to_temp` 检测到本地路径直接复制不走 HTTP。
 - **文件浏览器记住的路径**：刮削完成后，服务端自动将 `last_browse_path` 更新为 `result.movie_dir`（`app/main.py:438`），同时内联 `<script>` 将 `#video_path` 输入框更新为新的视频路径（`scrape_result.html:147-156`）。下次打开文件浏览器时自动定位到新目录。
 
 ## 架构要点
