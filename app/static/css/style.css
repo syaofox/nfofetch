@@ -246,7 +246,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 0.25rem 1rem;
 }
 
@@ -261,8 +261,13 @@
   font-weight: 600;
 }
 
+.nf-meta-list-full {
+  grid-column: 1 / -1;
+}
+
 .nf-meta-list dd {
   margin: 0;
+  white-space: nowrap;
 }
 
 .nf-meta-actors {

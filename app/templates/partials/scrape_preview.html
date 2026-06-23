@@ -67,6 +67,12 @@
                 <dd>{{ "%.1f"|format(metadata.rating) }}</dd>
               </div>
             {% endif %}
+            {% if metadata.genres %}
+              <div class="nf-meta-list-full">
+                <dt>类别</dt>
+                <dd>{{ metadata.genres | join("、") }}</dd>
+              </div>
+            {% endif %}
           </dl>
 
           {% if metadata.actors %}
@@ -197,7 +203,7 @@
         <p class="nf-hint">
           留空则不重命名。占位符：<code>{id}</code>番号、
           <code>{year}</code>年份、<code>{date}</code>发行日期、
-           <code>{actor}</code>演员（<code>{actor:N}</code>写法限制数量，超出自动加"等x人"后缀，如<code>{actor:3}</code>最多3人）、<code>{title}</code>标题、
+           <code>{actor}</code>演员（<code>{actor:N}</code>写法限制数量，超出自动加"等x人"后缀，如<code>{actor:3}</code>最多3人）、<code>{genre}</code>类别（<code>{genre:N}</code>限制数量，超出加"等x类"）、<code>{title}</code>标题、
            <code>{vr}</code>VR 视频（宽≥高为 180_LR，高>宽为 360_TB）、
           <code>{resolution}</code>视频分辨率（宽x高）、
           <code>{idx}</code>同目录视频序号（按文件名排序，从 1 起）。含 <code>{idx}</code> 时同目录所有视频会一起重命名，不含则仅重命名当前选中的视频。
@@ -217,8 +223,8 @@
         <p class="nf-hint">
           留空则不改文件夹名。占位符：<code>{id}</code>番号、
           <code>{year}</code>年份、<code>{date}</code>发行日期、
-           <code>{actor}</code>演员（<code>{actor:N}</code>限制数量，超出自动加"等x人"后缀）、<code>{title}</code>标题、
-           <code>{vr}</code>VR 视频、<code>{resolution}</code>视频分辨率。
+           <code>{actor}</code>演员（<code>{actor:N}</code>限制数量，超出自动加"等x人"后缀）、<code>{genre}</code>类别、<code>{title}</code>标题、
+            <code>{vr}</code>VR 视频、<code>{resolution}</code>视频分辨率。
         </p>
       </div>
 

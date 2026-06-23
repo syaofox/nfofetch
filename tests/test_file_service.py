@@ -399,6 +399,31 @@ class TestFormatRename:
         )
         assert result == "1920x1080"
 
+    def test_genre(self) -> None:
+        meta = MovieMetadata(title="Test", genres=["爱情", "喜剧", "科幻"])
+        result = _format_rename(meta, idx=1, is_vr=False, format_str="{genre}")
+        assert result == "爱情、喜剧、科幻"
+
+    def test_genre_limited(self) -> None:
+        meta = MovieMetadata(title="Test", genres=["爱情", "喜剧", "科幻"])
+        result = _format_rename(meta, idx=1, is_vr=False, format_str="{genre:2}")
+        assert result == "爱情、喜剧等3类"
+
+    def test_genre_zero(self) -> None:
+        meta = MovieMetadata(title="Test", genres=["爱情", "喜剧", "科幻"])
+        result = _format_rename(meta, idx=1, is_vr=False, format_str="{genre:0}")
+        assert result == "_"
+
+    def test_genre_empty(self) -> None:
+        meta = MovieMetadata(title="Test")
+        result = _format_rename(meta, idx=1, is_vr=False, format_str="{genre}")
+        assert result == "_"
+
+    def test_genre_dir_rename(self) -> None:
+        meta = MovieMetadata(title="Test", genres=["爱情", "喜剧"])
+        result = _format_dir_rename(meta, is_vr=False, format_str="{genre}")
+        assert result == "爱情、喜剧"
+
     def test_missing_fields(self) -> None:
         meta = MovieMetadata(title="Test")
         result = _format_rename(

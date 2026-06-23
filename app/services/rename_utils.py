@@ -97,6 +97,16 @@ def _filter_actors_by_gender(
     return [a for a in actors if a.gender != "male"]
 
 
+def _format_genre_part(genres: list[str], limit: int) -> str:
+    """格式化类别：取前 limit 个，超出则加"等x类"后缀。"""
+    if limit <= 0:
+        return ""
+    joined = "、".join(genres[:limit])
+    if len(genres) > limit:
+        joined += f"等{len(genres)}类"
+    return joined
+
+
 def _format_rename(
     metadata: MovieMetadata,
     idx: int,
@@ -112,6 +122,7 @@ def _format_rename(
     actors_for_display = _filter_actors_by_gender(metadata.actors, filter_actor_gender)
     actor_val = "、".join(a.name for a in actors_for_display)
     title_val = metadata.title or ""
+    genre_val = "、".join(metadata.genres)
     vr_val = ""
     if is_vr:
         if resolution and "x" in resolution:
@@ -133,6 +144,14 @@ def _format_rename(
         r"\{actor(?::(\d+))?\}",
         lambda m: (
             _format_actor_part(actors_all, int(m.group(1))) if m.group(1) else actor_val
+        ),
+        result,
+    )
+    genres_all = metadata.genres
+    result = re.sub(
+        r"\{genre(?::(\d+))?\}",
+        lambda m: (
+            _format_genre_part(genres_all, int(m.group(1))) if m.group(1) else genre_val
         ),
         result,
     )
@@ -158,6 +177,7 @@ def _format_dir_rename(
     actors_for_display = _filter_actors_by_gender(metadata.actors, filter_actor_gender)
     actor_val = "、".join(a.name for a in actors_for_display)
     title_val = metadata.title or ""
+    genre_val = "、".join(metadata.genres)
     vr_val = ""
     if is_vr:
         if resolution and "x" in resolution:
@@ -179,6 +199,14 @@ def _format_dir_rename(
         r"\{actor(?::(\d+))?\}",
         lambda m: (
             _format_actor_part(actors_all, int(m.group(1))) if m.group(1) else actor_val
+        ),
+        result,
+    )
+    genres_all = metadata.genres
+    result = re.sub(
+        r"\{genre(?::(\d+))?\}",
+        lambda m: (
+            _format_genre_part(genres_all, int(m.group(1))) if m.group(1) else genre_val
         ),
         result,
     )

@@ -67,6 +67,12 @@
                 <dd>{{ "%.1f"|format(result.metadata.rating) }}</dd>
               </div>
             {% endif %}
+            {% if result.metadata.genres %}
+              <div class="nf-meta-list-full">
+                <dt>类别</dt>
+                <dd>{{ result.metadata.genres | join("、") }}</dd>
+              </div>
+            {% endif %}
           </dl>
 
           {% if result.metadata.actors %}
