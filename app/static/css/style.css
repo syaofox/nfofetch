@@ -347,38 +347,48 @@
 
 .nf-image-option-controls {
   position: absolute;
-  bottom: 0;
+  bottom: 0.3rem;
   left: 0;
   right: 0;
   display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  padding: 0.5rem;
-  padding-top: 1.2rem;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
-  font-size: 0.8rem;
+  flex-direction: row;
+  justify-content: center;
+  gap: 0.3rem;
   pointer-events: none;
 }
 
-.nf-image-option-controls * {
+.nf-img-pill {
+  display: inline-flex;
+  cursor: pointer;
   pointer-events: auto;
 }
 
-.nf-image-option-controls .nf-radio-custom {
+.nf-img-pill input[type="radio"] {
+  display: none;
+}
+
+.nf-img-pill-text {
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 500;
   color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  line-height: 1.4;
+  user-select: none;
+  transition: all 0.15s ease;
 }
 
-.nf-image-option-controls .nf-radio-custom input[type="radio"] {
-  border-color: rgba(255, 255, 255, 0.7);
+.nf-img-pill input:checked + .nf-img-pill-text {
+  color: #fff;
+  background: #2563eb;
+  border-color: #2563eb;
 }
 
-.nf-image-option-controls .nf-radio-custom input[type="radio"]:checked {
-  border-color: #60a5fa;
-  border-width: 5px;
-}
-
-.nf-image-option-controls .nf-radio-custom input[type="radio"]:hover {
-  border-color: #fff;
+.nf-img-pill-text:hover {
+  background: rgba(0, 0, 0, 0.75);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 @media (min-width: 768px) {

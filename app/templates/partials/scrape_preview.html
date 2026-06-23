@@ -127,23 +127,13 @@
                   class="nf-image-thumb"
                 />
                 <div class="nf-image-option-controls">
-                  <label class="nf-radio-custom">
-                    <input
-                      type="radio"
-                      name="poster_url"
-                      value="{{ img_url }}"
-                      {% if loop.index == 2 %}checked{% endif %}
-                    />
-                    <span>作为封面 poster</span>
+                  <label class="nf-img-pill">
+                    <input type="radio" name="poster_url" value="{{ img_url }}"{% if loop.index == 2 %} checked{% endif %} hidden />
+                    <span class="nf-img-pill-text">poster</span>
                   </label>
-                  <label class="nf-radio-custom">
-                    <input
-                      type="radio"
-                      name="fanart_url"
-                      value="{{ img_url }}"
-                      {% if loop.first %}checked{% endif %}
-                    />
-                    <span>作为背景 fanart</span>
+                  <label class="nf-img-pill">
+                    <input type="radio" name="fanart_url" value="{{ img_url }}"{% if loop.first %} checked{% endif %} hidden />
+                    <span class="nf-img-pill-text">fanart</span>
                   </label>
                 </div>
               </div>
