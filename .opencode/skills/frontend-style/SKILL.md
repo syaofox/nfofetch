@@ -121,6 +121,7 @@ input `appearance: none` 自绘圆点，checked 时 5px border 实心。
 - `hx-post` / `hx-target="#result"` / `hx-swap="innerHTML"` 标准模式
 - 加载遮罩通过监听 `htmx:beforeRequest` / `htmx:afterRequest` 控制
 - 进度轮询：拦截 `write-form` 提交，先 POST 创建任务，再轮询 `/api/scrape-task/{id}`
+- **确认弹窗不可放在 `htmx:beforeRequest` 中**：多个 handler 同时 `preventDefault()` 会导致异步流程混乱（遮罩/轮询残留）。改为 `<button type="button" onclick="window.nfFn(event)">` 劫持点击，检查通过后 `htmx.trigger(form, "submit")` 触发正常 HTMX 流程
 
 ## 文件位置
 

@@ -112,6 +112,22 @@ move_to_subdir: document.getElementById("move_to_subdir")
   : undefined,  // 元素不存在时不发送，避免覆盖已有设置
 ```
 
+### 坑 5：多个 `htmx:beforeRequest` handler 同时 `preventDefault()` 导致遮罩残留
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| 弹窗取消后加载遮罩仍显示（"正在准备中"） | `write-form` 有 3 个 `htmx:beforeRequest` handler（加载遮罩、任务ID注入、重命名确认），各 handler 独立调用 `preventDefault()` 并启动异步流程。任务ID注入的 handler 在异步回调中创建了轮询任务并 re-submit，此时重命名确认 handler 的 `preventDefault()` 使请求取消但轮询仍在运行，"正在准备中" 就是轮询写入的 | **确认/拦截逻辑不要放在 `htmx:beforeRequest` 中**，改为劫持按钮的 `click` 事件，检查通过后调用 `htmx.trigger(form, "submit")` 触发正常 HTMX 流程（加载遮罩、任务ID注入等由后续 handler 自动处理） |
+
+**错误做法：** 在 `htmx:beforeRequest` 中 `preventDefault()` + 异步 fetch 做确认，然后手动 re-submit。
+
+**正确做法：** 按钮改为 `type="button"` + `onclick`，点击 handler 中完成检查后手动触发提交：
+```javascript
+// onclick 中检查通过后
+htmx.trigger(form, "submit");
+// HTMX 自动接管后续：加载遮罩、任务ID注入、进度轮询等
+```
+
+
 ### `escapejs` 过滤器
 
 在 `app/main.py` 中注册了自定义 Jinja2 过滤器 `escapejs`，用于安全地将 Python 字符串嵌入 JavaScript 字符串上下文（单/双引号、反斜杠、换行符均被转义）。用法：
