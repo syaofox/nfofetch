@@ -1,6 +1,6 @@
 ## nfofetch
 
-基于 **FastAPI + HTMX** 的影片刮削小工具，支持从 **javdb** / **jav321** 抓取影片信息，并生成适用于 **Jellyfin** 的 `movie.nfo`、`poster.jpg`、`fanart.jpg`、`extrafanart/*` 等文件（推荐「一片一文件夹」结构）。
+基于 **FastAPI + HTMX** 的影片刮削小工具，支持从多个站点抓取影片信息，并生成适用于 **Jellyfin** 的 `movie.nfo`、`poster.jpg`、`fanart.jpg`、`extrafanart/*` 等文件（推荐「一片一文件夹」结构）。
 
 ### 环境与依赖（uv）
 
@@ -27,13 +27,13 @@ uv run uvicorn app.main:app --reload
 
 ### Web 使用流程
 
-- 在首页输入 javdb 影片页面 URL（例如 `https://javdb.com/v/82ebmO`）。
+- 在首页输入影片页面 URL（例如站点详情页链接）。
 - 填写**服务器本地视频文件路径**（例如 `/mnt/media/movies/IPVR-335.mp4`），或者点击「浏览…」按钮从服务器文件系统中选择文件：
   - 浏览范围默认限制在 `NFOFETCH_BROWSE_ROOT` 指定的目录（未设置时为服务启动时的当前工作目录）。
   - 只会在服务器端读取路径，不会上传或复制视频本身。
 - （可选）等待图片候选加载后，在表单中选择哪一张作为 `poster.jpg`、哪一张作为 `fanart.jpg`。
 - 提交后后台会：
-  - 抓取 javdb 页面信息，生成统一的影片元数据。
+  - 抓取站点页面信息，生成统一的影片元数据。
   - 生成 Jellyfin 兼容的 `movie.nfo`。
 - 下载封面 / 背景图 / 剧照到该视频所在目录（`poster.jpg`、`fanart.jpg`、`extrafanart/*`），并在界面中预览你所选择的封面。
 - **不会复制/移动原始视频文件**，仅在原目录旁生成 NFO 与图片资源。
@@ -44,7 +44,7 @@ uv run uvicorn app.main:app --reload
 export NFOFETCH_BROWSE_ROOT=/mnt/media
 ```
 
-如需使用代理访问 javdb，可以设置：
+如需使用代理访问站点，可以设置：
 
 ```bash
 export NFOFETCH_HTTP_PROXY=http://127.0.0.1:7890
@@ -58,13 +58,13 @@ export NFOFETCH_HTTP_PROXY=http://127.0.0.1:7890
 
 ```bash
 uv run python -m app.cli \
-  --url "https://javdb.com/v/82ebmO" \
+  --url "https://example.com/v/xxx" \
   --video "/path/to/your/movie.mp4"
 ```
 
 行为说明：
 
-- 根据 `--url` 解析 javdb 页面；
+- 根据 `--url` 解析站点页面；
 - 在 `--video` 所在目录下生成：
   - `movie.nfo`
   - `poster.jpg`
@@ -74,7 +74,7 @@ uv run python -m app.cli \
 
 ### Cookie 管理
 
-访问 javdb 时通常需要带上浏览器里的 Cookie（含 `cf_clearance` 等），通过环境变量配置：
+部分站点需要带上浏览器里的 Cookie（含 `cf_clearance` 等），通过环境变量配置：
 
 ```bash
 export NFOFETCH_JAVDB_COOKIE='在浏览器中复制的完整 Cookie 串'
@@ -82,7 +82,7 @@ export NFOFETCH_JAVDB_COOKIE='在浏览器中复制的完整 Cookie 串'
 
 Web 模式和命令行模式共用这一配置。
 
-> 当前实现基于 javdb 页面的一般结构做了解析，若站点结构调整导致字段抓取不完整，可根据实际 HTML 调整 `app/scrapers/javdb.py` 中的 CSS 选择器。
+> 刮削器位于 `app/scrapers/` 目录下，每个站点对应一个文件。站点结构变化导致字段抓取不完整时，可根据实际 HTML 调整对应的 CSS 选择器。
 
 ### 使用 Docker / docker-compose 运行
 
