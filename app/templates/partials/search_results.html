@@ -27,9 +27,19 @@
               {% endif %}
               <button type="submit" class="nf-search-item-btn nf-btn-ripple nf-btn-press">
                 {% if item.poster_url %}
-                  <img src="{{ item.poster_url }}" alt="{{ item.title }}" class="nf-search-item-poster" />
+                  <div class="nf-search-item-poster-wrap">
+                    <img src="{{ item.poster_url }}" alt="{{ item.title }}" class="nf-search-item-poster" />
+                    {% if item.source %}
+                      <span class="nf-search-item-source">{{ item.source }}</span>
+                    {% endif %}
+                  </div>
                 {% else %}
-                  <div class="nf-search-item-poster nf-search-item-poster-empty">无图</div>
+                  <div class="nf-search-item-poster nf-search-item-poster-empty">
+                    无图
+                    {% if item.source %}
+                      <span class="nf-search-item-source">{{ item.source }}</span>
+                    {% endif %}
+                  </div>
                 {% endif %}
                 <div class="nf-search-item-info">
                   <div class="nf-search-item-title">{{ item.title }}</div>

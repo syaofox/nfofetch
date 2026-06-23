@@ -67,6 +67,7 @@ class SearchResult(BaseModel):
     url: str
     poster_url: str | None = None
     date: str | None = None
+    source: str = ""
 
 
 class ScrapeResult(BaseModel):
