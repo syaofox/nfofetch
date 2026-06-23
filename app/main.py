@@ -4,6 +4,7 @@ import asyncio
 import base64
 import functools
 import logging
+import urllib.parse
 import os
 import re
 import shutil
@@ -13,8 +14,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Form, Request, Query
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Form, HTTPException, Request, Query
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -74,6 +75,7 @@ def _jinja_escapejs(value: str) -> str:
 
 
 templates.env.filters["escapejs"] = _jinja_escapejs
+templates.env.filters["urlencode"] = urllib.parse.quote
 
 # 后台刮削任务进度存储（内存）
 scrape_tasks: dict[str, dict[str, Any]] = {}
@@ -237,6 +239,20 @@ async def browse_delete(path: str = Form(...)) -> dict[str, bool]:
     except OSError:
         return {"ok": False}
     return {"ok": True}
+
+
+@app.get("/file")
+async def serve_file(path: str = Query(...)) -> FileResponse:
+    """服务本地图片文件，路径必须在 NFOFETCH_BROWSE_ROOT 范围内。"""
+    base_dir = Path(os.getenv("NFOFETCH_BROWSE_ROOT", os.getcwd())).resolve()
+    target = Path(path).expanduser().resolve()
+    try:
+        target.relative_to(base_dir)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="路径不在允许范围内")
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="文件不存在")
+    return FileResponse(target)
 
 
 def _merge_ui_settings(settings: Settings) -> None:
