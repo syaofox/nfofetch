@@ -25,7 +25,7 @@ class Settings:
     - NFOFETCH_FILTER_ACTOR_GENDER: {actor} 占位符只包含女演员（默认 true）
     - NFOFETCH_DOWNLOAD_CONCURRENCY: extrafanart 剧照下载并发数（默认 4）
     - NFOFETCH_AUTO_TRIM_WHITE_BORDERS: 裁切前自动检测并去除图片白边（默认 false）
-    - NFOFETCH_ENABLED_SCRAPERS: 启用的刮削站点列表，逗号分隔，例如 "javdb,jav321,javhoo"（默认全部启用）
+    - NFOFETCH_ENABLED_SCRAPERS: 启用的刮削站点列表，逗号分隔，例如 "site1,site2"（默认全部启用）
     """
 
     user_agent: str

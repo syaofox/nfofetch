@@ -27,7 +27,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--url",
         required=True,
-        help="影片页面 URL（支持 javdb / jav321，例如：https://javdb.com/v/82ebmO）",
+        help="影片页面 URL",
     )
     parser.add_argument(
         "--video",
