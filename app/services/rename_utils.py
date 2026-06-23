@@ -110,16 +110,22 @@ def _format_genre_part(genres: list[str], limit: int) -> str:
 def _count_files_to_rename(
     video_path: Path,
     rename_format: str | None,
+    move_to_subdir: bool = False,
 ) -> int:
     """计算需要重命名的视频文件数。
 
     返回 0（无重命名）/ 1（单个文件）/ N（{idx} 模式下目录内视频文件数）。
+
+    当 move_to_subdir=True 时，{idx} 模式只影响被移动到子目录的视频（及分集），
+    不计入目录内其他视频。
     """
     fmt = (rename_format or "").strip()
     if not fmt:
         return 0
     if "{idx}" in fmt:
         movie_dir = video_path.absolute().parent
+        if move_to_subdir:
+            return _count_split_group(movie_dir, video_path)
         count = 0
         try:
             with os.scandir(movie_dir) as it:
@@ -133,6 +139,38 @@ def _count_files_to_rename(
             pass
         return count
     return 1
+
+
+def _count_split_group(movie_dir: Path, video_path: Path) -> int:
+    """统计与 video_path 同基名（含分集后缀 -CD1/_part2 等）的视频文件数。"""
+    stem = video_path.stem
+    base = _strip_split_suffix(stem)
+
+    count = 0
+    try:
+        with os.scandir(movie_dir) as it:
+            for entry in it:
+                if not (
+                    entry.is_file()
+                    and Path(entry.name).suffix.lower() in VIDEO_EXTENSIONS
+                ):
+                    continue
+                if _strip_split_suffix(Path(entry.name).stem) == base:
+                    count += 1
+    except OSError:
+        pass
+    return max(count, 1)
+
+
+def _strip_split_suffix(stem: str) -> str:
+    """去掉文件名中的分集后缀（-CD1/_part2/_1 等），返回基名。"""
+    m = re.search(r"[-_](?:CD|PART)(\d+)$", stem, re.IGNORECASE)
+    if m:
+        return stem[: m.start()]
+    m = re.search(r"[-_](\d{1,2})$", stem)
+    if m:
+        return stem[: m.start()]
+    return stem
 
 
 def _format_rename(

@@ -29,11 +29,13 @@ from app.services.lock_utils import (
 )
 from app.services.rename_utils import (
     _count_files_to_rename,
+    _count_split_group,
     _format_dir_rename,
     _format_rename,
     _is_vr,
     _rename_single_video,
     _rename_videos_in_dir,
+    _strip_split_suffix,
 )
 from app.services.subtitle_utils import (
     _find_matching_subtitles,
@@ -2127,3 +2129,68 @@ class TestCountFilesToRename:
         video = tmp_path / "nonexistent" / "test.mp4"
         # The parent doesn't exist, scandir will fail
         assert _count_files_to_rename(video, "{id}-{idx}") == 0
+
+    # --- move_to_subdir 场景 ---
+
+    def test_move_to_subdir_no_idx(self, tmp_path: Path) -> None:
+        """move_to_subdir 且无 {idx} → 只影响被选中的 1 个文件。"""
+        video = tmp_path / "test.mp4"
+        video.write_text("content")
+        assert _count_files_to_rename(video, "{id}", move_to_subdir=True) == 1
+
+    def test_move_to_subdir_idx_single(self, tmp_path: Path) -> None:
+        """move_to_subdir + {idx}，目录中有多个视频，但只影响选中的那个（以及分集）。"""
+        for name in ["a.mp4", "b.avi", "c.mkv"]:
+            (tmp_path / name).write_text("content")
+        video = tmp_path / "a.mp4"
+        # move_to_subdir: 只有 a.mp4 会被移入子目录，不计 b.avi、c.mkv
+        assert _count_files_to_rename(video, "{id}-{idx}", move_to_subdir=True) == 1
+
+    def test_move_to_subdir_idx_with_split(self, tmp_path: Path) -> None:
+        """move_to_subdir + {idx}，分集视频 -CD1 + -CD2 应计为 2 个。"""
+        for suffix in ["-CD1.mp4", "-CD2.mp4"]:
+            (tmp_path / f"IPVR{suffix}").write_text("content")
+        # 目录中还有其他视频
+        (tmp_path / "other.mp4").write_text("content")
+        video = tmp_path / "IPVR-CD1.mp4"
+        assert _count_files_to_rename(video, "{id}-{idx}", move_to_subdir=True) == 2
+
+    def test_move_to_subdir_idx_with_part_split(self, tmp_path: Path) -> None:
+        """move_to_subdir + {idx}，_part1/_part2 分集。"""
+        for suffix in ["_part1.mp4", "_part2.mp4", "_part3.mp4"]:
+            (tmp_path / f"ABF{suffix}").write_text("content")
+        video = tmp_path / "ABF_part1.mp4"
+        assert _count_files_to_rename(video, "{id}-{idx}", move_to_subdir=True) == 3
+
+    def test_move_to_subdir_idx_with_underscore_number(self, tmp_path: Path) -> None:
+        """move_to_subdir + {idx}，_1/_2 数字分集。"""
+        for suffix in ["_1.mp4", "_2.mp4"]:
+            (tmp_path / f"XXX{suffix}").write_text("content")
+        video = tmp_path / "XXX_1.mp4"
+        assert _count_files_to_rename(video, "{id}-{idx}", move_to_subdir=True) == 2
+
+    def test_move_to_subdir_idx_skip_dir_videos(self, tmp_path: Path) -> None:
+        """move_to_subdir + {idx}，同目录有其他无关视频，不计入。"""
+        (tmp_path / "target.mp4").write_text("content")
+        (tmp_path / "other1.mp4").write_text("content")
+        (tmp_path / "other2.avi").write_text("content")
+        video = tmp_path / "target.mp4"
+        assert _count_files_to_rename(video, "{id}-{idx}", move_to_subdir=True) == 1
+
+    def test_count_split_group_basic(self, tmp_path: Path) -> None:
+        (tmp_path / "movie.mp4").write_text("content")
+        result = _count_split_group(tmp_path, tmp_path / "movie.mp4")
+        assert result == 1
+
+    def test_count_split_group_split(self, tmp_path: Path) -> None:
+        for s in ["-CD1.mp4", "-CD2.mp4"]:
+            (tmp_path / f"m{s}").write_text("content")
+        result = _count_split_group(tmp_path, tmp_path / "m-CD1.mp4")
+        assert result == 2
+
+    def test_strip_split_suffix(self) -> None:
+        assert _strip_split_suffix("ABP-123-CD1") == "ABP-123"
+        assert _strip_split_suffix("ABP-123_part2") == "ABP-123"
+        assert _strip_split_suffix("XXX_1") == "XXX"
+        assert _strip_split_suffix("normal") == "normal"
+        assert _strip_split_suffix("ABP-123") == "ABP-123"

@@ -642,6 +642,7 @@ async def api_delete_preset(name: str = Query(...)) -> dict[str, bool]:
 async def rename_preview(
     video_path: str = Form(...),
     rename_format: str | None = Form(default=None),
+    move_to_subdir: bool = Form(default=False),
 ) -> dict:
     """预览重命名：返回受 rename_format 影响的视频文件数。"""
     from app.services.rename_utils import _count_files_to_rename
@@ -649,7 +650,7 @@ async def rename_preview(
     video = Path(video_path)
     if not video.exists():
         return {"count": 0}
-    count = _count_files_to_rename(video, rename_format)
+    count = _count_files_to_rename(video, rename_format, move_to_subdir=move_to_subdir)
     return {"count": count}
 
 
