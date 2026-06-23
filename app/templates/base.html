@@ -759,10 +759,6 @@
             } else if (trimCb) {
               trimCb.checked = false;
             }
-            var ms = document.getElementById("move_to_subdir");
-            if (ms && data.move_to_subdir !== null) {
-              ms.checked = data.move_to_subdir;
-            }
             // scraper 开关
             var scraperNames = ["javdb", "jav321", "javhoo"];
             var enabledList = data.enabled_scrapers;
@@ -928,6 +924,10 @@
           var rd = document.getElementById("rename_dir");
           if (rd) {
             saveSettingsField("rename_dir", rd.value);
+          }
+          var ms = document.getElementById("move_to_subdir");
+          if (ms) {
+            saveSettingsField("move_to_subdir", ms.checked);
           }
         });
 
