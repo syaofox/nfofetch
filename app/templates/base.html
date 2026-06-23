@@ -931,6 +931,13 @@
           }
         });
 
+        // move_to_subdir 变更时自动持久化
+        document.addEventListener("change", function (e) {
+          if (e.target && e.target.id === "move_to_subdir") {
+            saveSettingsField("move_to_subdir", e.target.checked);
+          }
+        });
+
         // 页面初次加载时读取
         if (document.readyState === "loading") {
           document.addEventListener("DOMContentLoaded", loadSettings);
