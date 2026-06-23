@@ -117,3 +117,27 @@ Web 模式和命令行模式共用这一配置。
 
    默认会监听 `8000` 端口，对应浏览器访问地址为 `http://127.0.0.1:8000/`。
 
+### 环境变量参考
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `NFOFETCH_BROWSE_ROOT` | 当前工作目录 | Web 文件浏览器的根目录 |
+| `NFOFETCH_SETTINGS_PATH` | `~/.config/nfofetch/settings.json` | 用户设置持久化路径 |
+| `NFOFETCH_USER_AGENT` | Mozilla/5.0 ... Firefox/117.0 | 自定义 HTTP User-Agent |
+| `NFOFETCH_HTTP_PROXY` | 无 | HTTP 代理地址 |
+| `NFOFETCH_JAVDB_COOKIE` | 无 | JavDB 站点 Cookie |
+| `NFOFETCH_JAV321_COOKIE` | 无 | Jav321 站点 Cookie |
+| `NFOFETCH_JAVDB_MIRROR` | `javdb565.com` | JavDB 镜像域名 |
+| `NFOFETCH_MAX_EXTRA_IMAGES` | `8` | extrafanart 最大保存数量，0 禁用 |
+| `NFOFETCH_HTTP_TIMEOUT` | `20` | 单个 HTTP 请求超时（秒） |
+| `NFOFETCH_BATCH_TIMEOUT` | `120` | extrafanart 批量下载总超时（秒） |
+| `NFOFETCH_SERIAL_WRITES` | `false` | 串行写入图片（FUSE 场景） |
+| `NFOFETCH_LOCK_ENABLED` | `false` | 启用目录锁（多用户场景） |
+| `NFOFETCH_WRITE_DELAY` | `0.2` | 每次写入前停顿（秒），0 关闭 |
+| `NFOFETCH_DELETE_ORPHAN_EXTRAFANART` | `false` | 重新刮削时删除孤立剧照 |
+| `NFOFETCH_FILTER_ACTOR_GENDER` | `true` | `{actor}` 仅包含女演员 |
+| `NFOFETCH_DOWNLOAD_CONCURRENCY` | `4` | extrafanart 下载并发数 |
+| `NFOFETCH_AUTO_TRIM_WHITE_BORDERS` | `false` | 封面裁切前自动去白边 |
+| `NFOFETCH_ENABLED_SCRAPERS` | 全部启用 | 启用的刮削站点列表，逗号分隔 |
+| `NFOFETCH_LOG_LEVEL` | `WARNING` | 日志等级（DEBUG/INFO/WARNING/ERROR） |
+
