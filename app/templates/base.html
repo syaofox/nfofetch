@@ -454,26 +454,35 @@
         // --- 精确裁切 ---
         var _nfCropper = null;
 
-        function _initCropper(img) {
-          if (_nfCropper) { _nfCropper.destroy(); _nfCropper = null; }
-          img.onload = function () {
-            _nfCropper = new Cropper(img, {
-              aspectRatio: NaN, viewMode: 1, dragMode: "crop",
-              autoCrop: true, autoCropArea: 0.8,
-              responsive: true, restore: false,
-              guides: true, center: true, highlight: false, background: true,
-              movable: true, rotatable: false, scalable: false,
-              zoomable: true, zoomOnTouch: true, zoomOnWheel: true,
-            });
-            document.getElementById("nf-crop-drop-hint").textContent = "拖拽图片到此处或 Ctrl+V 粘贴";
+        function _cropperOpts(img) {
+          return {
+            aspectRatio: NaN, viewMode: 1, dragMode: "crop",
+            autoCrop: true, autoCropArea: 0.8,
+            responsive: true, restore: false,
+            guides: true, center: true, highlight: false, background: true,
+            movable: true, rotatable: false, scalable: false,
+            zoomable: true, zoomOnTouch: true, zoomOnWheel: true,
           };
         }
 
-        function _loadImageToCropper(src) {
+        function _destroyCropper() {
+          if (_nfCropper) { _nfCropper.destroy(); _nfCropper = null; }
+        }
+
+        function _loadImageToCropper(src, isReplace) {
           var img = document.getElementById("nf-crop-image");
           if (!img) return;
+          if (_nfCropper && isReplace) {
+            _nfCropper.replace(src);
+            document.getElementById("nf-crop-drop-hint").textContent = "已加载自定义图片（裁切坐标以当前显示为准）";
+            return;
+          }
+          _destroyCropper();
           img.src = src;
-          _initCropper(img);
+          img.onload = function () {
+            _nfCropper = new Cropper(img, _cropperOpts(img));
+            document.getElementById("nf-crop-drop-hint").textContent = "拖拽图片到此处或 Ctrl+V 粘贴";
+          };
         }
 
         window.nfOpenCropModal = function (btn) {
@@ -482,13 +491,11 @@
           var modal = document.getElementById("nf-crop-modal");
           if (!modal) return;
           modal.style.display = "flex";
-          // 重置 dropzone 样式
           modal.querySelector(".nf-crop-dropzone").classList.remove("drag-over");
-          // 从服务器加载图片
           var trimCb = document.getElementById("auto_trim_white_borders");
           var autoTrim = trimCb ? trimCb.checked : false;
           var cropUrl = "/api/crop-image?url=" + encodeURIComponent(imgUrl) + "&auto_trim=" + (autoTrim ? "1" : "0");
-          _loadImageToCropper(cropUrl);
+          _loadImageToCropper(cropUrl, false);
         };
 
         // 拖拽支持
@@ -510,8 +517,7 @@
           if (!file || !file.type.startsWith("image/")) return;
           var reader = new FileReader();
           reader.onload = function (ev) {
-            _loadImageToCropper(ev.target.result);
-            document.getElementById("nf-crop-drop-hint").textContent = "已加载自定义图片（裁切坐标以当前显示为准）";
+            _loadImageToCropper(ev.target.result, true);
           };
           reader.readAsDataURL(file);
         });
@@ -527,8 +533,7 @@
               if (!blob) continue;
               var reader = new FileReader();
               reader.onload = function (ev) {
-                _loadImageToCropper(ev.target.result);
-                document.getElementById("nf-crop-drop-hint").textContent = "已加载粘贴图片（裁切坐标以当前显示为准）";
+                _loadImageToCropper(ev.target.result, true);
               };
               reader.readAsDataURL(blob);
               break;
