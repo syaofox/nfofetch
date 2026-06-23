@@ -261,6 +261,8 @@ def _merge_ui_settings(settings: Settings) -> None:
         user = load_user_settings()
         if user.javdb_cookie:
             settings.javdb_cookie = user.javdb_cookie
+        if user.jav321_cookie:
+            settings.jav321_cookie = user.jav321_cookie
         if user.serial_writes is not None:
             settings.serial_writes = user.serial_writes
         if user.lock_enabled is not None:

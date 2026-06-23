@@ -102,6 +102,23 @@
         <hr class="nf-settings-divider" />
 
         <div class="nf-settings-group">
+          <label for="jav321_cookie" class="nf-settings-label">Jav321 Cookie</label>
+          <p class="nf-settings-desc">从浏览器 F12 → Application → Cookies 复制完整 Cookie 字符串（jav321.com 需要）。</p>
+          <div class="nf-settings-cookie-row">
+            <input
+              type="password"
+              id="jav321_cookie"
+              class="nf-input nf-settings-cookie-input"
+              placeholder="Cookie 字符串"
+              autocomplete="off"
+            />
+            <button type="button" class="nf-button nf-button-secondary nf-btn-ripple nf-btn-press" onclick="nfToggleJav321CookieVisibility()" title="显示/隐藏">👁</button>
+          </div>
+        </div>
+
+        <hr class="nf-settings-divider" />
+
+        <div class="nf-settings-group">
           <label class="nf-toggle" for="serial_writes">
             <input type="checkbox" id="serial_writes" class="nf-toggle-input" />
             <span class="nf-toggle-track">

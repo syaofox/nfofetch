@@ -176,6 +176,26 @@ class TestJavdbCookie:
         assert saved.get("write_delay") == 0.5
         assert saved.get("max_extra_images") == 16
 
+    def test_save_jav321_cookie_via_api(self, client: TestClient) -> None:
+        saved: dict[str, Any] = {}
+        mock_user = UserSettings()
+
+        def _mock_save(settings: Any) -> None:
+            saved["jav321_cookie"] = settings.jav321_cookie
+
+        with patch(
+            "app.main.load_user_settings",
+            return_value=mock_user,
+        ):
+            with patch("app.main.save_user_settings", side_effect=_mock_save):
+                resp = client.post(
+                    "/api/settings",
+                    json={"jav321_cookie": "test321_cookie_value"},
+                )
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": True}
+        assert saved.get("jav321_cookie") == "test321_cookie_value"
+
     def test_merge_ui_settings_overrides_env(self) -> None:
         """_merge_ui_settings 应使用 UI 设置覆盖 env。"""
         from app.config import Settings
@@ -196,6 +216,7 @@ class TestJavdbCookie:
             "app.main.load_user_settings",
             return_value=UserSettings(
                 javdb_cookie="ui_cookie",
+                jav321_cookie="ui_jav321_cookie",
                 serial_writes=True,
                 lock_enabled=True,
                 write_delay=0.5,
@@ -206,6 +227,7 @@ class TestJavdbCookie:
 
             _merge_ui_settings(env_settings)
         assert env_settings.javdb_cookie == "ui_cookie"
+        assert env_settings.jav321_cookie == "ui_jav321_cookie"
         assert env_settings.serial_writes is True
         assert env_settings.lock_enabled is True
         assert env_settings.write_delay == 0.5
@@ -231,6 +253,7 @@ class TestJavdbCookie:
             "app.main.load_user_settings",
             return_value=UserSettings(
                 javdb_cookie="",
+                jav321_cookie="",
                 serial_writes=None,
                 lock_enabled=None,
                 write_delay=None,
@@ -241,6 +264,7 @@ class TestJavdbCookie:
 
             _merge_ui_settings(env_settings)
         assert env_settings.javdb_cookie == "env_cookie"
+        assert env_settings.jav321_cookie is None
         assert env_settings.serial_writes is True
         assert env_settings.lock_enabled is True
         assert env_settings.write_delay == 0.0
@@ -252,6 +276,7 @@ class TestJavdbCookie:
         assert resp.status_code == 200
         html = resp.text
         assert "javdb_cookie" in html
+        assert "jav321_cookie" in html
         assert "serial_writes" in html
         assert "lock_enabled" in html
         assert "write_delay" in html

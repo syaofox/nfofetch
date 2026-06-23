@@ -18,6 +18,7 @@ def test_default_values() -> None:
     settings = get_settings()
     assert settings.http_proxy is None
     assert settings.javdb_cookie is None
+    assert settings.jav321_cookie is None
     assert settings.max_extra_images == 8
     assert settings.http_timeout == 20
     assert settings.batch_timeout == 120
@@ -30,6 +31,7 @@ def test_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("NFOFETCH_USER_AGENT", "CustomAgent/1.0")
     monkeypatch.setenv("NFOFETCH_HTTP_PROXY", "http://127.0.0.1:7890")
     monkeypatch.setenv("NFOFETCH_JAVDB_COOKIE", "theme=auto;")
+    monkeypatch.setenv("NFOFETCH_JAV321_COOKIE", "test321_cookie")
     monkeypatch.setenv("NFOFETCH_MAX_EXTRA_IMAGES", "20")
     monkeypatch.setenv("NFOFETCH_HTTP_TIMEOUT", "30")
     monkeypatch.setenv("NFOFETCH_BATCH_TIMEOUT", "60")
@@ -38,6 +40,7 @@ def test_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.user_agent == "CustomAgent/1.0"
     assert settings.http_proxy == "http://127.0.0.1:7890"
     assert settings.javdb_cookie == "theme=auto;"
+    assert settings.jav321_cookie == "test321_cookie"
     assert settings.max_extra_images == 20
     assert settings.http_timeout == 30
     assert settings.batch_timeout == 60
@@ -55,10 +58,12 @@ def test_invalid_timeout_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_empty_proxy(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("NFOFETCH_HTTP_PROXY", "")
     monkeypatch.setenv("NFOFETCH_JAVDB_COOKIE", "")
+    monkeypatch.setenv("NFOFETCH_JAV321_COOKIE", "")
 
     settings = get_settings()
     assert settings.http_proxy is None
     assert settings.javdb_cookie is None
+    assert settings.jav321_cookie is None
 
 
 def test_cache_hit() -> None:

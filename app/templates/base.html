@@ -538,6 +538,10 @@
             if (cookieInput && data.javdb_cookie) {
               cookieInput.value = data.javdb_cookie;
             }
+            var jcInput = document.getElementById("jav321_cookie");
+            if (jcInput && data.jav321_cookie) {
+              jcInput.value = data.jav321_cookie;
+            }
             var serialCb = document.getElementById("serial_writes");
             if (serialCb && data.serial_writes !== null) {
               serialCb.checked = data.serial_writes;
@@ -592,8 +596,16 @@
         }
       };
 
+      window.nfToggleJav321CookieVisibility = function () {
+        var input = document.getElementById("jav321_cookie");
+        if (input) {
+          input.type = input.type === "password" ? "text" : "password";
+        }
+      };
+
       window.nfSaveSettings = function () {
         var cookieInput = document.getElementById("javdb_cookie");
+        var jcInput = document.getElementById("jav321_cookie");
         var serialCb = document.getElementById("serial_writes");
         var lockCb = document.getElementById("lock_enabled");
         var wd = document.getElementById("write_delay");
@@ -605,6 +617,7 @@
         if (!status) return;
         var body = {
           javdb_cookie: cookieInput ? cookieInput.value : "",
+          jav321_cookie: jcInput ? jcInput.value : "",
           serial_writes: serialCb ? serialCb.checked : false,
           lock_enabled: lockCb ? lockCb.checked : false,
           write_delay: wd && wd.value !== "" ? parseFloat(wd.value) : null,
@@ -659,6 +672,10 @@
               var ck = document.getElementById("javdb_cookie");
               if (ck && data.javdb_cookie) {
                 ck.value = data.javdb_cookie;
+              }
+              var jc = document.getElementById("jav321_cookie");
+              if (jc && data.jav321_cookie) {
+                jc.value = data.jav321_cookie;
               }
             })
             .catch(function () {});

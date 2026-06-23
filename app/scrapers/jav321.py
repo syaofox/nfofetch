@@ -49,6 +49,8 @@ class Jav321Scraper(BaseScraper):
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
         }
+        if settings.jav321_cookie:
+            headers["Cookie"] = settings.jav321_cookie
 
         timeout_val = timeout or settings.http_timeout
         proxy = settings.http_proxy
@@ -96,6 +98,8 @@ class Jav321Scraper(BaseScraper):
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "zh-CN,zh;q=0.7,en;q=0.5",
         }
+        if settings.jav321_cookie:
+            headers["Cookie"] = settings.jav321_cookie
         proxy = settings.http_proxy
         data = {"sn": query}
 

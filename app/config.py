@@ -13,6 +13,7 @@ class Settings:
     - NFOFETCH_USER_AGENT : HTTP User-Agent
     - NFOFETCH_HTTP_PROXY : HTTP 代理，例如 http://127.0.0.1:7890
     - NFOFETCH_JAVDB_COOKIE: 访问 javdb 时使用的 Cookie（含 cf_clearance 等）
+    - NFOFETCH_JAV321_COOKIE: 访问 jav321 时使用的 Cookie
     - NFOFETCH_JAVDB_MIRROR: javdb 镜像域名（默认 javdb565.com）
     - NFOFETCH_MAX_EXTRA_IMAGES: extrafanart 最大保存数量（默认 8，设为 0 完全禁用）
     - NFOFETCH_HTTP_TIMEOUT: 单个 HTTP 请求超时秒数（默认 20）
@@ -28,6 +29,7 @@ class Settings:
     user_agent: str
     http_proxy: str | None
     javdb_cookie: str | None
+    jav321_cookie: str | None = None
     javdb_mirror: str = "javdb565.com"
     max_extra_images: int = 8
     http_timeout: int = 20
@@ -53,6 +55,7 @@ def get_settings() -> Settings:
 
     http_proxy = os.getenv("NFOFETCH_HTTP_PROXY") or None
     javdb_cookie = os.getenv("NFOFETCH_JAVDB_COOKIE") or None
+    jav321_cookie = os.getenv("NFOFETCH_JAV321_COOKIE") or None
     javdb_mirror = os.getenv("NFOFETCH_JAVDB_MIRROR") or "javdb565.com"
 
     def _parse_int_env(name: str, default: int) -> int:
@@ -83,6 +86,7 @@ def get_settings() -> Settings:
         user_agent=user_agent,
         http_proxy=http_proxy,
         javdb_cookie=javdb_cookie,
+        jav321_cookie=jav321_cookie,
         javdb_mirror=javdb_mirror,
         max_extra_images=_parse_int_env("NFOFETCH_MAX_EXTRA_IMAGES", 8),
         http_timeout=_parse_int_env("NFOFETCH_HTTP_TIMEOUT", 20),

@@ -119,6 +119,17 @@ class TestUserSettings:
         restored = UserSettings.model_validate(d)
         assert restored.javdb_cookie == "theme=auto; over18=1; _jdb_session=xxx"
 
+    def test_jav321_cookie_default(self) -> None:
+        s = UserSettings()
+        assert s.jav321_cookie == ""
+
+    def test_jav321_cookie_round_trip(self) -> None:
+        s = UserSettings(jav321_cookie="test321_cookie_value")
+        d = s.model_dump()
+        assert d["jav321_cookie"] == "test321_cookie_value"
+        restored = UserSettings.model_validate(d)
+        assert restored.jav321_cookie == "test321_cookie_value"
+
     def test_serial_writes_default(self) -> None:
         s = UserSettings()
         assert s.serial_writes is None

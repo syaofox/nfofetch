@@ -107,6 +107,7 @@ class UserSettings(BaseModel):
     sort_order: str = "asc"
     download_concurrency: int = 4
     javdb_cookie: str = ""
+    jav321_cookie: str = ""
     serial_writes: bool | None = None
     lock_enabled: bool | None = None
     write_delay: float | None = None
