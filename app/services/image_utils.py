@@ -60,6 +60,31 @@ def _trim_white_borders(image_path: Path) -> None:
     )
 
 
+def _crop_image_exact(image_path: Path, x: int, y: int, w: int, h: int) -> None:
+    """按精确坐标裁切图片。(x, y, w, h) 相对于当前图片尺寸。"""
+    from PIL import Image
+
+    img = Image.open(image_path)
+    orig = img.size
+    if w <= 0 or h <= 0:
+        logger.warning("裁切尺寸无效 (%dx%d)，跳过精确裁切", w, h)
+        return
+    cropped = img.crop((x, y, x + w, y + h))
+    cropped.save(image_path, format=img.format)
+    logger.info(
+        "精确裁切: %s -> %dx%d（区域: %d,%d %dx%d，原图 %dx%d）",
+        image_path.name,
+        cropped.width,
+        cropped.height,
+        x,
+        y,
+        w,
+        h,
+        orig[0],
+        orig[1],
+    )
+
+
 def _crop_image(image_path: Path, direction: str) -> None:
     """将图片按 2:3 竖版比例裁切（仅对非 none 方向生效），保留指定水平区域。
 
@@ -158,18 +183,27 @@ def _download_image(
         return False
 
 
+CropBox = tuple[int, int, int, int] | None
+
+
 def _download_image_with_crop(
     url: str,
     dest: Path,
     settings: Settings,
     crop_direction: str = "none",
+    crop_box: CropBox = None,
     http_timeout: int = 20,
 ) -> bool:
     """下载图片，需要裁切时先下载到 /tmp 裁切后再移动到目标路径。
 
     避免在目标目录产生未裁切的临时文件。
+    处理顺序：auto_trim → 精确裁切(crop_box) → 方向裁切(crop_direction)。
     """
-    if crop_direction == "none" and not settings.auto_trim_white_borders:
+    if (
+        crop_direction == "none"
+        and crop_box is None
+        and not settings.auto_trim_white_borders
+    ):
         return _download_image(url, dest, settings, http_timeout=http_timeout)
 
     tmp = _download_to_temp(url, settings, http_timeout=http_timeout)
@@ -178,6 +212,8 @@ def _download_image_with_crop(
     try:
         if settings.auto_trim_white_borders:
             _trim_white_borders(tmp)
+        if crop_box is not None:
+            _crop_image_exact(tmp, *crop_box)
         if crop_direction != "none":
             _crop_image(tmp, crop_direction)
         _write_delay(settings.write_delay)

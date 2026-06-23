@@ -23,6 +23,7 @@ from app.services.file_utils import (
     run_with_timeout,
 )
 from app.services.image_utils import (
+    CropBox,
     _download_image,
     _download_image_with_crop,
     _download_to_temp,
@@ -76,6 +77,7 @@ def _write_nfo_and_images(
     poster_url: str | None = None,
     fanart_url: str | None = None,
     crop_direction: str = "none",
+    crop_box: CropBox = None,
     download_concurrency: int = 4,
     http_timeout: int = 20,
     batch_timeout: int = 120,
@@ -156,6 +158,7 @@ def _write_nfo_and_images(
                 poster_path,
                 settings,
                 crop_direction=crop_direction,
+                crop_box=crop_box,
                 http_timeout=http_timeout,
             )
         elif poster_url_val and not poster_needs_download:
@@ -195,6 +198,7 @@ def _write_nfo_and_images(
                     poster_path,
                     settings,
                     crop_direction=crop_direction,
+                    crop_box=crop_box,
                     http_timeout=http_timeout,
                 )
             elif poster_url_val and not poster_needs_download:
@@ -474,6 +478,7 @@ def save_assets_for_existing_video(
     poster_url: str | None = None,
     fanart_url: str | None = None,
     crop_direction: str = "none",
+    crop_box: CropBox = None,
     rename_format: str | None = None,
     rename_dir: str | None = None,
     download_concurrency: int = 4,
@@ -597,6 +602,7 @@ def save_assets_for_existing_video(
                     poster_path,
                     settings,
                     crop_direction=crop_direction,
+                    crop_box=crop_box,
                     http_timeout=http_timeout,
                 )
 
@@ -716,6 +722,7 @@ def save_assets_for_existing_video(
             poster_url=poster_url,
             fanart_url=fanart_url,
             crop_direction=crop_direction,
+            crop_box=crop_box,
             download_concurrency=download_concurrency,
             http_timeout=http_timeout,
             batch_timeout=batch_timeout,

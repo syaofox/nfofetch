@@ -12,6 +12,7 @@ from PIL import Image
 from app.config import Settings
 from app.services.file_utils import _TEMP_PREFIX
 from app.services.image_utils import (
+    _crop_image_exact,
     _download_image,
     _download_image_with_crop,
     _download_to_temp,
@@ -378,3 +379,98 @@ class TestDownloadImageWithCropAutoTrim:
                     )
         assert ok is True
         mock_trim.assert_called_once_with(fake_tmp)
+
+
+class TestCropImageExact:
+    def test_crop_exact_region(self, tmp_path: Path) -> None:
+        img = Image.new("RGB", (200, 200), (255, 0, 0))
+        for x in range(50, 150):
+            for y in range(50, 150):
+                img.putpixel((x, y), (0, 255, 0))
+        path = tmp_path / "test.png"
+        img.save(path, format="PNG")
+        _crop_image_exact(path, 50, 50, 100, 100)
+        cropped = Image.open(path)
+        assert cropped.size == (100, 100)
+
+    def test_crop_edge_of_image(self, tmp_path: Path) -> None:
+        img = Image.new("RGB", (200, 200), (255, 0, 0))
+        path = tmp_path / "test.png"
+        img.save(path, format="PNG")
+        _crop_image_exact(path, 0, 0, 100, 200)
+        cropped = Image.open(path)
+        assert cropped.size == (100, 200)
+
+    def test_invalid_size_skipped(self, tmp_path: Path) -> None:
+        img = Image.new("RGB", (200, 200), (255, 0, 0))
+        path = tmp_path / "test.png"
+        img.save(path, format="PNG")
+        _crop_image_exact(path, 0, 0, 0, 100)
+        cropped = Image.open(path)
+        assert cropped.size == (200, 200)
+
+
+class TestDownloadImageWithCropBox:
+    def test_crop_box_applied_before_direction(self, tmp_path: Path) -> None:
+        """crop_box 应在 direction 之前应用。"""
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0.0,
+        )
+        # 创建一张宽图: 900x600，精确裁切中间 600x600，再 2:3 裁切
+        img = Image.new("RGB", (900, 600), (255, 0, 0))
+        # 中间区域画绿色
+        for x in range(150, 750):
+            for y in range(0, 600):
+                img.putpixel((x, y), (0, 255, 0))
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        dest = tmp_path / "poster.jpg"
+        with patch(
+            "app.services.image_utils.httpx.Client",
+            return_value=_make_fake_client(buf.getvalue()),
+        ):
+            ok = _download_image_with_crop(
+                "https://example.com/img.jpg",
+                dest,
+                settings,
+                crop_direction="center",
+                crop_box=(150, 0, 600, 600),
+                http_timeout=5,
+            )
+        assert ok is True
+        assert dest.exists()
+        cropped = Image.open(dest)
+        # crop_box: 600x600 → 2:3 crop: 宽 = 600*2/3 = 400
+        expected_w = int(600 * 2.0 / 3.0)
+        assert cropped.size == (expected_w, 600)
+
+    def test_crop_box_no_direction(self, tmp_path: Path) -> None:
+        """只传 crop_box 不传 direction 也应生效。"""
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0.0,
+        )
+        img = Image.new("RGB", (500, 500), (255, 0, 0))
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        dest = tmp_path / "result.jpg"
+        with patch(
+            "app.services.image_utils.httpx.Client",
+            return_value=_make_fake_client(buf.getvalue()),
+        ):
+            ok = _download_image_with_crop(
+                "https://example.com/img.jpg",
+                dest,
+                settings,
+                crop_direction="none",
+                crop_box=(100, 100, 300, 300),
+                http_timeout=5,
+            )
+        assert ok is True
+        cropped = Image.open(dest)
+        assert cropped.size == (300, 300)

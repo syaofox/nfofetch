@@ -10,7 +10,9 @@
       href="https://cdn.jsdelivr.net/npm/modern-normalize@2.0.0/modern-normalize.min.css"
     />
     <link rel="stylesheet" href="{{ url_for('static', path='/css/style.css') }}" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
   </head>
   <body>
     <div id="nf-loading-overlay" class="nf-loading-overlay">
@@ -447,6 +449,77 @@
         window.nfViewFile = function (path, event) {
           if (event) event.stopPropagation();
           window.open("/file?path=" + encodeURIComponent(path), "_blank");
+        };
+
+        // --- 精确裁切 ---
+        var _nfCropper = null;
+
+        window.nfOpenCropModal = function (btn) {
+          var imgUrl = btn.getAttribute("data-poster-url");
+          if (!imgUrl) return;
+          var modal = document.getElementById("nf-crop-modal");
+          if (!modal) return;
+          modal.style.display = "flex";
+          var img = document.getElementById("nf-crop-image");
+          if (!img) return;
+          // 检查是否开启了自动去白边
+          var trimCb = document.getElementById("auto_trim_white_borders");
+          var autoTrim = trimCb ? trimCb.checked : false;
+          var cropUrl = "/api/crop-image?url=" + encodeURIComponent(imgUrl) + "&auto_trim=" + (autoTrim ? "1" : "0");
+          img.src = cropUrl;
+          // 销毁之前的 cropper 实例
+          if (_nfCropper) {
+            _nfCropper.destroy();
+            _nfCropper = null;
+          }
+          img.onload = function () {
+            _nfCropper = new Cropper(img, {
+              aspectRatio: NaN,
+              viewMode: 1,
+              dragMode: "crop",
+              autoCrop: true,
+              autoCropArea: 0.8,
+              responsive: true,
+              restore: false,
+              guides: true,
+              center: true,
+              highlight: false,
+              background: true,
+              movable: true,
+              rotatable: false,
+              scalable: false,
+              zoomable: true,
+              zoomOnTouch: true,
+              zoomOnWheel: true,
+            });
+          };
+        };
+
+        window.nfCloseCropModal = function () {
+          if (_nfCropper) {
+            _nfCropper.destroy();
+            _nfCropper = null;
+          }
+          var modal = document.getElementById("nf-crop-modal");
+          if (modal) modal.style.display = "none";
+        };
+
+        window.nfConfirmCrop = function () {
+          if (!_nfCropper) return;
+          var data = _nfCropper.getData(true);
+          document.getElementById("crop_x").value = Math.round(data.x);
+          document.getElementById("crop_y").value = Math.round(data.y);
+          document.getElementById("crop_w").value = Math.round(data.width);
+          document.getElementById("crop_h").value = Math.round(data.height);
+          var hint = document.getElementById("crop-hint");
+          if (hint) {
+            hint.style.display = "";
+            hint.textContent = "已设置精确裁切区域（" + Math.round(data.width) + "x" + Math.round(data.height) + "）。";
+          }
+          // 自动选中「自定义」裁切方向
+          var customRadio = document.querySelector('input[name="crop_direction"][value="none"]');
+          if (customRadio) customRadio.checked = false;
+          window.nfCloseCropModal();
         };
 
         window.nfCloseFileBrowser = function () {

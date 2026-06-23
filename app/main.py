@@ -14,7 +14,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Form, HTTPException, Request, Query
+from fastapi import FastAPI, Form, HTTPException, Request, Query, Response
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -241,6 +241,44 @@ async def browse_delete(path: str = Form(...)) -> dict[str, bool]:
     return {"ok": True}
 
 
+@app.get("/api/crop-image")
+async def api_crop_image(
+    url: str = Query(...),
+    auto_trim: bool = Query(default=False),
+) -> Response:
+    """下载远程图片，可选裁白边后返回，供前端裁切预览。
+
+    用于精确裁切弹窗中展示图片（避免 CORS 问题，并支持 auto_trim 预处理）。
+    """
+    settings = get_settings()
+    _merge_ui_settings(settings)
+    from app.services.image_utils import _download_to_temp
+
+    tmp = _download_to_temp(url, settings)
+    if tmp is None:
+        raise HTTPException(status_code=502, detail="下载图片失败")
+    try:
+        if auto_trim:
+            from app.services.image_utils import _trim_white_borders
+
+            _trim_white_borders(tmp)
+        content = tmp.read_bytes()
+        ext = tmp.suffix.lower()
+        media_type = {
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".webp": "image/webp",
+        }.get(ext, "application/octet-stream")
+        return Response(
+            content=content,
+            media_type=media_type,
+            headers={"Cache-Control": "no-cache", "Access-Control-Allow-Origin": "*"},
+        )
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
 @app.get("/file")
 async def serve_file(path: str = Query(...)) -> FileResponse:
     """服务本地图片文件，路径必须在 NFOFETCH_BROWSE_ROOT 范围内。"""
@@ -413,6 +451,10 @@ async def scrape(
     poster_url: str | None = Form(default=None),
     fanart_url: str | None = Form(default=None),
     crop_direction: str = Form(default="none"),
+    crop_x: int = Form(default=0),
+    crop_y: int = Form(default=0),
+    crop_w: int = Form(default=0),
+    crop_h: int = Form(default=0),
     rename_format: str | None = Form(default=None),
     rename_dir: str | None = Form(default=None),
     task_id: str = Form(default=""),
@@ -464,6 +506,9 @@ async def scrape(
             poster_url=poster_url,
             fanart_url=fanart_url,
             crop_direction=crop_direction,
+            crop_box=(crop_x, crop_y, crop_w, crop_h)
+            if crop_w > 0 and crop_h > 0
+            else None,
             rename_format=rename_format or None,
             rename_dir=rename_dir or None,
             download_concurrency=settings.download_concurrency,
