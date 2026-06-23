@@ -516,11 +516,25 @@
             hint.style.display = "";
             hint.textContent = "已设置精确裁切区域（" + Math.round(data.width) + "x" + Math.round(data.height) + "）。";
           }
-          // 自动选中「自定义」裁切方向
-          var customRadio = document.querySelector('input[name="crop_direction"][value="none"]');
-          if (customRadio) customRadio.checked = false;
+          // 标记按钮为激活状态
+          var btn = document.getElementById("nf-crop-btn");
+          if (btn) btn.classList.add("nf-crop-btn-active");
           window.nfCloseCropModal();
         };
+
+        // 选择方向裁切时清除精确裁切状态
+        document.addEventListener("change", function (e) {
+          if (e.target && e.target.name === "crop_direction") {
+            document.getElementById("crop_x").value = "0";
+            document.getElementById("crop_y").value = "0";
+            document.getElementById("crop_w").value = "0";
+            document.getElementById("crop_h").value = "0";
+            var btn = document.getElementById("nf-crop-btn");
+            if (btn) btn.classList.remove("nf-crop-btn-active");
+            var hint = document.getElementById("crop-hint");
+            if (hint) hint.style.display = "none";
+          }
+        });
 
         window.nfCloseFileBrowser = function () {
           var container = document.getElementById("file-browser-container");

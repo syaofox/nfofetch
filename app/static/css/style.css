@@ -1235,6 +1235,43 @@
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
 }
 
+/* 精确裁切按钮 */
+.nf-crop-btn {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.82rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 0.375rem;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+  cursor: pointer;
+  white-space: nowrap;
+  gap: 0.25rem;
+  transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  line-height: 1.4;
+}
+
+.nf-crop-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.nf-crop-btn:active {
+  transform: scale(0.97);
+}
+
+.nf-crop-btn-active {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.nf-crop-btn-active:hover {
+  background: #dbeafe;
+}
+
 /* Crop label micro-interaction */
 .nf-crop-label {
   transition: color 0.15s ease, transform 0.12s ease;
