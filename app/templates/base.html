@@ -817,7 +817,7 @@
           filter_actor_gender: genderCb ? genderCb.checked : true,
           auto_trim_white_borders: trimCb ? trimCb.checked : false,
           download_concurrency: dc && dc.value !== "" ? parseInt(dc.value, 10) : null,
-          move_to_subdir: document.getElementById("move_to_subdir") ? document.getElementById("move_to_subdir").checked : false,
+          move_to_subdir: document.getElementById("move_to_subdir") ? document.getElementById("move_to_subdir").checked : undefined,
           enabled_scrapers: (function () {
             var scraperNames = ["javdb", "jav321", "javhoo"];
             var enabled = [];
