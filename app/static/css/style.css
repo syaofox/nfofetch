@@ -231,6 +231,16 @@
   font-size: 1.1rem;
 }
 
+.nf-title-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.nf-title-link:hover {
+  text-decoration: underline;
+  color: #2563eb;
+}
+
 .nf-meta-number {
   font-size: 0.9rem;
   color: #6b7280;

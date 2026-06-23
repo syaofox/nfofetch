@@ -13,7 +13,11 @@
       <div class="nf-meta">
         <div class="nf-meta-main">
           <h4 class="nf-meta-title">
-            {{ result.metadata.title }}
+            {% if result.metadata.source_url %}
+              <a href="{{ result.metadata.source_url }}" target="_blank" rel="noopener noreferrer" class="nf-title-link">{{ result.metadata.title }}</a>
+            {% else %}
+              {{ result.metadata.title }}
+            {% endif %}
             {% if result.metadata.number %}
               <span class="nf-meta-number">({{ result.metadata.number }})</span>
             {% endif %}
