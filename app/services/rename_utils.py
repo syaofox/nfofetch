@@ -107,6 +107,34 @@ def _format_genre_part(genres: list[str], limit: int) -> str:
     return joined
 
 
+def _count_files_to_rename(
+    video_path: Path,
+    rename_format: str | None,
+) -> int:
+    """计算需要重命名的视频文件数。
+
+    返回 0（无重命名）/ 1（单个文件）/ N（{idx} 模式下目录内视频文件数）。
+    """
+    fmt = (rename_format or "").strip()
+    if not fmt:
+        return 0
+    if "{idx}" in fmt:
+        movie_dir = video_path.absolute().parent
+        count = 0
+        try:
+            with os.scandir(movie_dir) as it:
+                for entry in it:
+                    if (
+                        entry.is_file()
+                        and Path(entry.name).suffix.lower() in VIDEO_EXTENSIONS
+                    ):
+                        count += 1
+        except OSError:
+            pass
+        return count
+    return 1
+
+
 def _format_rename(
     metadata: MovieMetadata,
     idx: int,

@@ -1,6 +1,6 @@
 **目标：**
-刮削网站增加[jav321](https://www.jav321.com/)
-用mcp工具分析
+点击写入,实际操作之前,如果需要改名的文件超过3个(>3),弹窗让用户再次确认
+
 
 **输入：**
 当前文件夹是一个uv管理虚拟环境的python工程nfofetch: FastAPI + HTMX 影片刮削工具，从 javdb 抓取信息并生成 Jellyfin 兼容的 NFO/图片。

@@ -946,6 +946,44 @@
         }
       })();
 
+      // 写入前重命名文件数确认：超过 3 个时弹窗确认
+      // 不劫持 htmx:beforeRequest（避免与任务ID注入逻辑冲突），改为劫持按钮点击
+      (function () {
+        var RENAME_PREVIEW_URL = "/api/rename-preview";
+
+        window.nfCloseRenameModal = function () {
+          var modal = document.getElementById("nf-rename-modal");
+          if (modal) modal.style.display = "none";
+        };
+
+        window.nfConfirmRename = function () {
+          var modal = document.getElementById("nf-rename-modal");
+          if (modal) modal.style.display = "none";
+          var form = document.getElementById("write-form");
+          if (form) htmx.trigger(form, "submit");
+        };
+
+        window.nfWriteClick = function (evt) {
+          evt.preventDefault();
+          var form = document.getElementById("write-form");
+          if (!form) return;
+          var formData = new FormData(form);
+          fetch(RENAME_PREVIEW_URL, { method: "POST", body: formData })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data.count > 3) {
+                document.getElementById("nf-rename-count").textContent = data.count;
+                document.getElementById("nf-rename-modal").style.display = "";
+              } else {
+                htmx.trigger(form, "submit");
+              }
+            })
+            .catch(function () {
+              htmx.trigger(form, "submit");
+            });
+        };
+      })();
+
       // 重命名格式预设
       (function () {
         var PRESETS_URL = "/api/presets";

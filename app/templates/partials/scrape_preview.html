@@ -271,11 +271,12 @@
     </form>
     <div class="nf-sticky-fab">
       <button
-        type="submit"
+        type="button"
         id="write-button"
         class="nf-button nf-button-write nf-btn-ripple"
         form="write-form"
         title="写入 NFO 与图片"
+        onclick="window.nfWriteClick(event)"
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"/>
@@ -301,6 +302,21 @@
       <div style="display:flex;gap:0.5rem;justify-content:flex-end;padding:0 1.5rem 1rem;">
         <button type="button" class="nf-button nf-button-secondary nf-btn-ripple nf-btn-press" onclick="window.nfCloseCropModal()">取消</button>
         <button type="button" class="nf-button nf-btn-ripple nf-btn-press" onclick="window.nfConfirmCrop()">确认裁切</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 重命名文件数确认模态框 -->
+  <div id="nf-rename-modal" class="nf-modal" style="display:none;z-index:10000">
+    <div class="nf-modal-backdrop" onclick="window.nfCloseRenameModal()"></div>
+    <div class="nf-modal-box">
+      <div class="nf-modal-title">确认重命名</div>
+      <div id="nf-rename-modal-body" class="nf-modal-body">
+        将重命名 <span id="nf-rename-count">0</span> 个视频文件，是否继续？
+      </div>
+      <div class="nf-modal-actions">
+        <button type="button" class="nf-button nf-button-secondary nf-btn-ripple nf-btn-press" onclick="window.nfCloseRenameModal()">取消</button>
+        <button type="button" class="nf-button nf-btn-ripple nf-btn-press" onclick="window.nfConfirmRename()">确认写入</button>
       </div>
     </div>
   </div>

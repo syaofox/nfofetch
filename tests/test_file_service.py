@@ -28,6 +28,7 @@ from app.services.lock_utils import (
     _release_dir_lock,
 )
 from app.services.rename_utils import (
+    _count_files_to_rename,
     _format_dir_rename,
     _format_rename,
     _is_vr,
@@ -2076,3 +2077,53 @@ class TestMoveVideoToSubdir:
             _move_video_to_subdir(
                 tmp_path, video, sample_movie_metadata, "{id}", settings
             )
+
+
+class TestCountFilesToRename:
+    def test_no_rename_format(self, tmp_path: Path) -> None:
+        video = tmp_path / "test.mp4"
+        video.write_text("content")
+        assert _count_files_to_rename(video, None) == 0
+        assert _count_files_to_rename(video, "") == 0
+        assert _count_files_to_rename(video, "  ") == 0
+
+    def test_single_file_no_idx(self, tmp_path: Path) -> None:
+        video = tmp_path / "test.mp4"
+        video.write_text("content")
+        assert _count_files_to_rename(video, "{id}") == 1
+        assert _count_files_to_rename(video, "{id}_{title}") == 1
+
+    def test_idx_mode_empty_dir(self, tmp_path: Path) -> None:
+        video = tmp_path / "test.mp4"
+        video.write_text("content")
+        # video is the only file but {idx} mode scans directory
+        # The function does video.absolute().parent and scans there
+        # tmp_path has the video file
+        assert _count_files_to_rename(video, "{id}-{idx}") == 1
+
+    def test_idx_mode_multiple_videos(self, tmp_path: Path) -> None:
+        for name in ["a.mp4", "b.avi", "c.mkv"]:
+            (tmp_path / name).write_text("content")
+        video = tmp_path / "a.mp4"
+        assert _count_files_to_rename(video, "{id}-{idx}") == 3
+
+    def test_idx_mode_skips_non_video(self, tmp_path: Path) -> None:
+        (tmp_path / "a.mp4").write_text("content")
+        (tmp_path / "b.txt").write_text("not video")
+        (tmp_path / "c.jpg").write_text("image")
+        video = tmp_path / "a.mp4"
+        assert _count_files_to_rename(video, "{id}-{idx}") == 1
+
+    def test_idx_mode_empty_dir_no_videos(self, tmp_path: Path) -> None:
+        # Create video but in a subdir so the parent has no videos
+        sub = tmp_path / "sub"
+        sub.mkdir()
+        video = sub / "test.mp4"
+        video.write_text("content")
+        # Parent of video is sub, which has 1 video
+        assert _count_files_to_rename(video, "{id}-{idx}") == 1
+
+    def test_non_existent_parent_returns_zero(self, tmp_path: Path) -> None:
+        video = tmp_path / "nonexistent" / "test.mp4"
+        # The parent doesn't exist, scandir will fail
+        assert _count_files_to_rename(video, "{id}-{idx}") == 0

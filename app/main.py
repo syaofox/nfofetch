@@ -638,6 +638,21 @@ async def api_delete_preset(name: str = Query(...)) -> dict[str, bool]:
     return {"ok": True}
 
 
+@app.post("/api/rename-preview")
+async def rename_preview(
+    video_path: str = Form(...),
+    rename_format: str | None = Form(default=None),
+) -> dict:
+    """预览重命名：返回受 rename_format 影响的视频文件数。"""
+    from app.services.rename_utils import _count_files_to_rename
+
+    video = Path(video_path)
+    if not video.exists():
+        return {"count": 0}
+    count = _count_files_to_rename(video, rename_format)
+    return {"count": count}
+
+
 @app.get("/api/scrape-task/{task_id}")
 async def get_scrape_task(task_id: str) -> dict[str, Any]:
     """返回刮削任务当前进度。"""
