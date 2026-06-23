@@ -444,6 +444,11 @@
           loadBrowser(path);
         };
 
+        window.nfViewFile = function (path, event) {
+          if (event) event.stopPropagation();
+          window.open("/file?path=" + encodeURIComponent(path), "_blank");
+        };
+
         window.nfCloseFileBrowser = function () {
           var container = document.getElementById("file-browser-container");
           if (container) {

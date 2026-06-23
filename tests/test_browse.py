@@ -8,6 +8,8 @@ from fastapi.testclient import TestClient
 
 from app.main import _natural_sort_key, _sort_browser_entries, app
 
+TEST_VIDEO = b"\x00\x00\x00 ftypmp42"  # fake mp4 header for file content check
+
 
 class TestNaturalSortKey:
     def test_pure_numbers(self) -> None:
@@ -290,3 +292,61 @@ class TestBrowseDeleteEndpoint:
         assert resp.status_code == 200
         assert "nfDeleteItem" in resp.text
         assert "nf-file-browser-delete-btn" in resp.text
+
+    def test_view_button_rendered_for_files_not_dirs(self, browse_root: Path) -> None:
+        (browse_root / "video.mp4").touch()
+        subdir = browse_root / "subdir"
+        subdir.mkdir()
+        client = TestClient(app)
+        resp = client.get("/browse")
+        assert resp.status_code == 200
+        html = resp.text
+        assert "nfViewFile" in html
+        assert "nf-file-browser-view-btn" in html
+        assert "video.mp4" in html
+        assert 'onclick="window.nfViewFile' in html
+        # 目录不应该有查看按钮
+        # 确保 subdir 没有查看按钮（目录只有删除按钮）
+        lines_around_subdir = html[html.index("subdir") : html.index("subdir") + 200]
+        assert "nf-file-browser-view-btn" not in lines_around_subdir
+
+
+class TestServeFileEndpoint:
+    @pytest.fixture
+    def browse_root(self, tmp_path: Path) -> Path:
+        root = tmp_path / "serve_test"
+        root.mkdir()
+        return root
+
+    @pytest.fixture
+    def client(self, browse_root: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
+        monkeypatch.setenv("NFOFETCH_BROWSE_ROOT", str(browse_root))
+        return TestClient(app)
+
+    def test_serve_existing_file(self, browse_root: Path, client: TestClient) -> None:
+        file = browse_root / "test.jpg"
+        file.write_bytes(TEST_VIDEO)
+        resp = client.get("/file", params={"path": str(file)})
+        assert resp.status_code == 200
+        assert resp.content == TEST_VIDEO
+
+    def test_serve_nonexistent_file(
+        self, browse_root: Path, client: TestClient
+    ) -> None:
+        missing = browse_root / "nonexistent.mp4"
+        resp = client.get("/file", params={"path": str(missing)})
+        assert resp.status_code == 404
+
+    def test_serve_outside_root_fails(
+        self, browse_root: Path, client: TestClient
+    ) -> None:
+        outside = browse_root.parent / "outside.txt"
+        outside.touch()
+        resp = client.get("/file", params={"path": str(outside)})
+        assert resp.status_code == 403
+
+    def test_serve_directory_fails(self, browse_root: Path, client: TestClient) -> None:
+        subdir = browse_root / "subdir"
+        subdir.mkdir()
+        resp = client.get("/file", params={"path": str(subdir)})
+        assert resp.status_code == 404

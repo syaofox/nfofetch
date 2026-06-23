@@ -72,6 +72,14 @@
             {% if entry.is_dir %}目录{% else %}文件{% endif %}
           </span>
         </button>
+        {% if not entry.is_dir %}
+        <button
+          type="button"
+          class="nf-file-browser-view-btn nf-btn-ripple nf-btn-press"
+          title="查看"
+          onclick="window.nfViewFile('{{ entry.path|escapejs }}', event)"
+        >查看</button>
+        {% endif %}
         <button
           type="button"
           class="nf-file-browser-delete-btn nf-btn-ripple nf-btn-press"
