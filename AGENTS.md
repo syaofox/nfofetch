@@ -1,6 +1,6 @@
 # AGENTS.md
 
-nfofetch: FastAPI + HTMX 影片刮削工具，从 javdb 抓取信息并生成 Jellyfin 兼容的 NFO/图片。
+nfofetch: FastAPI + HTMX 影片刮削工具，从 javdb / jav321 抓取信息并生成 Jellyfin 兼容的 NFO/图片。
 
 ## 重要事项
 - 实际修改前，要先评估此次修改的合理性与可行性。

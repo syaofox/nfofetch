@@ -1,6 +1,6 @@
 ## nfofetch
 
-基于 **FastAPI + HTMX** 的影片刮削小工具，目前支持从 **javdb** 抓取影片信息，并生成适用于 **Jellyfin** 的 `movie.nfo`、`poster.jpg`、`fanart.jpg`、`extrafanart/*` 等文件（推荐「一片一文件夹」结构）。
+基于 **FastAPI + HTMX** 的影片刮削小工具，支持从 **javdb** / **jav321** 抓取影片信息，并生成适用于 **Jellyfin** 的 `movie.nfo`、`poster.jpg`、`fanart.jpg`、`extrafanart/*` 等文件（推荐「一片一文件夹」结构）。
 
 ### 环境与依赖（uv）
 
