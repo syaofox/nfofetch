@@ -455,7 +455,9 @@
         var _nfCropper = null;
 
         window.nfOpenCropModal = function (btn) {
-          var imgUrl = btn.getAttribute("data-poster-url");
+          // 从当前选中的 poster radio 获取真实 URL
+          var checkedRadio = document.querySelector('input[name="poster_url"]:checked');
+          var imgUrl = checkedRadio ? checkedRadio.value : btn.getAttribute("data-poster-url");
           if (!imgUrl) return;
           var modal = document.getElementById("nf-crop-modal");
           if (!modal) return;
