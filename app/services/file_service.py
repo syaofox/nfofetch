@@ -560,8 +560,8 @@ def save_assets_for_existing_video(
                 )
         _write_delay(settings.write_delay)
 
-        # 3. 重命名文件夹（在视频重命名之后、NFO 写入之前执行）
-        if rename_dir and rename_dir.strip():
+        # 3. 重命名文件夹（仅未启用 move_to_subdir 时执行，因为子目录已是最终名）
+        if rename_dir and rename_dir.strip() and not move_to_subdir:
             fmt_dir = rename_dir.strip()
             if on_progress:
                 on_progress("rename_dir", 0, 1, "正在重命名文件夹…")
