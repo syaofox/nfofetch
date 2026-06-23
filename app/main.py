@@ -289,6 +289,12 @@ def _merge_ui_settings(settings: Settings) -> None:
                 "UI 设置: delete_orphan_extrafanart=%s",
                 settings.delete_orphan_extrafanart,
             )
+        if user.auto_trim_white_borders is not None:
+            settings.auto_trim_white_borders = user.auto_trim_white_borders
+            logger.info(
+                "UI 设置: auto_trim_white_borders=%s",
+                settings.auto_trim_white_borders,
+            )
     except Exception:
         logger.warning("合并 UI 设置失败", exc_info=True)
 

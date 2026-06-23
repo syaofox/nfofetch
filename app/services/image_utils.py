@@ -14,6 +14,52 @@ from app.services.file_utils import _TEMP_PREFIX, _write_delay
 logger = logging.getLogger(__name__)
 
 
+_WHITE_THRESHOLD = 245
+
+
+def _trim_white_borders(image_path: Path) -> None:
+    """检测并裁掉图片四周的白边（RGB 各通道均接近 255 的区域）。
+
+    将图片转换为灰度图，通过阈值二值化后使用 getbbox 定位内容区域。
+    若检测不到内容区域（全白/全接近白色），或内容区域几乎覆盖整张图，则不裁切。
+    """
+    from PIL import Image
+
+    img = Image.open(image_path)
+    orig_size = img.size
+
+    # 转换为灰度图
+    gray = img.convert("L")
+    # 白边区域（像素值 > 阈值）→ 0（黑），内容区域 → 255（白）
+    bw = gray.point(lambda p: 0 if p > _WHITE_THRESHOLD else 255)
+    bbox = bw.getbbox()
+
+    if bbox is None:
+        logger.warning("图片全白或全接近白色，跳过白边裁切: %s", image_path.name)
+        return
+
+    x1, y1, x2, y2 = bbox
+    # 若内容区域覆盖 95% 以上像素，认为没有明显白边
+    content_area = (x2 - x1) * (y2 - y1)
+    if content_area >= orig_size[0] * orig_size[1] * 0.95:
+        return
+
+    cropped = img.crop((x1, y1, x2, y2))
+    cropped.save(image_path, format=img.format)
+    logger.info(
+        "裁掉白边: %s -> %dx%d（原图 %dx%d，白边区域: 上%d 下%d 左%d 右%d）",
+        image_path.name,
+        cropped.width,
+        cropped.height,
+        orig_size[0],
+        orig_size[1],
+        y1,
+        orig_size[1] - y2,
+        x1,
+        orig_size[0] - x2,
+    )
+
+
 def _crop_image(image_path: Path, direction: str) -> None:
     """将图片按 2:3 竖版比例裁切（仅对非 none 方向生效），保留指定水平区域。
 
@@ -123,14 +169,17 @@ def _download_image_with_crop(
 
     避免在目标目录产生未裁切的临时文件。
     """
-    if crop_direction == "none":
+    if crop_direction == "none" and not settings.auto_trim_white_borders:
         return _download_image(url, dest, settings, http_timeout=http_timeout)
 
     tmp = _download_to_temp(url, settings, http_timeout=http_timeout)
     if tmp is None:
         return False
     try:
-        _crop_image(tmp, crop_direction)
+        if settings.auto_trim_white_borders:
+            _trim_white_borders(tmp)
+        if crop_direction != "none":
+            _crop_image(tmp, crop_direction)
         _write_delay(settings.write_delay)
         shutil.move(str(tmp), str(dest))
         return True

@@ -114,4 +114,5 @@ class UserSettings(BaseModel):
     max_extra_images: int | None = None
     delete_orphan_extrafanart: bool | None = None
     filter_actor_gender: bool | None = None
+    auto_trim_white_borders: bool | None = None
     presets: dict[str, Preset] = {}

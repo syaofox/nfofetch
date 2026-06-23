@@ -583,6 +583,12 @@
             if (dc && data.download_concurrency !== null) {
               dc.value = data.download_concurrency;
             }
+            var trimCb = document.getElementById("auto_trim_white_borders");
+            if (trimCb && data.auto_trim_white_borders !== null) {
+              trimCb.checked = data.auto_trim_white_borders;
+            } else if (trimCb) {
+              trimCb.checked = false;
+            }
           })
           .catch(function () {});
       };
@@ -617,6 +623,7 @@
         var mx = document.getElementById("max_extra_images");
         var delCb = document.getElementById("delete_orphan_extrafanart");
         var genderCb = document.getElementById("filter_actor_gender");
+        var trimCb = document.getElementById("auto_trim_white_borders");
         var dc = document.getElementById("download_concurrency");
         var status = document.getElementById("nf-settings-status");
         if (!status) return;
@@ -629,6 +636,7 @@
           max_extra_images: mx && mx.value !== "" ? parseInt(mx.value, 10) : null,
           delete_orphan_extrafanart: delCb ? delCb.checked : false,
           filter_actor_gender: genderCb ? genderCb.checked : true,
+          auto_trim_white_borders: trimCb ? trimCb.checked : false,
           download_concurrency: dc && dc.value !== "" ? parseInt(dc.value, 10) : null,
         };
         fetch("/api/settings", {

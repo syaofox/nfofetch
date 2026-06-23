@@ -24,6 +24,7 @@ class Settings:
     - NFOFETCH_DELETE_ORPHAN_EXTRAFANART: 重新刮削时删除网页上不再存在的本地剧照（默认 false）
     - NFOFETCH_FILTER_ACTOR_GENDER: {actor} 占位符只包含女演员（默认 true）
     - NFOFETCH_DOWNLOAD_CONCURRENCY: extrafanart 剧照下载并发数（默认 4）
+    - NFOFETCH_AUTO_TRIM_WHITE_BORDERS: 裁切前自动检测并去除图片白边（默认 false）
     """
 
     user_agent: str
@@ -40,6 +41,7 @@ class Settings:
     delete_orphan_extrafanart: bool = False
     filter_actor_gender: bool = True
     download_concurrency: int = 4
+    auto_trim_white_borders: bool = False
 
 
 @lru_cache(maxsize=1)
@@ -99,4 +101,7 @@ def get_settings() -> Settings:
         ),
         filter_actor_gender=_parse_bool_env("NFOFETCH_FILTER_ACTOR_GENDER", True),
         download_concurrency=_parse_int_env("NFOFETCH_DOWNLOAD_CONCURRENCY", 4),
+        auto_trim_white_borders=_parse_bool_env(
+            "NFOFETCH_AUTO_TRIM_WHITE_BORDERS", False
+        ),
     )

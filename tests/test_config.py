@@ -161,3 +161,26 @@ def test_write_delay_env_invalid_fallback(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setenv("NFOFETCH_WRITE_DELAY", "not-a-number")
     settings = get_settings()
     assert settings.write_delay == 0.2
+
+
+def test_auto_trim_white_borders_default_false() -> None:
+    settings = get_settings()
+    assert settings.auto_trim_white_borders is False
+
+
+def test_auto_trim_white_borders_env_true(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("NFOFETCH_AUTO_TRIM_WHITE_BORDERS", "true")
+    settings = get_settings()
+    assert settings.auto_trim_white_borders is True
+
+
+def test_auto_trim_white_borders_env_false(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("NFOFETCH_AUTO_TRIM_WHITE_BORDERS", "false")
+    settings = get_settings()
+    assert settings.auto_trim_white_borders is False
+
+
+def test_auto_trim_white_borders_env_1(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("NFOFETCH_AUTO_TRIM_WHITE_BORDERS", "1")
+    settings = get_settings()
+    assert settings.auto_trim_white_borders is True

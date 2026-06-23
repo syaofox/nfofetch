@@ -15,6 +15,7 @@ from app.services.image_utils import (
     _download_image,
     _download_image_with_crop,
     _download_to_temp,
+    _trim_white_borders,
 )
 
 
@@ -241,3 +242,139 @@ class TestDownloadImageWithCrop:
 
         assert ok is True
         mock_delay2.assert_called_once_with(0.15)
+
+
+class TestTrimWhiteBorders:
+    def _make_png(self, width: int, height: int, color: tuple[int, int, int]) -> bytes:
+        buf = io.BytesIO()
+        Image.new("RGB", (width, height), color).save(buf, format="PNG")
+        return buf.getvalue()
+
+    def test_trim_removes_white_borders(self, tmp_path: Path) -> None:
+        """创建一张图：中间 100x100 红块，周围 50px 白边 → 应裁为 100x100。"""
+        total = 200
+        img = Image.new("RGB", (total, total), (255, 255, 255))
+        for x in range(50, 150):
+            for y in range(50, 150):
+                img.putpixel((x, y), (255, 0, 0))
+        path = tmp_path / "test.png"
+        img.save(path, format="PNG")
+        _trim_white_borders(path)
+        trimmed = Image.open(path)
+        assert trimmed.size == (100, 100)
+
+    def test_no_white_borders_unchanged(self, tmp_path: Path) -> None:
+        """全红图（无白边）→ 不应裁切。"""
+        path = tmp_path / "test.png"
+        path.write_bytes(self._make_png(200, 200, (255, 0, 0)))
+        _trim_white_borders(path)
+        trimmed = Image.open(path)
+        assert trimmed.size == (200, 200)
+
+    def test_all_white_unchanged(self, tmp_path: Path) -> None:
+        """全白图 → getbbox 返回 None → 不应裁切。"""
+        path = tmp_path / "test.png"
+        path.write_bytes(self._make_png(200, 200, (255, 255, 255)))
+        _trim_white_borders(path)
+        trimmed = Image.open(path)
+        assert trimmed.size == (200, 200)
+
+    def test_trim_white_borders_then_crop(self, tmp_path: Path) -> None:
+        """启用 auto_trim_white_borders 时，应先裁白边再 2:3 裁切。"""
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0.0,
+            auto_trim_white_borders=True,
+        )
+        # 创建一张图：实际内容 1200x800，周围 50px 白边
+        total = 1300
+        img = Image.new("RGB", (total, 900), (255, 255, 255))
+        inner = Image.new("RGB", (1200, 800), (100, 200, 100))
+        img.paste(inner, (50, 50))
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        dest = tmp_path / "poster.png"
+        with patch(
+            "app.services.image_utils.httpx.Client",
+            return_value=_make_fake_client(buf.getvalue()),
+        ):
+            ok = _download_image_with_crop(
+                "https://example.com/img.png",
+                dest,
+                settings,
+                crop_direction="center",
+                http_timeout=5,
+            )
+        assert ok is True
+        assert dest.exists()
+        trimmed = Image.open(dest)
+        # 先裁掉 50px 白边 → 1200x800 → 再按 2:3 裁切 → 目标宽 533
+        expected_h = 800
+        expected_w = int(expected_h * 2.0 / 3.0)
+        assert trimmed.width == expected_w
+        assert trimmed.height == expected_h
+
+    def test_auto_trim_no_crop_still_downloads(self, tmp_path: Path) -> None:
+        """auto_trim_white_borders=True + crop_direction=none 也应下载并去白边。"""
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0.0,
+            auto_trim_white_borders=True,
+        )
+        # 中间 100x100 红块 + 白边
+        total = 200
+        img = Image.new("RGB", (total, total), (255, 255, 255))
+        for x in range(50, 150):
+            for y in range(50, 150):
+                img.putpixel((x, y), (255, 0, 0))
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        dest = tmp_path / "result.png"
+        with patch(
+            "app.services.image_utils.httpx.Client",
+            return_value=_make_fake_client(buf.getvalue()),
+        ):
+            ok = _download_image_with_crop(
+                "https://example.com/img.png",
+                dest,
+                settings,
+                crop_direction="none",
+                http_timeout=5,
+            )
+        assert ok is True
+        assert dest.exists()
+        trimmed = Image.open(dest)
+        assert trimmed.size == (100, 100)
+
+
+class TestDownloadImageWithCropAutoTrim:
+    """验证 _download_image_with_crop 在 auto_trim_white_borders 开启时的行为。"""
+
+    def test_auto_trim_invokes_trim_white_borders(self, tmp_path: Path) -> None:
+        """auto_trim=True 时应调用 _trim_white_borders。"""
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0.0,
+            auto_trim_white_borders=True,
+        )
+        fake_tmp = tmp_path / "fake_tmp.jpg"
+        fake_tmp.write_text("fake")
+        dest = tmp_path / "poster.jpg"
+        with patch("app.services.image_utils._download_to_temp", return_value=fake_tmp):
+            with patch("app.services.image_utils._trim_white_borders") as mock_trim:
+                with patch("app.services.image_utils._crop_image"):
+                    ok = _download_image_with_crop(
+                        "https://example.com/img.jpg",
+                        dest,
+                        settings,
+                        crop_direction="center",
+                        http_timeout=5,
+                    )
+        assert ok is True
+        mock_trim.assert_called_once_with(fake_tmp)
