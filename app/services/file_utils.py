@@ -93,6 +93,7 @@ VIDEO_EXTENSIONS = (
     ".ogm",
     ".divx",
     ".f4v",
+    ".iso",
 )
 
 # 支持的字幕扩展名
