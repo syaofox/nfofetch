@@ -94,6 +94,13 @@ VIDEO_EXTENSIONS = (
     ".divx",
     ".f4v",
     ".iso",
+    ".rmvb",
+    ".rm",
+    ".asf",
+    ".mts",
+    ".m2t",
+    ".3g2",
+    ".qt",
 )
 
 # 支持的字幕扩展名
