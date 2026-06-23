@@ -134,7 +134,20 @@ def _crop_image(image_path: Path, direction: str) -> None:
 def _download_to_temp(
     url: str, settings: Settings, http_timeout: int = 20
 ) -> Path | None:
-    """下载图片到临时文件，返回临时路径（失败返回 None）。"""
+    """下载图片到临时文件，返回临时路径（失败返回 None）。
+
+    支持本地文件路径（以 / 开头且文件存在时直接复制）。
+    """
+    local_path = Path(url)
+    if url.startswith("/") and local_path.is_file():
+        tmp = tempfile.NamedTemporaryFile(
+            suffix=local_path.suffix or ".tmp", prefix=_TEMP_PREFIX, delete=False
+        )
+        tmp_path = Path(tmp.name)
+        tmp.close()
+        shutil.copy2(str(local_path), str(tmp_path))
+        return tmp_path
+
     try:
         client_kwargs: dict = {
             "headers": {"User-Agent": settings.user_agent},

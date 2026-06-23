@@ -14,7 +14,17 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Form, HTTPException, Request, Query, Response
+import tempfile
+from fastapi import (
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    Query,
+    Response,
+    UploadFile,
+)
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -279,6 +289,24 @@ async def api_crop_image(
         tmp.unlink(missing_ok=True)
 
 
+@app.post("/api/upload-poster")
+async def api_upload_poster(file: UploadFile = File(...)) -> dict[str, str]:
+    """上传用户自定义的裁切图片，保存到临时目录并返回本地路径。"""
+    base_dir = Path(os.getenv("NFOFETCH_BROWSE_ROOT", os.getcwd())).resolve()
+    upload_dir = base_dir / ".nfofetch_uploads"
+    upload_dir.mkdir(exist_ok=True)
+    suffix = Path(file.filename or "image.jpg").suffix or ".jpg"
+    tmp = tempfile.NamedTemporaryFile(
+        suffix=suffix, prefix="upload_", dir=str(upload_dir), delete=False
+    )
+    tmp_path = Path(tmp.name)
+    tmp.close()
+    content = await file.read()
+    tmp_path.write_bytes(content)
+    logger.info("上传自定义图片: %s (%d bytes)", tmp_path, len(content))
+    return {"path": str(tmp_path)}
+
+
 @app.get("/file")
 async def serve_file(path: str = Query(...)) -> FileResponse:
     """服务本地图片文件，路径必须在 NFOFETCH_BROWSE_ROOT 范围内。"""
@@ -461,6 +489,7 @@ async def scrape(
     crop_y: int = Form(default=0),
     crop_w: int = Form(default=0),
     crop_h: int = Form(default=0),
+    custom_poster_path: str | None = Form(default=None),
     rename_format: str | None = Form(default=None),
     rename_dir: str | None = Form(default=None),
     task_id: str = Form(default=""),
@@ -515,6 +544,7 @@ async def scrape(
             crop_box=(crop_x, crop_y, crop_w, crop_h)
             if crop_w > 0 and crop_h > 0
             else None,
+            custom_poster_path=custom_poster_path,
             rename_format=rename_format or None,
             rename_dir=rename_dir or None,
             download_concurrency=settings.download_concurrency,

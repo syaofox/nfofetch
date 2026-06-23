@@ -479,6 +479,7 @@ def save_assets_for_existing_video(
     fanart_url: str | None = None,
     crop_direction: str = "none",
     crop_box: CropBox = None,
+    custom_poster_path: str | None = None,
     rename_format: str | None = None,
     rename_dir: str | None = None,
     download_concurrency: int = 4,
@@ -492,6 +493,10 @@ def save_assets_for_existing_video(
     - 若提供 rename_format：含 {idx} 时重命名同目录下所有视频，不含则仅重命名选中的视频；
     - 若提供 rename_dir：重命名视频所在文件夹。
     """
+
+    # 自定义上传图片覆盖 poster_url
+    if custom_poster_path:
+        poster_url = custom_poster_path
 
     # 避免对网络路径做多余的符号链接解析（absolute() 不触发网络 stat）
     video_path = video_path.absolute()

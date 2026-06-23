@@ -514,6 +514,17 @@
           var reader = new FileReader();
           reader.onload = function (ev) {
             _loadImageToCropper(ev.target.result);
+            // 上传文件到服务器，保存为自定义 poster 路径
+            var formData = new FormData();
+            formData.append("file", file);
+            fetch("/api/upload-poster", { method: "POST", body: formData })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (data.path) {
+                  document.getElementById("custom_poster_path").value = data.path;
+                }
+              })
+              .catch(function () {});
           };
           reader.readAsDataURL(file);
         });
@@ -530,6 +541,18 @@
               var reader = new FileReader();
               reader.onload = function (ev) {
                 _loadImageToCropper(ev.target.result);
+                // 粘贴的图片无法直接上传，需要先用 File 包装
+                var pasteFile = new File([blob], "pasted.png", { type: blob.type });
+                var formData = new FormData();
+                formData.append("file", pasteFile);
+                fetch("/api/upload-poster", { method: "POST", body: formData })
+                  .then(function (r) { return r.json(); })
+                  .then(function (data) {
+                    if (data.path) {
+                      document.getElementById("custom_poster_path").value = data.path;
+                    }
+                  })
+                  .catch(function () {});
               };
               reader.readAsDataURL(blob);
               break;
@@ -560,6 +583,7 @@
             document.getElementById("crop_y").value = "0";
             document.getElementById("crop_w").value = "0";
             document.getElementById("crop_h").value = "0";
+            document.getElementById("custom_poster_path").value = "";
             var btn = document.getElementById("nf-crop-btn");
             if (btn) { btn.classList.remove("nf-crop-btn-active"); btn.textContent = "选择裁切区域…"; }
             var preview = document.getElementById("nf-crop-preview");
