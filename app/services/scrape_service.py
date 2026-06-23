@@ -5,7 +5,11 @@ from urllib.parse import urlparse
 
 from app.config import Settings
 from app.schemas import MovieMetadata, SearchResult
-from app.scrapers.registry import SCRAPERS, NoSupportedScraperError, get_scraper
+from app.scrapers.registry import (
+    NoSupportedScraperError,
+    get_enabled_scrapers,
+    get_scraper,
+)
 
 
 def is_url(text: str) -> bool:
@@ -27,9 +31,10 @@ def search_movie(query: str, settings: Settings) -> list[SearchResult]:
             item.source = scraper.name
         return items
 
+    enabled = get_enabled_scrapers(settings.enabled_scrapers)
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
         future_to_scraper = {
-            executor.submit(_search, scraper): scraper for scraper in SCRAPERS
+            executor.submit(_search, scraper): scraper for scraper in enabled
         }
         for future in concurrent.futures.as_completed(future_to_scraper):
             try:
@@ -49,7 +54,7 @@ def search_movie(query: str, settings: Settings) -> list[SearchResult]:
 def scrape_movie(url: str, settings: Settings) -> MovieMetadata:
     """根据 URL 选择合适的站点 scraper 并执行刮削。"""
     try:
-        scraper = get_scraper(url)
+        scraper = get_scraper(url, enabled_names=settings.enabled_scrapers)
     except NoSupportedScraperError as e:
         raise ValueError(str(e)) from e
     return scraper.scrape(url, settings=settings)

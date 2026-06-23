@@ -25,6 +25,7 @@ class Settings:
     - NFOFETCH_FILTER_ACTOR_GENDER: {actor} 占位符只包含女演员（默认 true）
     - NFOFETCH_DOWNLOAD_CONCURRENCY: extrafanart 剧照下载并发数（默认 4）
     - NFOFETCH_AUTO_TRIM_WHITE_BORDERS: 裁切前自动检测并去除图片白边（默认 false）
+    - NFOFETCH_ENABLED_SCRAPERS: 启用的刮削站点列表，逗号分隔，例如 "javdb,jav321,javhoo"（默认全部启用）
     """
 
     user_agent: str
@@ -42,6 +43,7 @@ class Settings:
     filter_actor_gender: bool = True
     download_concurrency: int = 4
     auto_trim_white_borders: bool = False
+    enabled_scrapers: set[str] | None = None
 
 
 @lru_cache(maxsize=1)
@@ -84,6 +86,12 @@ def get_settings() -> Settings:
             return val.lower() in ("true", "1", "yes")
         return default
 
+    def _parse_set_env(name: str) -> set[str] | None:
+        val = os.getenv(name)
+        if val is not None:
+            return {s.strip().lower() for s in val.split(",") if s.strip()}
+        return None
+
     return Settings(
         user_agent=user_agent,
         http_proxy=http_proxy,
@@ -104,4 +112,5 @@ def get_settings() -> Settings:
         auto_trim_white_borders=_parse_bool_env(
             "NFOFETCH_AUTO_TRIM_WHITE_BORDERS", False
         ),
+        enabled_scrapers=_parse_set_env("NFOFETCH_ENABLED_SCRAPERS"),
     )

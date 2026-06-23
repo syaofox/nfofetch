@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+import pytest
 from app.scrapers.jav321 import Jav321Scraper
 from app.scrapers.javdb import JavdbScraper
 from app.scrapers.javhoo import JavhooScraper
-from app.scrapers.registry import SCRAPERS, get_default_scraper, get_scraper
+from app.scrapers.registry import (
+    SCRAPERS,
+    NoSupportedScraperError,
+    get_default_scraper,
+    get_enabled_scrapers,
+    get_scraper,
+)
 
 
 class TestScrapers:
@@ -42,3 +49,30 @@ class TestGetDefaultScraper:
     def test_returns_javdb(self) -> None:
         scraper = get_default_scraper()
         assert isinstance(scraper, JavdbScraper)
+
+
+class TestGetEnabledScrapers:
+    def test_none_returns_all(self) -> None:
+        scrapers = get_enabled_scrapers(None)
+        assert len(scrapers) == len(SCRAPERS)
+
+    def test_filters_by_name(self) -> None:
+        scrapers = get_enabled_scrapers({"javdb"})
+        assert len(scrapers) == 1
+        assert scrapers[0].name == "javdb"
+
+    def test_multiple_names(self) -> None:
+        scrapers = get_enabled_scrapers({"javdb", "javhoo"})
+        assert len(scrapers) == 2
+        names = {s.name for s in scrapers}
+        assert names == {"javdb", "javhoo"}
+
+    def test_get_scraper_with_enabled_filters(self) -> None:
+        with pytest.raises(NoSupportedScraperError):
+            get_scraper("https://www.javhoo.com/en/ABF-360", enabled_names={"javdb"})
+
+    def test_get_scraper_skips_disabled(self) -> None:
+        s = get_scraper(
+            "https://en.jav321.com/video/sone00614", enabled_names={"jav321"}
+        )
+        assert s.name == "jav321"

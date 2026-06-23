@@ -333,6 +333,12 @@ def _merge_ui_settings(settings: Settings) -> None:
                 "UI 设置: auto_trim_white_borders=%s",
                 settings.auto_trim_white_borders,
             )
+        if user.enabled_scrapers is not None:
+            settings.enabled_scrapers = set(user.enabled_scrapers)
+            logger.info(
+                "UI 设置: enabled_scrapers=%s",
+                settings.enabled_scrapers,
+            )
     except Exception:
         logger.warning("合并 UI 设置失败", exc_info=True)
 

@@ -105,6 +105,35 @@
 
         <hr class="nf-settings-divider" />
 
+        <p class="nf-hint" style="font-size:0.8rem;margin-bottom:0.4rem;color:#6b7280">
+          刮削站点开关（关闭后搜索和 URL 刮削将跳过该站点）：
+        </p>
+        <div class="nf-settings-scraper-grid">
+          <div class="nf-settings-group">
+            <label class="nf-toggle" for="scraper_javdb">
+              <input type="checkbox" id="scraper_javdb" class="nf-toggle-input" checked />
+              <span class="nf-toggle-track"><span class="nf-toggle-knob"></span></span>
+              <span class="nf-toggle-label">JavDB</span>
+            </label>
+          </div>
+          <div class="nf-settings-group">
+            <label class="nf-toggle" for="scraper_jav321">
+              <input type="checkbox" id="scraper_jav321" class="nf-toggle-input" checked />
+              <span class="nf-toggle-track"><span class="nf-toggle-knob"></span></span>
+              <span class="nf-toggle-label">Jav321</span>
+            </label>
+          </div>
+          <div class="nf-settings-group">
+            <label class="nf-toggle" for="scraper_javhoo">
+              <input type="checkbox" id="scraper_javhoo" class="nf-toggle-input" checked />
+              <span class="nf-toggle-track"><span class="nf-toggle-knob"></span></span>
+              <span class="nf-toggle-label">JavHoo</span>
+            </label>
+          </div>
+        </div>
+
+        <hr class="nf-settings-divider" />
+
         <div class="nf-settings-grid">
           <div class="nf-settings-group">
             <label class="nf-toggle" for="serial_writes">
@@ -187,6 +216,11 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 0.6rem 1rem;
+    }
+    .nf-settings-scraper-grid {
+      display: flex;
+      gap: 0.75rem 1.5rem;
+      flex-wrap: wrap;
     }
     .nf-settings-group {
       margin-bottom: 0;

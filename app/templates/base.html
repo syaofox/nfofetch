@@ -686,6 +686,15 @@
             } else if (trimCb) {
               trimCb.checked = false;
             }
+            // scraper 开关
+            var scraperNames = ["javdb", "jav321", "javhoo"];
+            var enabledList = data.enabled_scrapers;
+            for (var si = 0; si < scraperNames.length; si++) {
+              var scb = document.getElementById("scraper_" + scraperNames[si]);
+              if (scb) {
+                scb.checked = enabledList === null || enabledList.indexOf(scraperNames[si]) !== -1;
+              }
+            }
           })
           .catch(function () {});
       };
@@ -735,6 +744,15 @@
           filter_actor_gender: genderCb ? genderCb.checked : true,
           auto_trim_white_borders: trimCb ? trimCb.checked : false,
           download_concurrency: dc && dc.value !== "" ? parseInt(dc.value, 10) : null,
+          enabled_scrapers: (function () {
+            var scraperNames = ["javdb", "jav321", "javhoo"];
+            var enabled = [];
+            for (var si = 0; si < scraperNames.length; si++) {
+              var scb = document.getElementById("scraper_" + scraperNames[si]);
+              if (scb && scb.checked) enabled.push(scraperNames[si]);
+            }
+            return enabled.length === scraperNames.length ? null : enabled;
+          })(),
         };
         fetch("/api/settings", {
           method: "POST",
