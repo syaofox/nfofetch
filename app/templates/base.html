@@ -454,48 +454,87 @@
         // --- 精确裁切 ---
         var _nfCropper = null;
 
+        function _initCropper(img) {
+          if (_nfCropper) { _nfCropper.destroy(); _nfCropper = null; }
+          img.onload = function () {
+            _nfCropper = new Cropper(img, {
+              aspectRatio: NaN, viewMode: 1, dragMode: "crop",
+              autoCrop: true, autoCropArea: 0.8,
+              responsive: true, restore: false,
+              guides: true, center: true, highlight: false, background: true,
+              movable: true, rotatable: false, scalable: false,
+              zoomable: true, zoomOnTouch: true, zoomOnWheel: true,
+            });
+            document.getElementById("nf-crop-drop-hint").textContent = "拖拽图片到此处或 Ctrl+V 粘贴";
+          };
+        }
+
+        function _loadImageToCropper(src) {
+          var img = document.getElementById("nf-crop-image");
+          if (!img) return;
+          img.src = src;
+          _initCropper(img);
+        }
+
         window.nfOpenCropModal = function (btn) {
-          // 从当前选中的 poster radio 获取真实 URL
           var checkedRadio = document.querySelector('input[name="poster_url"]:checked');
-          var imgUrl = checkedRadio ? checkedRadio.value : btn.getAttribute("data-poster-url");
-          if (!imgUrl) return;
+          var imgUrl = checkedRadio ? checkedRadio.value : (btn.getAttribute("data-poster-url") || "");
           var modal = document.getElementById("nf-crop-modal");
           if (!modal) return;
           modal.style.display = "flex";
-          var img = document.getElementById("nf-crop-image");
-          if (!img) return;
-          // 检查是否开启了自动去白边
+          // 重置 dropzone 样式
+          modal.querySelector(".nf-crop-dropzone").classList.remove("drag-over");
+          // 从服务器加载图片
           var trimCb = document.getElementById("auto_trim_white_borders");
           var autoTrim = trimCb ? trimCb.checked : false;
           var cropUrl = "/api/crop-image?url=" + encodeURIComponent(imgUrl) + "&auto_trim=" + (autoTrim ? "1" : "0");
-          img.src = cropUrl;
-          // 销毁之前的 cropper 实例
-          if (_nfCropper) {
-            _nfCropper.destroy();
-            _nfCropper = null;
-          }
-          img.onload = function () {
-            _nfCropper = new Cropper(img, {
-              aspectRatio: NaN,
-              viewMode: 1,
-              dragMode: "crop",
-              autoCrop: true,
-              autoCropArea: 0.8,
-              responsive: true,
-              restore: false,
-              guides: true,
-              center: true,
-              highlight: false,
-              background: true,
-              movable: true,
-              rotatable: false,
-              scalable: false,
-              zoomable: true,
-              zoomOnTouch: true,
-              zoomOnWheel: true,
-            });
-          };
+          _loadImageToCropper(cropUrl);
         };
+
+        // 拖拽支持
+        document.addEventListener("dragenter", function (e) {
+          var dz = document.getElementById("nf-crop-dropzone");
+          if (dz && dz.offsetParent !== null) dz.classList.add("drag-over");
+        });
+        document.addEventListener("dragleave", function (e) {
+          var dz = document.getElementById("nf-crop-dropzone");
+          if (dz && !dz.contains(e.relatedTarget)) dz.classList.remove("drag-over");
+        });
+        document.addEventListener("dragover", function (e) { e.preventDefault(); });
+        document.addEventListener("drop", function (e) {
+          var dz = document.getElementById("nf-crop-dropzone");
+          if (!dz || dz.offsetParent === null) return;
+          e.preventDefault();
+          dz.classList.remove("drag-over");
+          var file = e.dataTransfer.files[0];
+          if (!file || !file.type.startsWith("image/")) return;
+          var reader = new FileReader();
+          reader.onload = function (ev) {
+            _loadImageToCropper(ev.target.result);
+            document.getElementById("nf-crop-drop-hint").textContent = "已加载自定义图片（裁切坐标以当前显示为准）";
+          };
+          reader.readAsDataURL(file);
+        });
+        // 粘贴支持
+        document.addEventListener("paste", function (e) {
+          var dz = document.getElementById("nf-crop-dropzone");
+          if (!dz || dz.offsetParent === null) return;
+          var items = e.clipboardData && e.clipboardData.items;
+          if (!items) return;
+          for (var i = 0; i < items.length; i++) {
+            if (items[i].type.startsWith("image/")) {
+              var blob = items[i].getAsFile();
+              if (!blob) continue;
+              var reader = new FileReader();
+              reader.onload = function (ev) {
+                _loadImageToCropper(ev.target.result);
+                document.getElementById("nf-crop-drop-hint").textContent = "已加载粘贴图片（裁切坐标以当前显示为准）";
+              };
+              reader.readAsDataURL(blob);
+              break;
+            }
+          }
+        });
 
         window.nfCloseCropModal = function () {
           if (_nfCropper) {
@@ -522,6 +561,8 @@
             document.getElementById("crop_h").value = "0";
             var btn = document.getElementById("nf-crop-btn");
             if (btn) { btn.classList.remove("nf-crop-btn-active"); btn.textContent = "选择裁切区域…"; }
+            var preview = document.getElementById("nf-crop-preview");
+            if (preview) { preview.style.display = "none"; preview.src = ""; }
           } else {
             dirPanel.style.display = "none";
             prePanel.style.display = "";
@@ -542,6 +583,13 @@
           if (btn) {
             btn.classList.add("nf-crop-btn-active");
             btn.textContent = "已裁切 " + w + "×" + h;
+          }
+          // 生成预览缩略图
+          var canvas = _nfCropper.getCroppedCanvas({ maxWidth: 80, maxHeight: 80 });
+          var preview = document.getElementById("nf-crop-preview");
+          if (preview && canvas) {
+            preview.src = canvas.toDataURL();
+            preview.style.display = "inline-block";
           }
           window.nfCloseCropModal();
         };

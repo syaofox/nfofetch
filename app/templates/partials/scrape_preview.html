@@ -182,7 +182,10 @@
             </div>
           </div>
           <div id="nf-crop-panel-precise" class="nf-crop-panel" style="display:none">
-            <button type="button" class="nf-crop-btn" id="nf-crop-btn" onclick="window.nfOpenCropModal(this)">选择裁切区域…</button>
+            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+              <button type="button" class="nf-crop-btn" id="nf-crop-btn" onclick="window.nfOpenCropModal(this)">选择裁切区域…</button>
+              <img id="nf-crop-preview" class="nf-crop-preview" style="display:none" />
+            </div>
             <input type="hidden" name="crop_x" id="crop_x" value="0" />
             <input type="hidden" name="crop_y" id="crop_y" value="0" />
             <input type="hidden" name="crop_w" id="crop_w" value="0" />
@@ -277,10 +280,13 @@
     <div class="nf-modal-backdrop" onclick="window.nfCloseCropModal()"></div>
     <div class="nf-modal-box" style="max-width:800px;width:90%">
       <div class="nf-modal-title">精确裁切封面</div>
-      <div class="nf-modal-body" style="text-align:center;">
-        <div style="max-height:60vh;overflow:hidden;">
-          <img id="nf-crop-image" src="" alt="裁切预览" style="max-width:100%;" />
+      <div id="nf-crop-dropzone" class="nf-crop-dropzone">
+        <div class="nf-modal-body" style="text-align:center;">
+          <div style="max-height:60vh;overflow:hidden;">
+            <img id="nf-crop-image" src="" alt="裁切预览" style="max-width:100%;" />
+          </div>
         </div>
+        <div id="nf-crop-drop-hint" class="nf-crop-drop-hint">拖拽图片到此处或 Ctrl+V 粘贴</div>
       </div>
       <div style="display:flex;gap:0.5rem;justify-content:flex-end;padding:0 1.5rem 1rem;">
         <button type="button" class="nf-button nf-button-secondary nf-btn-ripple nf-btn-press" onclick="window.nfCloseCropModal()">取消</button>
