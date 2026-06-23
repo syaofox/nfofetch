@@ -522,8 +522,6 @@
             document.getElementById("crop_h").value = "0";
             var btn = document.getElementById("nf-crop-btn");
             if (btn) { btn.classList.remove("nf-crop-btn-active"); btn.textContent = "选择裁切区域…"; }
-            var hint = document.getElementById("crop-hint");
-            if (hint) hint.style.display = "none";
           } else {
             dirPanel.style.display = "none";
             prePanel.style.display = "";
@@ -540,11 +538,6 @@
           document.getElementById("crop_y").value = Math.round(data.y);
           document.getElementById("crop_w").value = w;
           document.getElementById("crop_h").value = h;
-          var hint = document.getElementById("crop-hint");
-          if (hint) {
-            hint.style.display = "";
-            hint.textContent = "已设置精确裁切区域（" + w + "x" + h + "）。";
-          }
           var btn = document.getElementById("nf-crop-btn");
           if (btn) {
             btn.classList.add("nf-crop-btn-active");
