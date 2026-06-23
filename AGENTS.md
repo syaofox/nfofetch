@@ -99,6 +99,19 @@ HTML 规范规定 `innerHTML` 插入的 `<script>` 不执行。HTMX 内部会主
 |------|------|----------|
 | 测试渲染模板时报 `No filter named 'escapejs'` | `escapejs` 只在 `app/main.py` 中注册，测试中创建的独立 `Jinja2Templates` 实例没有该过滤器 | 改用 `data-*` 属性传值代替 onclick 中内联 JS（如 `data-poster-url="{{ url }}"` → `onclick="fn(this)"` → JS 读 `getAttribute`） |
 
+### 坑 4：`nfSaveSettings()` 读取 HTMX 动态渲染的元素
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| 设置弹窗保存时，覆盖了用户其他偏好 | `nfSaveSettings()` 读取的某些 `id`（如 `#move_to_subdir`）只存在于 HTMX 动态加载的 partial 中，未加载时返回 `null`，代码发 `false` 覆盖了用户已有设置 | 对该类字段用 `?: undefined` 三元守卫：元素不存在时值为 `undefined`，`JSON.stringify` 自动跳过该字段，服务端 `exclude_unset=True` 保留原值 |
+
+**正确做法：**
+```javascript
+move_to_subdir: document.getElementById("move_to_subdir")
+  ? document.getElementById("move_to_subdir").checked
+  : undefined,  // 元素不存在时不发送，避免覆盖已有设置
+```
+
 ### `escapejs` 过滤器
 
 在 `app/main.py` 中注册了自定义 Jinja2 过滤器 `escapejs`，用于安全地将 Python 字符串嵌入 JavaScript 字符串上下文（单/双引号、反斜杠、换行符均被转义）。用法：
@@ -141,6 +154,7 @@ HTML 规范规定 `innerHTML` 插入的 `<script>` 不执行。HTMX 内部会主
 - **`Path.resolve()` 禁用**：FUSE 上 `resolve()` 触发网络 stat 慢，改用 `absolute()`。
 - **自定义上传图片**：`POST /api/upload-poster` 接收文件 → 保存到 `NFOFETCH_BROWSE_ROOT/.nfofetch_uploads/` → 返回本地路径。写入时 `custom_poster_path` 覆盖 `poster_url`，`_download_to_temp` 检测到本地路径直接复制不走 HTTP。
 - **文件浏览器记住的路径**：刮削完成后，服务端自动将 `last_browse_path` 更新为 `result.movie_dir`（`app/main.py:438`），同时内联 `<script>` 将 `#video_path` 输入框更新为新的视频路径（`scrape_result.html:147-156`）。下次打开文件浏览器时自动定位到新目录。
+- **move_to_subdir**：写入后自动将视频移动到子目录。执行顺序：`move_to_subdir` → `rename_format` → `rename_dir`（仅未启用 move_to_subdir 时执行）。子目录名复用 `rename_dir` 格式（空则 `{id}`）。分集检测 `_is_split_base()` 识别 `-CD1`/`-part1`/`_1` 等后缀。设置持久化到 `UserSettings`，通过 checkbox `change` 事件和 `htmx:beforeRequest` 双重自动保存。
 
 ## 架构要点
 
@@ -149,6 +163,7 @@ HTML 规范规定 `innerHTML` 插入的 `<script>` 不执行。HTMX 内部会主
 - **HTML 解析**: `selectolax`；**HTTP 客户端**: 优先 `curl-cffi`，兜底 `httpx`
 - **配置**: `get_settings()` 由 `@lru_cache` 缓存，环境变量 → `Settings` dataclass。部分配置（cookie / serial_writes / lock_enabled / write_delay / max_extra_images / delete_orphan_extrafanart / filter_actor_gender / download_concurrency / auto_trim_white_borders / enabled_scrapers）也可通过 UI 设置页调整，存储于 `UserSettings`（`schemas.py`），通过 `_merge_ui_settings()`（`app/main.py`）合并到 `Settings`，优先于环境变量。
 - **用户偏好**: 重命名格式、最后浏览路径等持久化到 JSON（`settings_service.py`，默认 `~/.config/nfofetch/settings.json`），启动时加载
+- **注意区分 Settings 和 UserSettings**：`Settings`（`config.py`）由环境变量驱动，`UserSettings`（`schemas.py`）由 UI 操作驱动。部分字段（`serial_writes`/`lock_enabled`/`write_delay` 等）通过 `_merge_ui_settings()` 合并到 `Settings` 中统一使用；另一些字段（如 `move_to_subdir`/`rename_format`/`rename_dir`/`last_browse_path`）仅由表单直接传递或 UI 自行读写，不进入 `Settings`。
 
 ## 特殊约定
 
