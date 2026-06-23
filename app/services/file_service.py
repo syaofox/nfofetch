@@ -509,8 +509,29 @@ def save_assets_for_existing_video(
     if settings.lock_enabled:
         lock_acquired = _acquire_dir_lock(movie_dir)
     try:
-        # 1. 重命名视频文件（始终执行，幂等设计）
+        # 1. 先移动到子目录（仅处理选中的视频 + 分集，避免影响同目录其他文件）
         final_video_path = video_path
+        if move_to_subdir:
+            subdir_fmt = (rename_dir or "").strip() or "{id}"
+            if on_progress:
+                on_progress("move_dir", 0, 1, "正在移动到子目录…")
+            try:
+                movie_dir, final_video_path = _move_video_to_subdir(
+                    movie_dir,
+                    video_path,
+                    metadata,
+                    subdir_fmt,
+                    settings,
+                )
+            except OSError as e:
+                return ScrapeResult(
+                    success=False,
+                    message=f"移动到子目录失败：{e}",
+                    metadata=metadata,
+                )
+            _write_delay(settings.write_delay)
+
+        # 2. 重命名视频文件（move_to_subdir 后仅在子目录内操作，不影响其他文件）
         if rename_format and rename_format.strip():
             fmt = rename_format.strip()
             if on_progress:
@@ -523,10 +544,10 @@ def save_assets_for_existing_video(
                         fmt,
                         filter_actor_gender=settings.filter_actor_gender,
                     )
-                    final_video_path = renames.get(video_path, video_path)
+                    final_video_path = renames.get(final_video_path, final_video_path)
                 else:
                     final_video_path = _rename_single_video(
-                        video_path,
+                        final_video_path,
                         metadata,
                         fmt,
                         filter_actor_gender=settings.filter_actor_gender,
@@ -535,27 +556,6 @@ def save_assets_for_existing_video(
                 return ScrapeResult(
                     success=False,
                     message=f"重命名失败：{e}",
-                    metadata=metadata,
-                )
-        _write_delay(settings.write_delay)
-
-        # 2. 移动到子目录（在视频重命名之后、文件夹重命名之前执行）
-        if move_to_subdir:
-            subdir_fmt = (rename_dir or "").strip() or "{id}"
-            if on_progress:
-                on_progress("move_dir", 0, 1, "正在移动到子目录…")
-            try:
-                movie_dir, final_video_path = _move_video_to_subdir(
-                    movie_dir,
-                    final_video_path,
-                    metadata,
-                    subdir_fmt,
-                    settings,
-                )
-            except OSError as e:
-                return ScrapeResult(
-                    success=False,
-                    message=f"移动到子目录失败：{e}",
                     metadata=metadata,
                 )
         _write_delay(settings.write_delay)
