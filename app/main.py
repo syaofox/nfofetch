@@ -291,29 +291,94 @@ async def api_crop_image(
         tmp.unlink(missing_ok=True)
 
 
-@app.post("/api/upload-poster")
-async def api_upload_poster(file: UploadFile = File(...)) -> dict[str, str]:
-    """上传用户自定义的裁切图片，保存到临时目录并返回本地路径。"""
-    base_dir = Path(os.getenv("NFOFETCH_BROWSE_ROOT", os.getcwd())).resolve()
-    upload_dir = base_dir / ".nfofetch_uploads"
-    upload_dir.mkdir(exist_ok=True)
-    suffix = Path(file.filename or "image.jpg").suffix or ".jpg"
+ALLOWED_UPLOAD_EXTENSIONS: set = {".jpg", ".jpeg", ".png", ".webp"}
+MAX_UPLOAD_SIZE: int = 20 * 1024 * 1024  # 20 MB
+
+
+def _cleanup_uploaded(*paths: str | None) -> None:
+    """清理上传的临时文件（写入后删除）。"""
+    for p in paths:
+        if p:
+            try:
+                Path(p).unlink(missing_ok=True)
+            except Exception:
+                logger.warning("清理上传文件失败: %s", p)
+
+
+_UPLOAD_PREFIX = "._nfofetch_upload_"
+
+
+@app.post("/api/upload-image")
+async def api_upload_image(file: UploadFile = File(...)) -> dict[str, str]:
+    """上传用户自定义图片，保存到 /tmp 并返回本地路径。
+
+    支持的文件类型: jpg/jpeg/png/webp，大小限制 20MB。
+    上传文件放在系统临时目录，避免对 FUSE 产生额外写入压力。
+    """
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="仅支持图片文件上传")
+
+    suffix = (Path(file.filename or "image.jpg").suffix or ".jpg").lower()
+    if suffix not in ALLOWED_UPLOAD_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的图片格式: {suffix}，仅支持 jpg/png/webp",
+        )
+
+    content = await file.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=400, detail="图片大小超过 20MB 限制")
+
     tmp = tempfile.NamedTemporaryFile(
-        suffix=suffix, prefix="upload_", dir=str(upload_dir), delete=False
+        suffix=suffix, prefix=_UPLOAD_PREFIX, delete=False
     )
     tmp_path = Path(tmp.name)
     tmp.close()
-    content = await file.read()
     tmp_path.write_bytes(content)
     logger.info("上传自定义图片: %s (%d bytes)", tmp_path, len(content))
-    return {"path": str(tmp_path)}
+
+    serve_url = f"/api/uploaded-image?path={tmp_path}"
+    return {"path": str(tmp_path), "serve_url": serve_url}
+
+
+@app.get("/api/uploaded-image")
+async def serve_uploaded_image(path: str = Query(...)) -> Response:
+    """服务上传到 /tmp 的预览图片（含安全校验）。"""
+    target = Path(path).resolve()
+    tmp_dir = Path(tempfile.gettempdir()).resolve()
+    if not str(target).startswith(str(tmp_dir)):
+        raise HTTPException(status_code=403, detail="路径不在临时目录内")
+    if _UPLOAD_PREFIX not in target.name:
+        raise HTTPException(status_code=403, detail="非法的上传文件")
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="文件不存在")
+    content = target.read_bytes()
+    ext = target.suffix.lower()
+    media_type = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+    }.get(ext, "application/octet-stream")
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Cache-Control": "no-cache", "Access-Control-Allow-Origin": "*"},
+    )
+
+
+# 向后兼容旧端点
+@app.post("/api/upload-poster")
+async def api_upload_poster(file: UploadFile = File(...)) -> dict[str, str]:
+    """向后兼容: 委托给 /api/upload-image。"""
+    return await api_upload_image(file=file)
 
 
 @app.get("/file")
 async def serve_file(path: str = Query(...)) -> FileResponse:
     """服务本地图片文件，路径必须在 NFOFETCH_BROWSE_ROOT 范围内。"""
     base_dir = Path(os.getenv("NFOFETCH_BROWSE_ROOT", os.getcwd())).resolve()
-    target = Path(path).expanduser().resolve()
+    target = (base_dir / path).resolve()
     try:
         target.relative_to(base_dir)
     except ValueError:
@@ -507,6 +572,7 @@ async def scrape(
     crop_w: int = Form(default=0),
     crop_h: int = Form(default=0),
     custom_poster_path: str | None = Form(default=None),
+    custom_fanart_path: str | None = Form(default=None),
     move_to_subdir: bool = Form(default=False),
     rename_format: str | None = Form(default=None),
     rename_dir: str | None = Form(default=None),
@@ -567,6 +633,7 @@ async def scrape(
             if crop_w > 0 and crop_h > 0
             else None,
             custom_poster_path=custom_poster_path,
+            custom_fanart_path=custom_fanart_path,
             move_to_subdir=move_to_subdir,
             rename_format=rename_format or None,
             rename_dir=rename_dir or None,
@@ -581,6 +648,9 @@ async def scrape(
     finally:
         if task_id:
             _update_task(task_id, done=True)
+
+    # 写入完成后清理上传的临时文件
+    _cleanup_uploaded(custom_poster_path, custom_fanart_path)
 
     # 刮削成功后更新文件浏览器记住的路径，使下次打开时定位到新目录
     if result.success and result.movie_dir:

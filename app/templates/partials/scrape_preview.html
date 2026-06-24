@@ -128,7 +128,23 @@
             <code>fanart.jpg</code>（背景图）。如不选择，将使用默认顺序。
           </p>
 
-          <div class="nf-image-grid">
+          <div
+            id="nf-upload-zone"
+            class="nf-upload-zone"
+            onclick="document.getElementById('nf-upload-input').click()"
+          >
+            <input
+              type="file"
+              id="nf-upload-input"
+              accept="image/*"
+              hidden
+              onchange="for (var i=0;i<this.files.length;i++) window.nfUploadImage(this.files[i])"
+            />
+            <span class="nf-upload-zone-icon">+</span>
+            <span class="nf-upload-zone-text">上传自定义图片（点击/拖拽/Ctrl+V）</span>
+          </div>
+
+          <div class="nf-image-grid" id="nf-image-grid">
             {% for img_url in poster_candidates %}
               <div class="nf-image-option">
                 <img
@@ -154,8 +170,28 @@
         </div>
       {% else %}
         {% if metadata %}
-          <p class="nf-hint">未从该页面解析到可用图片，或暂不可用。</p>
+          <p class="nf-hint">未从该页面解析到可用图片，或暂不可用。你也可以自定义上传：</p>
         {% endif %}
+      {% endif %}
+      {% if metadata and not poster_candidates %}
+        <div class="nf-form-group">
+          <div
+            id="nf-upload-zone"
+            class="nf-upload-zone"
+            onclick="document.getElementById('nf-upload-input').click()"
+          >
+            <input
+              type="file"
+              id="nf-upload-input"
+              accept="image/*"
+              hidden
+              onchange="for (var i=0;i<this.files.length;i++) window.nfUploadImage(this.files[i])"
+            />
+            <span class="nf-upload-zone-icon">+</span>
+            <span class="nf-upload-zone-text">上传自定义图片（点击/拖拽/Ctrl+V）</span>
+          </div>
+          <div class="nf-image-grid" id="nf-image-grid"></div>
+        </div>
       {% endif %}
 
       {% if poster_candidates %}
@@ -320,4 +356,68 @@
       </div>
     </div>
   </div>
+
+  <script>
+    window.nfUploadImage = function (file) {
+      if (!file || !file.type.startsWith("image/")) return;
+      var formData = new FormData();
+      formData.append("file", file);
+      fetch("/api/upload-image", { method: "POST", body: formData })
+        .then(function (r) {
+          if (!r.ok) throw new Error("上传失败");
+          return r.json();
+        })
+        .then(function (data) {
+          var grid = document.getElementById("nf-image-grid");
+          if (!grid) return;
+          var div = document.createElement("div");
+          div.className = "nf-image-option";
+          div.innerHTML =
+            '<img src="' + data.serve_url + '" alt="自定义图片" class="nf-image-thumb" />' +
+            '<span class="nf-image-uploaded-badge">上传</span>' +
+            '<div class="nf-image-option-controls">' +
+              '<label class="nf-img-pill"><input type="radio" name="poster_url" value="' + data.path.replace(/"/g, "&quot;") + '" hidden /><span class="nf-img-pill-text">poster</span></label>' +
+              '<label class="nf-img-pill"><input type="radio" name="fanart_url" value="' + data.path.replace(/"/g, "&quot;") + '" hidden /><span class="nf-img-pill-text">fanart</span></label>' +
+            '</div>';
+          grid.appendChild(div);
+        })
+        .catch(function (err) {
+          console.error("上传图片失败:", err);
+          alert("上传图片失败，请重试");
+        });
+    };
+
+    // 拖拽上传
+    (function () {
+      var zone = document.getElementById("nf-upload-zone");
+      if (!zone) return;
+      zone.addEventListener("dragenter", function (e) { e.preventDefault(); zone.classList.add("drag-over"); });
+      zone.addEventListener("dragleave", function (e) { e.preventDefault(); zone.classList.remove("drag-over"); });
+      zone.addEventListener("dragover", function (e) { e.preventDefault(); });
+      zone.addEventListener("drop", function (e) {
+        e.preventDefault();
+        zone.classList.remove("drag-over");
+        for (var i = 0; i < e.dataTransfer.files.length; i++) {
+          window.nfUploadImage(e.dataTransfer.files[i]);
+        }
+      });
+    })();
+
+    // Ctrl+V 粘贴上传
+    document.addEventListener("paste", function (e) {
+      var zone = document.getElementById("nf-upload-zone");
+      if (!zone || zone.offsetParent === null) return;
+      var items = e.clipboardData && e.clipboardData.items;
+      if (!items) return;
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith("image/")) {
+          var blob = items[i].getAsFile();
+          if (blob) {
+            window.nfUploadImage(new File([blob], "pasted.png", { type: blob.type }));
+          }
+          break;
+        }
+      }
+    });
+  </script>
 {% endif %}

@@ -167,7 +167,12 @@ htmx.trigger(form, "submit");
 - **重复刮削检测**：NFO 中 `<source_url>` 或 `<id>` 匹配即有记录；若已有同源记录，仍然重新下载图片并更新 NFO hash（委托 `_write_nfo_and_images` 统一处理，extrafanart 始终并行下载）。
 - **目录锁默认关闭**：`NFOFETCH_LOCK_ENABLED=false`，单人使用不需锁。多用户 Web 场景需开启。可通过环境变量或 UI 设置页调整。
 - **`Path.resolve()` 禁用**：FUSE 上 `resolve()` 触发网络 stat 慢，改用 `absolute()`。
-- **自定义上传图片**：`POST /api/upload-poster` 接收文件 → 保存到 `NFOFETCH_BROWSE_ROOT/.nfofetch_uploads/` → 返回本地路径。写入时 `custom_poster_path` 覆盖 `poster_url`，`_download_to_temp` 检测到本地路径直接复制不走 HTTP。
+- **自定义上传图片**：
+  - `POST /api/upload-image` 接收文件 → 保存到系统 `/tmp`（`._nfofetch_upload_` 前缀）→ 返回 `{"path": "<本地路径>", "serve_url": "/api/uploaded-image?path=..."}`。支持 jpg/png/webp，限 20MB。写入后通过 `_cleanup_uploaded()` 自动清理。
+  - 旧端点 `POST /api/upload-poster` 保留向后兼容，委托给 `upload-image`。
+  - `custom_poster_path` / `custom_fanart_path` 覆盖 `poster_url` / `fanart_url`，`_download_to_temp` 检测到本地路径直接复制不走 HTTP。
+  - 前端上传区显示在候选图片网格上方，支持点击选择/拖拽/Ctrl+V 三种上传方式。上传后自动加入候选网格，用户通过 radio 选择角色（poster/fanart）。
+  - 写入成功后通过 `_cleanup_uploaded()` 自动删除 `/tmp` 中的上传文件。
 - **文件浏览器记住的路径**：刮削完成后，服务端自动将 `last_browse_path` 更新为 `result.movie_dir`（`app/main.py:438`），同时内联 `<script>` 将 `#video_path` 输入框更新为新的视频路径（`scrape_result.html:147-156`）。下次打开文件浏览器时自动定位到新目录。
 - **move_to_subdir**：写入后自动将视频移动到子目录。执行顺序：`move_to_subdir` → `rename_format` → `rename_dir`（仅未启用 move_to_subdir 时执行）。子目录名复用 `rename_dir` 格式（空则 `{id}`）。分集检测 `_is_split_base()` 识别 `-CD1`/`-part1`/`_1` 等后缀。设置持久化到 `UserSettings`，通过 checkbox `change` 事件和 `htmx:beforeRequest` 双重自动保存。
 - **重命名文件数预览**（`POST /api/rename-preview`）：接受 `video_path`/`rename_format`/`move_to_subdir`，返回 `{count: N}`。按钮点击先调此接口检查，`count > 3` 时弹出确认弹窗。关键逻辑：

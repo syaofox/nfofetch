@@ -112,13 +112,15 @@ class TestImageThumbInPreview:
         html = self._render_preview(poster_candidates=candidates)
         for c in candidates:
             assert c in html
-        assert html.count('class="nf-image-thumb"') == len(candidates)
+        # 只统计 <script> 之前的 HTML（排除 JS 字符串字面量）
+        before_script = html.split("<script")[0]
+        assert before_script.count('class="nf-image-thumb"') == len(candidates)
 
     def test_no_images_when_empty(self) -> None:
         """无 poster_candidates 时不应渲染图片。"""
         html = self._render_preview(poster_candidates=[])
-        assert 'class="nf-image-thumb"' not in html
-        assert 'class="nf-image-grid"' not in html
+        before_script = html.split("<script")[0]
+        assert 'class="nf-image-thumb"' not in before_script
 
     def test_image_has_alt_text(self) -> None:
         """每张图片都有 alt 文本。"""
