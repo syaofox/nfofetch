@@ -667,6 +667,11 @@
           while ((m = reNumU.exec(text)) !== null) {
             ids.push(m[1] + "_" + m[2]);
           }
+          // n 前缀番号：n0179 / N0179
+          var reN = /n(\d{2,8})/gi;
+          while ((m = reN.exec(text)) !== null) {
+            ids.push("N" + m[1]);
+          }
           // 去重
           ids = ids.filter(function (v, i) { return ids.indexOf(v) === i; });
 

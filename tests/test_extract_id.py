@@ -27,6 +27,14 @@ class TestExtractIdJs:
         """匹配纯数字番号下划线版（与连字符版不同）。"""
         assert "(\\d{4,})\\s*_\\s*(\\d{2,6})" in self.HTML
 
+    def test_n_prefix_id_regex(self) -> None:
+        """匹配 n 前缀番号 n0179 / N0179。"""
+        assert "/n(\\d{2,8})/gi" in self.HTML
+
+    def test_n_prefix_output_format(self) -> None:
+        """n 前缀番号转大写 N + 原样数字。"""
+        assert 'ids.push("N" + m[1])' in self.HTML
+
     def test_multi_match_popup(self) -> None:
         """多匹配时弹出选择窗口。"""
         assert "nf-id-popup" in self.HTML
