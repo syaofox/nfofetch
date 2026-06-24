@@ -105,7 +105,7 @@ class UserSettings(BaseModel):
     last_browse_path: str = ""
     sort_by: str = "name"
     sort_order: str = "asc"
-    download_concurrency: int = 4
+    download_concurrency: int | None = None
     javdb_cookie: str = ""
     jav321_cookie: str = ""
     serial_writes: bool | None = None

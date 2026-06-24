@@ -97,7 +97,7 @@ class TestUserSettings:
         s = UserSettings()
         assert s.rename_format == "[{actor}][{date}]{id}"
         assert s.last_browse_path == ""
-        assert s.download_concurrency == 4
+        assert s.download_concurrency is None
         assert s.presets == {}
 
     def test_with_presets(self) -> None:
@@ -173,3 +173,18 @@ class TestUserSettings:
         assert d["max_extra_images"] == 16
         restored = UserSettings.model_validate(d)
         assert restored.max_extra_images == 16
+
+    def test_download_concurrency_default(self) -> None:
+        s = UserSettings()
+        assert s.download_concurrency is None
+
+    def test_download_concurrency_round_trip(self) -> None:
+        s = UserSettings(download_concurrency=6)
+        d = s.model_dump()
+        assert d["download_concurrency"] == 6
+        restored = UserSettings.model_validate(d)
+        assert restored.download_concurrency == 6
+
+    def test_download_concurrency_accepts_null(self) -> None:
+        restored = UserSettings.model_validate({"download_concurrency": None})
+        assert restored.download_concurrency is None

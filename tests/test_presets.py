@@ -270,6 +270,46 @@ class TestJavdbCookie:
         assert env_settings.write_delay == 0.0
         assert env_settings.max_extra_images == 8
 
+    def test_merge_enabled_scrapers_overrides_env(self) -> None:
+        """enabled_scrapers 列表应覆盖环境变量。"""
+        from app.config import Settings
+
+        env_settings = Settings(
+            user_agent="test",
+            http_proxy=None,
+            javdb_cookie=None,
+            enabled_scrapers={"javdb"},
+        )
+        with patch(
+            "app.main.load_user_settings",
+            return_value=UserSettings(
+                enabled_scrapers=["javdb", "jav321", "javhoo"],
+            ),
+        ):
+            from app.main import _merge_ui_settings
+
+            _merge_ui_settings(env_settings)
+        assert env_settings.enabled_scrapers == {"javdb", "jav321", "javhoo"}
+
+    def test_merge_enabled_scrapers_none_keeps_env(self) -> None:
+        """enabled_scrapers 为 None 时应保留环境变量。"""
+        from app.config import Settings
+
+        env_settings = Settings(
+            user_agent="test",
+            http_proxy=None,
+            javdb_cookie=None,
+            enabled_scrapers={"javdb"},
+        )
+        with patch(
+            "app.main.load_user_settings",
+            return_value=UserSettings(enabled_scrapers=None),
+        ):
+            from app.main import _merge_ui_settings
+
+            _merge_ui_settings(env_settings)
+        assert env_settings.enabled_scrapers == {"javdb"}
+
     def test_index_template_has_settings_modal(self, client: TestClient) -> None:
         """首页模板应包含 cookie 设置相关元素。"""
         resp = client.get("/")

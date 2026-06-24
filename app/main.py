@@ -352,8 +352,8 @@ def _merge_ui_settings(settings: Settings) -> None:
         if user.download_concurrency is not None:
             settings.download_concurrency = user.download_concurrency
             logger.info(
-                "UI 设置: delete_orphan_extrafanart=%s",
-                settings.delete_orphan_extrafanart,
+                "UI 设置: download_concurrency=%s",
+                settings.download_concurrency,
             )
         if user.auto_trim_white_borders is not None:
             settings.auto_trim_white_borders = user.auto_trim_white_borders

@@ -825,7 +825,7 @@
               var scb = document.getElementById("scraper_" + scraperNames[si]);
               if (scb && scb.checked) enabled.push(scraperNames[si]);
             }
-            return enabled.length === scraperNames.length ? null : enabled;
+            return enabled;
           })(),
         };
         fetch("/api/settings", {

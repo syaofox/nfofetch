@@ -12,7 +12,7 @@ class TestUserSettingsPersistence:
         settings = load_user_settings()
         assert isinstance(settings, UserSettings)
         assert settings.rename_format == "[{actor}][{date}]{id}"
-        assert settings.download_concurrency == 4
+        assert settings.download_concurrency is None
 
     def test_round_trip(self, tmp_path, monkeypatch) -> None:
         settings_path = tmp_path / "settings.json"
