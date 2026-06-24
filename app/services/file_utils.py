@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
-_SHARED_EXECUTOR = ThreadPoolExecutor(max_workers=4)
+_SHARED_EXECUTOR = ThreadPoolExecutor(max_workers=8)
 
 
 def run_with_timeout(

@@ -598,150 +598,36 @@ def save_assets_for_existing_video(
         if reuse:
             if on_progress:
                 on_progress("reuse", 0, 1, "检测到已有同源刮削记录，重新下载图片…")
-            nfo_path = movie_dir / "movie.nfo"
-            poster_path = movie_dir / "poster.jpg"
-            fanart_path = movie_dir / "fanart.jpg"
-            extra_dir = movie_dir / "extrafanart"
-
-            # 读取已有 NFO 获取 URL hash
-            stored_root: ET.Element | None = None
-            nfo_file = movie_dir / "movie.nfo"
-            try:
-                stored_root = ET.parse(nfo_file).getroot()
-            except Exception:
-                logger.warning(
-                    "读取已有 NFO 失败（将重新生成）: %s", nfo_file, exc_info=True
-                )
-
-            # poster：NFO URL hash 检测，不同才重新下载
-            poster_dl_url = poster_url or (
-                str(metadata.posters[0]) if metadata.posters else None
+            nfo_path, poster_path, fanart_path, extra_paths = _write_nfo_and_images(
+                movie_dir=movie_dir,
+                nfo_text=nfo_text,
+                metadata=metadata,
+                settings=settings,
+                poster_url=poster_url,
+                fanart_url=fanart_url,
+                crop_direction=crop_direction,
+                crop_box=crop_box,
+                download_concurrency=download_concurrency,
+                http_timeout=http_timeout,
+                batch_timeout=batch_timeout,
+                existing_names=existing_names,
+                on_progress=on_progress,
             )
-            poster_needs_renew = True
-            if poster_dl_url is not None:
-                stored = _read_nfo_url_hash(stored_root, "poster_url_hash")
-                poster_needs_renew = stored != _url_hash(poster_dl_url)
-            if poster_needs_renew and poster_dl_url:
-                if on_progress:
-                    on_progress("poster", 0, 1, "正在重新下载封面…")
-                _download_image_with_crop(
-                    poster_dl_url,
-                    poster_path,
-                    settings,
-                    crop_direction=crop_direction,
-                    crop_box=crop_box,
-                    http_timeout=http_timeout,
-                )
-
-            # fanart：NFO URL hash 检测，不同才重新下载
-            fanart_dl_url = (
-                fanart_url
-                or (str(metadata.art[0]) if metadata.art else None)
-                or (str(metadata.posters[0]) if metadata.posters else None)
-            )
-            fanart_needs_renew = True
-            if fanart_dl_url is not None:
-                stored = _read_nfo_url_hash(stored_root, "fanart_url_hash")
-                fanart_needs_renew = stored != _url_hash(fanart_dl_url)
-            if fanart_needs_renew and fanart_dl_url:
-                if on_progress:
-                    on_progress("fanart", 0, 1, "正在重新下载背景…")
-                _download_image(
-                    fanart_dl_url, fanart_path, settings, http_timeout=http_timeout
-                )
-
-            # extrafanart：顺序命名，NFO 映射去重，不删除已有
-            extra_dir.mkdir(exist_ok=True)
-            extra_names = _scan_dir_names(extra_dir)
-            art_mapping = _read_nfo_art_mapping(stored_root)
-
-            # 当前页面的 URL hash 集合（用于孤立检测）
-            all_extra: list[str] = []
-            all_extra.extend(str(u) for u in metadata.art)
-            all_extra.extend(str(u) for u in metadata.posters)
-            current_hashes = {_url_hash(u) for u in all_extra}
-
-            # 只保留磁盘上还存在的映射
-            valid_mapping: dict[str, str] = {}
-            for h, fn in art_mapping.items():
-                if fn not in extra_names:
-                    continue
-                if settings.delete_orphan_extrafanart and h not in current_hashes:
-                    continue
-                valid_mapping[h] = fn
-            existing_nums = sorted(
-                int(n.removesuffix(".jpg"))
-                for n in extra_names
-                if n.endswith(".jpg") and n.removesuffix(".jpg").isdigit()
-            )
-            next_idx = (existing_nums[-1] + 1) if existing_nums else 1
-
-            extra_downloads: list[tuple[str, Path]] = []
-            for url in all_extra:
-                h = _url_hash(url)
-                if h in valid_mapping:
-                    continue
-                dest = extra_dir / f"{next_idx:02d}.jpg"
-                extra_downloads.append((url, dest))
-                next_idx += 1
-            total_extra = len(extra_downloads)
-            for i, (url, dest) in enumerate(extra_downloads, 1):
-                if on_progress:
-                    on_progress(
-                        "extrafanart",
-                        i,
-                        total_extra,
-                        f"正在下载剧照 {i}/{total_extra}…",
-                    )
-                _download_image(url, dest, settings, http_timeout=http_timeout)
-
-            extra_images = (
-                sorted(str(p) for p in extra_dir.glob("*.jpg"))
-                if extra_dir.is_dir()
-                else []
-            )
-
-            # 更新 NFO 写入 URL hash
-            root = ET.fromstring(nfo_text)
-            if poster_dl_url:
-                el = ET.SubElement(root, "poster_url_hash")
-                el.text = _url_hash(poster_dl_url)
-            if fanart_dl_url:
-                el = ET.SubElement(root, "fanart_url_hash")
-                el.text = _url_hash(fanart_dl_url)
-            all_art: dict[str, str] = {}
-            all_art.update(valid_mapping)
-            for url, dest in extra_downloads:
-                all_art[_url_hash(url)] = dest.name
-            if settings.delete_orphan_extrafanart:
-                valid = set(all_art.values())
-                logger.info(
-                    "删除孤立剧照(reuse): extra_dir=%s valid=%s", extra_dir, valid
-                )
-                _delete_orphan_extrafanart(extra_dir, valid)
-            for h, fn in all_art.items():
-                el = ET.SubElement(root, "art_url")
-                el.set("hash", h)
-                el.text = fn
-            ET.indent(root)
-            final_nfo = ET.tostring(root, encoding="unicode")
-            _atomic_write_text(nfo_file, final_nfo, delay=settings.write_delay)
-
             return ScrapeResult(
                 success=True,
                 metadata=metadata,
                 movie_dir=str(movie_dir),
                 nfo_path=str(nfo_path),
                 video_path=str(final_video_path),
-                poster_path=str(poster_path) if poster_path.exists() else None,
-                fanart_path=str(fanart_path) if fanart_path.exists() else None,
-                extra_images=extra_images,
+                poster_path=str(poster_path) if poster_path else None,
+                fanart_path=str(fanart_path) if fanart_path else None,
+                extra_images=[str(p) for p in extra_paths],
                 chosen_poster_url=poster_url,
                 chosen_fanart_url=fanart_url,
             )
 
         # 5. 正常写入 NFO + 图片
-        nfo_path, poster_path, fanart_path, extra_paths = _write_nfo_and_images(  # type: ignore[assignment]
+        nfo_path, poster_path, fanart_path, extra_paths = _write_nfo_and_images(
             movie_dir=movie_dir,
             nfo_text=nfo_text,
             metadata=metadata,

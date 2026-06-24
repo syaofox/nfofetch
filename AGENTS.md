@@ -164,7 +164,7 @@ htmx.trigger(form, "submit");
 ## 文件操作约定
 
 - **临时文件放 `/tmp`**：`tempfile.NamedTemporaryFile(prefix="._nfofetch_")` + `shutil.move` 到目标目录，避免网盘同步工具上传扫描到半成品。
-- **重复刮削检测**：NFO 中 `<source_url>` 或 `<id>` 匹配即有记录；若已有同源记录，仍然重新下载图片并更新 NFO hash。
+- **重复刮削检测**：NFO 中 `<source_url>` 或 `<id>` 匹配即有记录；若已有同源记录，仍然重新下载图片并更新 NFO hash（委托 `_write_nfo_and_images` 统一处理，extrafanart 始终并行下载）。
 - **目录锁默认关闭**：`NFOFETCH_LOCK_ENABLED=false`，单人使用不需锁。多用户 Web 场景需开启。可通过环境变量或 UI 设置页调整。
 - **`Path.resolve()` 禁用**：FUSE 上 `resolve()` 触发网络 stat 慢，改用 `absolute()`。
 - **自定义上传图片**：`POST /api/upload-poster` 接收文件 → 保存到 `NFOFETCH_BROWSE_ROOT/.nfofetch_uploads/` → 返回本地路径。写入时 `custom_poster_path` 覆盖 `poster_url`，`_download_to_temp` 检测到本地路径直接复制不走 HTTP。
@@ -181,7 +181,7 @@ htmx.trigger(form, "submit");
 - **入口**: `app/main.py`（FastAPI）、`app/cli.py`（CLI）
 - **刮削器注册**: `app/scrapers/registry.py` — 新增站点注册到 `SCRAPERS` 列表
 - **HTML 解析**: `selectolax`；**HTTP 客户端**: 优先 `curl-cffi`，兜底 `httpx`
-- **配置**: `get_settings()` 由 `@lru_cache` 缓存，环境变量 → `Settings` dataclass。部分配置（cookie / serial_writes / lock_enabled / write_delay / max_extra_images / delete_orphan_extrafanart / filter_actor_gender / download_concurrency / auto_trim_white_borders / enabled_scrapers）也可通过 UI 设置页调整，存储于 `UserSettings`（`schemas.py`），通过 `_merge_ui_settings()`（`app/main.py`）合并到 `Settings`，优先于环境变量。
+- **配置**: `get_settings()` 由 `@lru_cache` 缓存，环境变量 → `Settings` dataclass（`frozen=True`，不可变）。部分配置（cookie / serial_writes / lock_enabled / write_delay / max_extra_images / delete_orphan_extrafanart / filter_actor_gender / download_concurrency / auto_trim_white_borders / enabled_scrapers）也可通过 UI 设置页调整，存储于 `UserSettings`（`schemas.py`），通过 `_merge_ui_settings()`（`app/main.py`）合并后**返回新 `Settings` 实例**，不修改缓存单例，保证线程安全。
 - **用户偏好**: 重命名格式、最后浏览路径等持久化到 JSON（`settings_service.py`，默认 `~/.config/nfofetch/settings.json`），启动时加载
 - **注意区分 Settings 和 UserSettings**：`Settings`（`config.py`）由环境变量驱动，`UserSettings`（`schemas.py`）由 UI 操作驱动。部分字段（`serial_writes`/`lock_enabled`/`write_delay` 等）通过 `_merge_ui_settings()` 合并到 `Settings` 中统一使用；另一些字段（如 `move_to_subdir`/`rename_format`/`rename_dir`/`last_browse_path`）仅由表单直接传递或 UI 自行读写，不进入 `Settings`。
 - **重名前确认**：`rename_utils.py` 新增 `_count_files_to_rename` / `_count_split_group` / `_strip_split_suffix`，`main.py` 新增 `POST /api/rename-preview` 供前端写入前预览计数。详见「文件操作约定」。

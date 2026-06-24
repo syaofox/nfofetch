@@ -72,7 +72,16 @@ def test_cache_hit() -> None:
     assert s1 is s2
 
 
-def test_dataclass_immutable_like() -> None:
+def test_dataclass_frozen() -> None:
+    """Settings 应为 frozen dataclass，赋值时抛出 FrozenInstanceError。"""
+    import dataclasses
+
+    settings = get_settings()
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        settings.http_timeout = 999  # type: ignore[misc]
+
+
+def test_dataclass_is_settings() -> None:
     settings = get_settings()
     assert isinstance(settings, Settings)
     assert settings.http_timeout == 20

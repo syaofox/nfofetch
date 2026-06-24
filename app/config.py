@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 
 
-@dataclass
+@dataclass(frozen=True)
 class Settings:
     """应用基础配置。
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import dataclasses
 import functools
 import logging
 import urllib.parse
@@ -88,6 +89,7 @@ templates.env.filters["escapejs"] = _jinja_escapejs
 templates.env.filters["urlencode"] = urllib.parse.quote
 
 # 后台刮削任务进度存储（内存）
+MAX_SCRAPE_TASKS = 50
 scrape_tasks: dict[str, dict[str, Any]] = {}
 scrape_tasks_lock = threading.Lock()
 
@@ -261,7 +263,7 @@ async def api_crop_image(
     用于精确裁切弹窗中展示图片（避免 CORS 问题，并支持 auto_trim 预处理）。
     """
     settings = get_settings()
-    _merge_ui_settings(settings)
+    settings = _merge_ui_settings(settings)
     from app.services.image_utils import _download_to_temp
 
     tmp = _download_to_temp(url, settings)
@@ -321,54 +323,60 @@ async def serve_file(path: str = Query(...)) -> FileResponse:
     return FileResponse(target)
 
 
-def _merge_ui_settings(settings: Settings) -> None:
-    """从 UserSettings 合并 UI 设置（优先于环境变量）。"""
+def _merge_ui_settings(settings: Settings) -> Settings:
+    """从 UserSettings 合并 UI 设置（优先于环境变量），返回新的 Settings 实例。
+
+    原始 settings 不会被修改，保证线程安全。
+    """
     try:
         user = load_user_settings()
+        kwargs: dict[str, Any] = {}
         if user.javdb_cookie:
-            settings.javdb_cookie = user.javdb_cookie
+            kwargs["javdb_cookie"] = user.javdb_cookie
         if user.jav321_cookie:
-            settings.jav321_cookie = user.jav321_cookie
+            kwargs["jav321_cookie"] = user.jav321_cookie
         if user.serial_writes is not None:
-            settings.serial_writes = user.serial_writes
+            kwargs["serial_writes"] = user.serial_writes
         if user.lock_enabled is not None:
-            settings.lock_enabled = user.lock_enabled
+            kwargs["lock_enabled"] = user.lock_enabled
         if user.write_delay is not None:
-            settings.write_delay = user.write_delay
+            kwargs["write_delay"] = user.write_delay
         if user.max_extra_images is not None:
-            settings.max_extra_images = user.max_extra_images
+            kwargs["max_extra_images"] = user.max_extra_images
         if user.delete_orphan_extrafanart is not None:
-            settings.delete_orphan_extrafanart = user.delete_orphan_extrafanart
+            kwargs["delete_orphan_extrafanart"] = user.delete_orphan_extrafanart
             logger.info(
                 "UI 设置: delete_orphan_extrafanart=%s",
-                settings.delete_orphan_extrafanart,
+                user.delete_orphan_extrafanart,
             )
         if user.filter_actor_gender is not None:
-            settings.filter_actor_gender = user.filter_actor_gender
+            kwargs["filter_actor_gender"] = user.filter_actor_gender
             logger.info(
                 "UI 设置: filter_actor_gender=%s",
-                settings.filter_actor_gender,
+                user.filter_actor_gender,
             )
         if user.download_concurrency is not None:
-            settings.download_concurrency = user.download_concurrency
+            kwargs["download_concurrency"] = user.download_concurrency
             logger.info(
                 "UI 设置: download_concurrency=%s",
-                settings.download_concurrency,
+                user.download_concurrency,
             )
         if user.auto_trim_white_borders is not None:
-            settings.auto_trim_white_borders = user.auto_trim_white_borders
+            kwargs["auto_trim_white_borders"] = user.auto_trim_white_borders
             logger.info(
                 "UI 设置: auto_trim_white_borders=%s",
-                settings.auto_trim_white_borders,
+                user.auto_trim_white_borders,
             )
         if user.enabled_scrapers is not None:
-            settings.enabled_scrapers = set(user.enabled_scrapers)
+            kwargs["enabled_scrapers"] = set(user.enabled_scrapers)
             logger.info(
                 "UI 设置: enabled_scrapers=%s",
-                settings.enabled_scrapers,
+                user.enabled_scrapers,
             )
+        return dataclasses.replace(settings, **kwargs)
     except Exception:
         logger.warning("合并 UI 设置失败", exc_info=True)
+        return settings
 
 
 @app.post("/scrape/fetch", response_class=HTMLResponse)
@@ -385,7 +393,7 @@ async def scrape_fetch(
     - 番号/关键字：先搜索影片，用户选择后再刮取
     """
     settings = get_settings()
-    _merge_ui_settings(settings)
+    settings = _merge_ui_settings(settings)
     error: str | None = None
     metadata = None
     poster_candidates: list[str] = []
@@ -439,7 +447,7 @@ async def search_and_select(
 ) -> HTMLResponse:
     """搜索影片并显示结果列表供用户选择。"""
     settings = get_settings()
-    _merge_ui_settings(settings)
+    settings = _merge_ui_settings(settings)
     error: str | None = None
     results: list = []
 
@@ -465,16 +473,24 @@ async def search_and_select(
 async def create_scrape_task() -> dict[str, str]:
     """创建刮削任务，返回 task_id。"""
     _cleanup_stale_tasks()
+    with scrape_tasks_lock:
+        active = sum(1 for t in scrape_tasks.values() if not t.get("done"))
+        if active >= MAX_SCRAPE_TASKS:
+            raise HTTPException(
+                status_code=503,
+                detail=f"刮削任务队列已满（上限 {MAX_SCRAPE_TASKS}），请等待当前任务完成",
+            )
     task_id = str(uuid.uuid4())
-    scrape_tasks[task_id] = {
-        "phase": "preparing",
-        "current": 0,
-        "total": 0,
-        "detail": "正在准备…",
-        "done": False,
-        "error": None,
-        "created_at": time.monotonic(),
-    }
+    with scrape_tasks_lock:
+        scrape_tasks[task_id] = {
+            "phase": "preparing",
+            "current": 0,
+            "total": 0,
+            "detail": "正在准备…",
+            "done": False,
+            "error": None,
+            "created_at": time.monotonic(),
+        }
     return {"task_id": task_id}
 
 
@@ -502,7 +518,7 @@ async def scrape(
     优先使用前端传回的 metadata_b64（预览时已抓取），避免重复 HTTP 请求。
     """
     settings = get_settings()
-    _merge_ui_settings(settings)
+    settings = _merge_ui_settings(settings)
     if task_id:
         _update_task(task_id, phase="preparing", current=0, total=0, detail="正在准备…")
 
@@ -512,6 +528,10 @@ async def scrape(
                 base64.b64decode(metadata_b64.encode()).decode()
             )
         else:
+            logger.warning(
+                "metadata_b64 缺失，需要重新刮取 URL（可能使用了过期的预览缓存）: %s",
+                url,
+            )
             metadata = scrape_movie(url, settings=settings)
         nfo_text = build_movie_nfo(metadata)
 
