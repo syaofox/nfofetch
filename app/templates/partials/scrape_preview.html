@@ -403,21 +403,5 @@
       });
     })();
 
-    // Ctrl+V 粘贴上传
-    document.addEventListener("paste", function (e) {
-      var zone = document.getElementById("nf-upload-zone");
-      if (!zone || zone.offsetParent === null) return;
-      var items = e.clipboardData && e.clipboardData.items;
-      if (!items) return;
-      for (var i = 0; i < items.length; i++) {
-        if (items[i].type.startsWith("image/")) {
-          var blob = items[i].getAsFile();
-          if (blob) {
-            window.nfUploadImage(new File([blob], "pasted.png", { type: blob.type }));
-          }
-          break;
-        }
-      }
-    });
   </script>
 {% endif %}

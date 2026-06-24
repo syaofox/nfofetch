@@ -528,33 +528,40 @@
           };
           reader.readAsDataURL(file);
         });
-        // 粘贴支持
+        // 粘贴支持（裁剪弹窗或上传区）
         document.addEventListener("paste", function (e) {
-          var dz = document.getElementById("nf-crop-dropzone");
-          if (!dz || dz.offsetParent === null) return;
           var items = e.clipboardData && e.clipboardData.items;
           if (!items) return;
+          // 检测是裁剪弹窗模式还是上传区模式
+          var dz = document.getElementById("nf-crop-dropzone");
+          var zone = document.getElementById("nf-upload-zone");
+          var isCrop = dz && dz.offsetParent !== null;
+          var isUpload = zone && zone.offsetParent !== null;
+          if (!isCrop && !isUpload) return;
           for (var i = 0; i < items.length; i++) {
             if (items[i].type.startsWith("image/")) {
               var blob = items[i].getAsFile();
               if (!blob) continue;
-              var reader = new FileReader();
-              reader.onload = function (ev) {
-                _loadImageToCropper(ev.target.result);
-                // 粘贴的图片无法直接上传，需要先用 File 包装
-                var pasteFile = new File([blob], "pasted.png", { type: blob.type });
-                var formData = new FormData();
-                formData.append("file", pasteFile);
-                fetch("/api/upload-poster", { method: "POST", body: formData })
-                  .then(function (r) { return r.json(); })
-                  .then(function (data) {
-                    if (data.path) {
-                      document.getElementById("custom_poster_path").value = data.path;
-                    }
-                  })
-                  .catch(function () {});
-              };
-              reader.readAsDataURL(blob);
+              if (isCrop) {
+                var reader = new FileReader();
+                reader.onload = function (ev) {
+                  _loadImageToCropper(ev.target.result);
+                  var pasteFile = new File([blob], "pasted.png", { type: blob.type });
+                  var formData = new FormData();
+                  formData.append("file", pasteFile);
+                  fetch("/api/upload-poster", { method: "POST", body: formData })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                      if (data.path) {
+                        document.getElementById("custom_poster_path").value = data.path;
+                      }
+                    })
+                    .catch(function () {});
+                };
+                reader.readAsDataURL(blob);
+              } else {
+                window.nfUploadImage(new File([blob], "pasted.png", { type: blob.type }));
+              }
               break;
             }
           }

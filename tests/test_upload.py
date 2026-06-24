@@ -81,6 +81,7 @@ class TestUploadImageAPI:
         assert resp.status_code == 200
         data = resp.json()
         import tempfile
+
         tmp_dir = Path(tempfile.gettempdir()).resolve()
         expected_prefix = f"/api/uploaded-image?path={tmp_dir}/._nfofetch_upload_"
         assert data["serve_url"].startswith(expected_prefix)
