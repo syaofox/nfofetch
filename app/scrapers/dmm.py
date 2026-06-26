@@ -27,10 +27,11 @@ _CID_RE = re.compile(r"(?:cid=|id=)([a-z0-9_]+)", re.IGNORECASE)
 
 
 class DmmScraper(BaseScraper):
-    """video.dmm.co.jp (FANZA) 站点刮削实现。
+    """DMM / FANZA (dmm.co.jp) 站点刮削实现。
 
-    DMM 新站点基于 Next.js，使用 Tailwind CSS 类名（不稳定），
-    因此解析策略基于页面文本中的稳定标签（如「配信開始日」「収録時間」等）。
+    - 搜索：www.dmm.co.jp （全站搜索，结果更全）
+    - 详情页：video.dmm.co.jp （Playwright 渲染 JS）
+    解析策略基于页面文本中的稳定标签（如「配信開始日」「収録時間」等）。
     """
 
     name = "dmm"

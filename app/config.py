@@ -14,7 +14,7 @@ class Settings:
     - NFOFETCH_HTTP_PROXY : HTTP 代理，例如 http://127.0.0.1:7890
     - NFOFETCH_JAVDB_COOKIE: 访问 javdb 时使用的 Cookie（含 cf_clearance 等）
     - NFOFETCH_JAV321_COOKIE: 访问 jav321 时使用的 Cookie
-    - NFOFETCH_DMM_COOKIE: 访问 video.dmm.co.jp (FANZA) 时使用的 Cookie（含 age_check_done 等）
+    - NFOFETCH_DMM_COOKIE: 访问 dmm.co.jp (FANZA) 时使用的 Cookie（含 age_check_done 等）
     - NFOFETCH_JAVDB_MIRROR: javdb 镜像域名（默认 javdb565.com）
     - NFOFETCH_MAX_EXTRA_IMAGES: extrafanart 最大保存数量（默认 8，设为 0 完全禁用）
     - NFOFETCH_HTTP_TIMEOUT: 单个 HTTP 请求超时秒数（默认 20）
