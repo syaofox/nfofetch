@@ -729,6 +729,10 @@
             if (jcInput && data.jav321_cookie) {
               jcInput.value = data.jav321_cookie;
             }
+            var dcInput = document.getElementById("dmm_cookie");
+            if (dcInput && data.dmm_cookie) {
+              dcInput.value = data.dmm_cookie;
+            }
             var serialCb = document.getElementById("serial_writes");
             if (serialCb && data.serial_writes !== null) {
               serialCb.checked = data.serial_writes;
@@ -805,6 +809,13 @@
         }
       };
 
+      window.nfToggleDmmCookieVisibility = function () {
+        var input = document.getElementById("dmm_cookie");
+        if (input) {
+          input.type = input.type === "password" ? "text" : "password";
+        }
+      };
+
       window.nfSaveSettings = function () {
         var cookieInput = document.getElementById("javdb_cookie");
         var jcInput = document.getElementById("jav321_cookie");
@@ -821,6 +832,7 @@
         var body = {
           javdb_cookie: cookieInput ? cookieInput.value : "",
           jav321_cookie: jcInput ? jcInput.value : "",
+          dmm_cookie: document.getElementById("dmm_cookie") ? document.getElementById("dmm_cookie").value : "",
           serial_writes: serialCb ? serialCb.checked : false,
           lock_enabled: lockCb ? lockCb.checked : false,
           write_delay: wd && wd.value !== "" ? parseFloat(wd.value) : null,
@@ -831,7 +843,7 @@
           download_concurrency: dc && dc.value !== "" ? parseInt(dc.value, 10) : null,
           move_to_subdir: document.getElementById("move_to_subdir") ? document.getElementById("move_to_subdir").checked : undefined,
           enabled_scrapers: (function () {
-            var scraperNames = ["javdb", "jav321", "javhoo"];
+            var scraperNames = ["javdb", "jav321", "javhoo", "dmm"];
             var enabled = [];
             for (var si = 0; si < scraperNames.length; si++) {
               var scb = document.getElementById("scraper_" + scraperNames[si]);
@@ -890,6 +902,10 @@
               var jc = document.getElementById("jav321_cookie");
               if (jc && data.jav321_cookie) {
                 jc.value = data.jav321_cookie;
+              }
+              var dc = document.getElementById("dmm_cookie");
+              if (dc && data.dmm_cookie) {
+                dc.value = data.dmm_cookie;
               }
             })
             .catch(function () {});

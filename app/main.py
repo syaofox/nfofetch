@@ -400,6 +400,8 @@ def _merge_ui_settings(settings: Settings) -> Settings:
             kwargs["javdb_cookie"] = user.javdb_cookie
         if user.jav321_cookie:
             kwargs["jav321_cookie"] = user.jav321_cookie
+        if user.dmm_cookie:
+            kwargs["dmm_cookie"] = user.dmm_cookie
         if user.serial_writes is not None:
             kwargs["serial_writes"] = user.serial_writes
         if user.lock_enabled is not None:

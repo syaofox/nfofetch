@@ -101,6 +101,14 @@
               <button type="button" class="nf-button nf-button-secondary nf-btn-ripple nf-btn-press" onclick="nfToggleJav321CookieVisibility()" title="显示/隐藏">👁</button>
             </div>
           </div>
+          <div class="nf-settings-group">
+            <label for="dmm_cookie" class="nf-settings-label">DMM / FANZA Cookie</label>
+            <p class="nf-settings-desc">从浏览器 F12 → Application → Cookies 复制完整 Cookie 字符串（video.dmm.co.jp 需要）。</p>
+            <div class="nf-settings-cookie-row">
+              <input type="password" id="dmm_cookie" class="nf-input nf-settings-cookie-input" placeholder="Cookie 字符串" autocomplete="off" />
+              <button type="button" class="nf-button nf-button-secondary nf-btn-ripple nf-btn-press" onclick="nfToggleDmmCookieVisibility()" title="显示/隐藏">👁</button>
+            </div>
+          </div>
         </div>
 
         <hr class="nf-settings-divider" />
@@ -126,6 +134,13 @@
               <input type="checkbox" id="scraper_javhoo" class="nf-toggle-input" checked />
               <span class="nf-toggle-track"><span class="nf-toggle-knob"></span></span>
               <span class="nf-toggle-label">JavHoo</span>
+            </label>
+          </div>
+          <div class="nf-settings-group">
+            <label class="nf-toggle" for="scraper_dmm">
+              <input type="checkbox" id="scraper_dmm" class="nf-toggle-input" checked />
+              <span class="nf-toggle-track"><span class="nf-toggle-knob"></span></span>
+              <span class="nf-toggle-label">DMM/FANZA</span>
             </label>
           </div>
         </div>

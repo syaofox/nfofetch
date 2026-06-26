@@ -54,7 +54,9 @@ uv run uvicorn app.main:app --reload  # 开发服务器
 - **`UserSettings`**（`schemas.py`）: UI 驱动，持久化到 JSON
 - 合并：`_merge_ui_settings()` 返回**新实例**，不修改缓存单例，保证线程安全
 - UI 可覆盖的字段：`cookie / serial_writes / lock_enabled / write_delay / max_extra_images / delete_orphan_extrafanart / filter_actor_gender / download_concurrency / auto_trim_white_borders / enabled_scrapers`
+- DMM Cookie 字段名：`dmm_cookie`（环境变量 `NFOFETCH_DMM_COOKIE`）
 - 另一些字段仅表单传递：`move_to_subdir / rename_format / rename_dir / last_browse_path`
+- **DMM (video.dmm.co.jp)**：Next.js 站点，CSS 类名不稳定，解析策略基于页面文本中的稳定标签（`配信開始日`、`収録時間` 等），不依赖 CSS 选择器
 
 ### NFO
 

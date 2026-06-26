@@ -32,9 +32,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# 安装 ffprobe，用于提取视频分辨率
+# 安装 ffprobe（视频分辨率）和 Chromium 系统依赖（Playwright 浏览器）
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg && \
+    apt-get install -y --no-install-recommends \
+        ffmpeg \
+        ca-certificates \
+        fonts-freefont-ttf \
+        libnss3 libnspr4 libatk-bridge2.0-0 libdrm2 libxkbcommon0 \
+        libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2 \
+        libpango-1.0-0 libcairo2 && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -42,11 +48,16 @@ WORKDIR /app
 # 拷贝构建阶段的虚拟环境（与 runtime 同一 Python 版本，路径兼容）
 COPY --from=builder /app/.venv /app/.venv
 
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PATH="/app/.venv/bin:$PATH" \
+    PLAYWRIGHT_BROWSERS_PATH=/app/.playwright-browsers
+
+# 安装 Playwright Chromium 浏览器（用于 DMM 站点 JS 渲染）
+RUN playwright install chromium && \
+    chmod -R o+rX /app/.playwright-browsers
 
 # 拷贝应用代码 + 版本信息
-COPY app app
 COPY pyproject.toml .
+COPY app app
 
 # 入口脚本：启动时自动创建 /config、检查权限、设置 HOME
 COPY docker-entrypoint.sh /docker-entrypoint.sh

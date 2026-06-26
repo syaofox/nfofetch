@@ -108,6 +108,7 @@ class UserSettings(BaseModel):
     download_concurrency: int | None = None
     javdb_cookie: str = ""
     jav321_cookie: str = ""
+    dmm_cookie: str = ""
     serial_writes: bool | None = None
     lock_enabled: bool | None = None
     write_delay: float | None = None

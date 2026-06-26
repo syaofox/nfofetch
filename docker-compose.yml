@@ -20,6 +20,8 @@ services:
       # javdb Cookie（推荐改用 .env 文件管理，避免敏感信息进 git）
       # 注意：值不要加引号，YAML 的 - KEY=value 格式中引号会被当做值的一部分
       - NFOFETCH_JAVDB_COOKIE=theme=auto; over18=1; list_mode=v; _ym_uid=178178079810187426; _ym_d=1781780798; _ym_isad=2; _rucaptcha_session_id=f5ce662311e81466dd1485cef6ed16db; cf_clearance=eoEtBmhv4_rf.mXo0MZ3R2lLuhpAs1ks18s_L0HM.qQ-1782111992-1.2.1.1-.PxkMkV5e.Qv93oF9XA52b7_7_ZWpPYwUpIlwHqRcgBzIXCk2S2k_hdmPCm_UzDYZ3FEv43qvy5bMHaIlbPFhJsHUZkYTcUiYgYUMdOD2hnphhNWTDp_dcuaTTSW22zSk_khLRSvOpcYyuHOrzl_kuPye5yTlYVkPmvNiuCPhUIb_xrWIUeVK8LnEKMxqMu.2u7rAjrmw.d6Sr8pZgcJd.0c9jo2mpwxprxWUWxrhki5oz7K3nW3y3Ao7N7i6Y2Jx.TcdrZmDV9f.EN_nVVgz8UjVfZ_1sd.UpsL69uW3QfVqkqINJDXDMOAV6VK_Ba15mL3JNz9i53DHOzw7EKu3g; redirect_to=%2Fv%2Fbq7bA; remember_me_token=eyJfcmFpbHMiOnsibWVzc2FnZSI6IklqWnhUWGREZFVKNFptMWphSFpoYjNkNFlXRkVJZz09IiwiZXhwIjoiMjAyNi0wNi0yOVQwNzowNzo1NS4wMDBaIiwicHVyIjoiY29va2llLnJlbWVtYmVyX21lX3Rva2VuIn19--e741c485cd9776f41641a4958054b4447261e11e; locale=zh-CN; _jdb_session=NdIeHTQZ1m0QjyYcOHkxMJyzQBT9kS0gM9wHb4knrpPCJ8ZnpRjsxpvsrjeKxj7jBDBYMy5KPkUjj%2FGPidEk7JpXFWu%2F5qbAwgsmLF7Bb8w%2FEP6RVIn3DgjyuTLd%2BTpcc8paw1qK53xm07FjlD1IevzooInqxSPEDwWcSnG08Z3xwjfwmm3VnJxVyyj79rJehK%2BmfY1dPZwHNM784UrOdOA9bpQHJWWkSM2qrm4UnTLjp0WY7rUqNATM8ZLkwKbtgRf33FT9pFeWjdz0n0eHt1QlMR3wgVjZ61BY2%2Fi1gQuWTeYtMJSIivFgmghl3uHrXNsUjbUGt53sjeqyeo8wCafMBk%2FawEjeWqTds11MrdZQumt4r%2FDoHYFMTY6bhqzkKow%3D--Gh6Vt8iw2vdmmBxy--WvqdcDLetfUei%2BtK9Vovgw%3D%3D
+      # 可选：DMM / FANZA Cookie（需要包含 age_check_done=1）
+      # - NFOFETCH_DMM_COOKIE=age_check_done=1; ckcy=1
       # 可选：jav321 Cookie
       # - NFOFETCH_JAV321_COOKIE=
       # 可选：javdb 镜像域名，默认 javdb565.com。镜像变动时无需改代码。
