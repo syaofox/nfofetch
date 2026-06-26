@@ -24,7 +24,13 @@ def get_enabled_scrapers(enabled_names: set[str] | None = None) -> list[BaseScra
     """返回启用的 scraper 列表。enabled_names 为 None 时返回全部。"""
     if enabled_names is None:
         return list(SCRAPERS)
-    return [s for s in SCRAPERS if s.name in enabled_names]
+    # dmm 开启时自动包含 dmm_legacy（旧站），反之亦然
+    expanded = set(enabled_names)
+    if "dmm" in enabled_names:
+        expanded.add("dmm_legacy")
+    if "dmm_legacy" in enabled_names:
+        expanded.add("dmm")
+    return [s for s in SCRAPERS if s.name in expanded]
 
 
 def get_scraper(url: str, enabled_names: set[str] | None = None) -> BaseScraper:
