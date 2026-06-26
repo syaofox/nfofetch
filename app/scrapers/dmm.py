@@ -685,30 +685,54 @@ class DmmLegacyScraper(BaseScraper):
     def _parse_images(self, tree: HTMLParser, base_url: str) -> tuple[list[str], list[str]]:
         """从旧站页面提取 poster 和样本图 URL。
 
-        旧站路径：https://pics.dmm.co.jp/mono/movie/{cid}/{cid}pl.jpg
+        旧站图片路径格式多样：
+        - mono/movie/{cid}/{cid}pl.jpg      （租赁）
+        - mono/movie/adult/{cid}/{cid}pl.jpg（DVD/通贩）
+        - digital/video/{base_cid}/{base_cid}-N.jpg （样本图，用 base_cid）
         """
         cid_match = re.search(r"cid=([a-z0-9_]+)", base_url, re.I)
-        cid = cid_match.group(1).lower() if cid_match else ""
+        raw_cid = cid_match.group(1).lower() if cid_match else ""
+        # 样本图通常使用无后缀的基础 CID（如 118abp880 而非 118abp880r）
+        base_cid = re.sub(r"[a-z]+$", "", raw_cid) if raw_cid else ""
         posters: list[str] = []
         art: list[str] = []
+        seen: set[str] = set()
 
-        # 从页面中找图片链接
-        for img in tree.css("img[src]"):
-            src = img.attributes.get("src") or ""
-            if not cid or cid not in src:
+        def _add(url: str, is_poster: bool) -> None:
+            clean = re.sub(r"\?.*$", "", url)
+            if not clean.startswith("http"):
+                clean = f"https:{clean}"
+            if clean in seen:
+                return
+            seen.add(clean)
+            if is_poster:
+                posters.append(clean)
+            else:
+                art.append(clean)
+
+        # 从 <a href> 和 <img src> 收集图片
+        for tag in tree.css("a[href], img[src]"):
+            src = (tag.attributes.get("href") or tag.attributes.get("src") or "")
+            if "pics.dmm.co.jp" not in src:
                 continue
-            if "pl.jpg" in src or "ps.jpg" in src:
-                if not posters:
-                    posters.append(src if src.startswith("http") else f"https:{src}")
-            if src.endswith(".jpg") and cid in src:
-                url = src if src.startswith("http") else f"https:{src}"
-                if url not in art and url not in posters:
-                    art.append(url)
+            if raw_cid and raw_cid in src:
+                if "pl.jpg" in src or "ps.jpg" in src:
+                    _add(src, is_poster=True)
+                elif re.search(r"-\d+\.jpg$", src):
+                    _add(src, is_poster=False)
+            # 用 base_cid 匹配样本图（如租赁页 118abp880r 引用 118abp880-1.jpg）
+            if base_cid and base_cid != raw_cid and base_cid in src:
+                if re.search(r"-\d+\.jpg$", src):
+                    _add(src, is_poster=False)
 
-        # 兜底：构造默认 URL
-        if not posters and cid:
-            base = f"https://pics.dmm.co.jp/mono/movie/{cid}/{cid}"
-            posters.append(f"{base}pl.jpg")
+        # 兜底：构造默认 poster URL
+        if not posters and raw_cid:
+            for path in (f"mono/movie/adult/{raw_cid}/{raw_cid}", f"mono/movie/{raw_cid}/{raw_cid}"):
+                url = f"https://pics.dmm.co.jp/{path}pl.jpg"
+                if url not in seen:
+                    posters.append(url)
+                    seen.add(url)
+                    break
         if not art:
             art = list(posters)
         return posters, art
