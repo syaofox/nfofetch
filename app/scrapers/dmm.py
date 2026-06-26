@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import atexit
 import json
 import logging
 import re
+import threading
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urljoin, urlparse
@@ -24,6 +26,53 @@ except ImportError:  # pragma: no cover
 logger = logging.getLogger(__name__)
 
 _CID_RE = re.compile(r"(?:cid=|id=)([a-z0-9_]+)", re.IGNORECASE)
+
+# Playwright 浏览器单例（懒启动，跨请求复用）
+_PLAYWRIGHT_LOCK = threading.Lock()
+_PLAYWRIGHT_INSTANCE = None
+_BROWSER_INSTANCE = None
+
+
+def _get_browser():
+    """获取或创建 Playwright 浏览器实例（线程安全）。"""
+    global _PLAYWRIGHT_INSTANCE, _BROWSER_INSTANCE
+    if _BROWSER_INSTANCE is not None:
+        return _BROWSER_INSTANCE
+    with _PLAYWRIGHT_LOCK:
+        if _BROWSER_INSTANCE is not None:
+            return _BROWSER_INSTANCE
+        _PLAYWRIGHT_INSTANCE = sync_playwright()
+        _PLAYWRIGHT_INSTANCE.__enter__()
+        _BROWSER_INSTANCE = _PLAYWRIGHT_INSTANCE.chromium.launch(
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+            ],
+        )
+    return _BROWSER_INSTANCE
+
+
+def _cleanup_browser():
+    """应用退出时关闭浏览器。"""
+    global _PLAYWRIGHT_INSTANCE, _BROWSER_INSTANCE
+    if _BROWSER_INSTANCE is not None:
+        try:
+            _BROWSER_INSTANCE.close()
+        except Exception:
+            pass
+        _BROWSER_INSTANCE = None
+    if _PLAYWRIGHT_INSTANCE is not None:
+        try:
+            _PLAYWRIGHT_INSTANCE.__exit__(None, None, None)
+        except Exception:
+            pass
+        _PLAYWRIGHT_INSTANCE = None
+
+
+atexit.register(_cleanup_browser)
 
 
 class DmmScraper(BaseScraper):
@@ -46,7 +95,7 @@ class DmmScraper(BaseScraper):
     def _request_page(
         self, url: str, settings: Settings, timeout: int | None = None
     ) -> str:
-        """使用 Playwright 无头浏览器渲染 DMM 页面（Next.js 需要 JS 执行）。
+        """使用 Playwright 浏览器渲染 DMM 页面（浏览器进程复用，避免反复启停）。
 
         Playwright Sync API 不能在 asyncio 事件循环中直接使用，因此在
         检测到事件循环时自动切换到线程池执行。
@@ -57,64 +106,53 @@ class DmmScraper(BaseScraper):
             )
 
         def _run() -> str:
-            with sync_playwright() as p:
-                browser = p.chromium.launch(
-                    headless=True,
-                    args=[
-                        "--no-sandbox",
-                        "--disable-setuid-sandbox",
-                        "--disable-dev-shm-usage",
-                        "--disable-gpu",
-                    ],
-                )
+            browser = _get_browser()
+            timeout_ms = (timeout or settings.http_timeout) * 1000
+            context = browser.new_context(
+                user_agent=settings.user_agent,
+                locale="ja-JP",
+                timezone_id="Asia/Tokyo",
+            )
+            try:
+                if settings.dmm_cookie:
+                    for pair in settings.dmm_cookie.split(";"):
+                        pair = pair.strip()
+                        if "=" in pair:
+                            name, value = pair.split("=", 1)
+                            context.add_cookies(
+                                [
+                                    {
+                                        "name": name.strip(),
+                                        "value": value.strip(),
+                                        "domain": ".dmm.co.jp",
+                                        "path": "/",
+                                    }
+                                ]
+                            )
+                if settings.http_proxy:
+                    context.set_default_navigation_timeout(timeout_ms)
+
+                page = context.new_page()
+                page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+
                 try:
-                    timeout_ms = (timeout or settings.http_timeout) * 1000
-                    context = browser.new_context(
-                        user_agent=settings.user_agent,
-                        locale="ja-JP",
-                        timezone_id="Asia/Tokyo",
+                    page.wait_for_selector(
+                        "text=配信開始日",
+                        timeout=min(timeout_ms or 30000, 20000),
                     )
-                    if settings.dmm_cookie:
-                        for pair in settings.dmm_cookie.split(";"):
-                            pair = pair.strip()
-                            if "=" in pair:
-                                name, value = pair.split("=", 1)
-                                context.add_cookies(
-                                    [
-                                        {
-                                            "name": name.strip(),
-                                            "value": value.strip(),
-                                            "domain": ".dmm.co.jp",
-                                            "path": "/",
-                                        }
-                                    ]
-                                )
-                    if settings.http_proxy:
-                        context.set_default_navigation_timeout(timeout_ms)
+                except Exception:
+                    logger.warning("DMM: 等待 配信開始日 超时，内容可能不完整")
 
-                    page = context.new_page()
-                    page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
-
-                    try:
-                        page.wait_for_selector(
-                            "text=配信開始日",
-                            timeout=min(timeout_ms or 30000, 20000),
-                        )
-                    except Exception:
-                        logger.warning("DMM: 等待 配信開始日 超时，内容可能不完整")
-
-                    page.wait_for_timeout(3000)
-                    return page.content()
-                finally:
-                    browser.close()
+                page.wait_for_timeout(3000)
+                return page.content()
+            finally:
+                context.close()
 
         try:
             asyncio.get_running_loop()
-            # 在事件循环中 → 使用线程池
             future = self._PW_EXECUTOR.submit(_run)
             return future.result()
         except RuntimeError:
-            # 没有事件循环 → 直接运行
             return _run()
 
     def _extract_cid(self, url: str) -> str | None:
