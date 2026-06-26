@@ -134,14 +134,41 @@ class DmmScraper(BaseScraper):
         metadata.source_url = url  # type: ignore[assignment]
         return metadata
 
+    @staticmethod
+    def _to_dmm_cid(query: str) -> str | None:
+        """将番号格式 KAVR-501 转为 DMM CID 格式 kavr00501。"""
+        m = re.match(r"^([A-Za-z]+)[-_](\d{2,6})$", query.strip())
+        if not m:
+            return None
+        prefix = m.group(1).lower()
+        num = m.group(2)
+        # DMM CID 数字部分固定 5 位（不足补零）
+        cid_num = num.zfill(5)
+        return f"{prefix}{cid_num}"
+
     def search(self, query: str, settings: Settings) -> list[SearchResult]:
-        """搜索影片，使用 video.dmm.co.jp 的列表页面。"""
+        """搜索影片，使用 video.dmm.co.jp 的列表页面。
+
+        自动将番号格式（KAVR-501）转为 DMM CID 格式（kavr00501）重试。
+        """
         search_url = (
             "https://video.dmm.co.jp/av/list/"
             f"?key={urllib.parse.quote(query)}&sort=date"
         )
         html = self._request_page(search_url, settings)
-        return self._parse_search_results(html, base_url=search_url)
+        results = self._parse_search_results(html, base_url=search_url)
+
+        if not results:
+            cid = self._to_dmm_cid(query)
+            if cid and cid != query.lower().replace("-", "").replace("_", ""):
+                search_url2 = (
+                    "https://video.dmm.co.jp/av/list/"
+                    f"?key={urllib.parse.quote(cid)}&sort=date"
+                )
+                html2 = self._request_page(search_url2, settings)
+                results = self._parse_search_results(html2, base_url=search_url2)
+
+        return results
 
     @staticmethod
     def _extract_next_data(tree: HTMLParser) -> dict | None:
