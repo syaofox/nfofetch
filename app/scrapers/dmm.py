@@ -134,106 +134,14 @@ class DmmScraper(BaseScraper):
         metadata.source_url = url  # type: ignore[assignment]
         return metadata
 
-    @staticmethod
-    def _to_dmm_cid(query: str) -> str | None:
-        """将番号格式 KAVR-501 转为 DMM CID 格式 kavr00501。"""
-        m = re.match(r"^([A-Za-z]+)[-_](\d{2,6})$", query.strip())
-        if not m:
-            return None
-        prefix = m.group(1).lower()
-        num = m.group(2)
-        # DMM CID 数字部分固定 5 位（不足补零）
-        cid_num = num.zfill(5)
-        return f"{prefix}{cid_num}"
-
-    def _search_global(self, query: str) -> str:
-        """www.dmm.co.jp 全站搜索 URL（结果更全）。"""
-        return (
-            "https://www.dmm.co.jp/search/"
-            f"/=/searchstr={urllib.parse.quote(query)}/limit=30/sort=date/"
-        )
-
-    def _search_floor(self, query: str) -> str:
-        """video.dmm.co.jp 搜索结果页 URL（新站点，仅数字视频）。"""
-        return (
-            "https://video.dmm.co.jp/av/list/"
-            f"?key={urllib.parse.quote(query)}&sort=date"
-        )
-
-    @staticmethod
-    def _rental_cid_to_digital(raw_cid: str) -> tuple[str | None, str | None]:
-        """将租赁/DVD 版 CID 转为数字视频 CID。
-
-        如 5421ksd051r → ksd + 051（零填充至5位）→ ksd00051
-        返回 (digital_cid, original_number)
-        若 CID 不包含 maker+数字模式则返回 (None, None)。
-        """
-        m = re.search(r"(?:^|\d+)([A-Za-z]+)(\d+)", raw_cid)
-        if not m:
-            return None, None
-        maker = m.group(1).lower()
-        num = m.group(2)
-        cid_num = num.zfill(5)
-        return f"{maker}{cid_num}", num
-
-    def _find_cid_in_links(self, html: str) -> tuple[str | None, str, str | None]:
-        """在搜索结果中查找数字视频的 CID。
-
-        优先找 /digital/video/-/detail/=/cid=XXX/（数字视频），
-        其次找 /detail/=/cid=XXX/（租赁/DVD 版，自动转数字 CID）。
-        返回 (digital_cid, content_url, raw_cid_for_html_search)。
-        """
-        tree = HTMLParser(html)
-        for sel in (
-            'a[href*="/digital/video/-/detail/=/cid="]',
-            'a[href*="/detail/=/cid="]',
-        ):
-            for a in tree.css(sel):
-                href = a.attributes.get("href") or ""
-                m = re.search(r"cid=([a-z0-9_]+)", href, re.I)
-                if m:
-                    raw_cid = m.group(1).lower()
-                    if "/digital/" in href or "/mono/" in href:
-                        cid = raw_cid
-                    else:
-                        digital, _ = self._rental_cid_to_digital(raw_cid)
-                        cid = digital if digital else raw_cid
-                    content_url = (
-                        f"https://video.dmm.co.jp/av/content/?id={cid}"
-                    )
-                    return cid, content_url, raw_cid
-        return None, "", None
-
     def search(self, query: str, settings: Settings) -> list[SearchResult]:
-        """搜索影片。
-
-        优先使用旧站 /digital/video/ 搜索（结果更全，支持更多番号格式），
-        找到 CID 后映射到 video.dmm.co.jp 的 content URL。
-        兜底使用 video.dmm.co.jp 列表页搜索。
-        """
-        # 1. 旧站搜索
-        url1 = self._search_global(query)
-        html1 = self._request_page(url1, settings)
-        cid, content_url, raw_cid = self._find_cid_in_links(html1)
-        if cid:
-            html_search_cid = raw_cid if raw_cid else cid
-            results = self._parse_search_results(
-                html1,
-                base_url=url1,
-                known_cid=cid,
-                known_url=content_url,
-                html_search_cid=html_search_cid,
-            )
-            if results:
-                return results
-
-        # 2. 番号格式（KAVR-501）转 CID（kavr00501）
-        search_key = self._to_dmm_cid(query) or query
-
-        # 3. 新站点列表页兜底
-        url2 = self._search_floor(search_key)
-        html2 = self._request_page(url2, settings)
-        return self._parse_search_results(html2, base_url=url2)
+        """搜索影片，使用 www.dmm.co.jp 全站搜索。"""
+        url = (
+            "https://www.dmm.co.jp/search/"
+            f"/=/searchstr={urllib.parse.quote(query)}/limit=30/sort=rankprofile/"
+        )
+        html = self._request_page(url, settings)
+        return self._parse_search_results(html, base_url=url)
 
     @staticmethod
     def _extract_next_data(tree: HTMLParser) -> dict | None:
@@ -662,72 +570,50 @@ class DmmScraper(BaseScraper):
             node = node.parent
         return None
 
-    def _parse_search_results(
-        self,
-        html: str,
-        base_url: str,
-        known_cid: str | None = None,
-        known_url: str | None = None,
-        html_search_cid: str | None = None,
-    ) -> list[SearchResult]:
+    def _parse_search_results(self, html: str, base_url: str) -> list[SearchResult]:
+        """解析搜索结果，兼容旧站（cid=）和新站（content/?id=）格式。"""
         tree = HTMLParser(html)
         seen_urls: set[str] = set()
         results: list[SearchResult] = []
 
-        # 旧站搜索：从 /digital/video/-/detail/=/cid=XXX/ 链接提取
-        search_cid = html_search_cid or known_cid or ""
-        if known_cid and known_url:
-            best_title = ""
-            best_a = None
-            for a in tree.css(f'a[href*="cid={search_cid}"]'):
-                title = (a.text(strip=True) or "").strip()
-                if not title or len(title) < 5:
-                    continue
-                # 优先选最短的纯标题（无类别前缀如 DVD 旧作）
-                if not best_title or len(title) < len(best_title):
-                    best_title = title
-                    best_a = a
-            if best_title:
-                number = self._cid_to_number(known_cid)
-                poster_url = self._find_search_poster(best_a)  # type: ignore[arg-type]
-                results.append(
-                    SearchResult(
-                        title=best_title,
-                        number=number,
-                        url=known_url,
-                        poster_url=poster_url,
-                    )
-                )
-                seen_urls.add(known_url)
+        # 旧站：a[href*="cid="]
+        for a in tree.css('a[href*="cid="]'):
+            href = a.attributes.get("href") or ""
+            m = re.search(r"cid=([a-z0-9_]+)", href, re.I)
+            if not m:
+                continue
+            raw_cid = m.group(1).lower()
+            title = (a.text(strip=True) or "").strip()
+            if not title or len(title) < 5:
+                continue
+            content_url = (
+                f"https://video.dmm.co.jp/av/content/?id={raw_cid}"
+            )
+            if content_url in seen_urls:
+                continue
+            seen_urls.add(content_url)
+            number = self._cid_to_number(raw_cid)
+            poster_url = self._find_search_poster(a)
+            results.append(SearchResult(
+                title=title, number=number, url=content_url, poster_url=poster_url,
+            ))
 
-        # 新站搜索 / 兜底：从 content/?id= 链接提取
+        # 新站：a[href*="content/?id="]
         for a in tree.css('a[href*="content/?id="]'):
             href = a.attributes.get("href") or ""
             title = a.text(strip=True) or ""
             if not title:
                 continue
-
-            video_url = self._abspath_url(href, base_url)
+            video_url = href if href.startswith("http") else self._abspath_url(href, base_url)
             if video_url in seen_urls:
                 continue
             seen_urls.add(video_url)
-
-            number: str | None = None
             cid_match = re.search(r"content/\?id=([a-z0-9_]+)", href)
-            if cid_match:
-                number = self._cid_to_number(cid_match.group(1))
-
+            number = self._cid_to_number(cid_match.group(1)) if cid_match else None
             poster_url = self._find_search_poster(a)
-
-            results.append(
-                SearchResult(
-                    title=title or number or "Unknown",
-                    number=number,
-                    url=video_url,
-                    poster_url=poster_url,
-                    date=None,
-                )
-            )
+            results.append(SearchResult(
+                title=title, number=number, url=video_url, poster_url=poster_url,
+            ))
 
         return results
 

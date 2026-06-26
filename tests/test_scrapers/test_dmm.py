@@ -48,9 +48,9 @@ _SEARCH_PAGE = """<!DOCTYPE html>
 <body>
 <main>
 <div>
-<a href="https://video.dmm.co.jp/av/content/?id=kavr00501&amp;i3_ref=list&amp;i3_ord=1">【VR】test1</a>
-<a href="https://video.dmm.co.jp/av/content/?id=sone00614">sone-614 title</a>
-<a href="https://video.dmm.co.jp/av/content/?id=ssis00123">ssis-123 title</a>
+<a href="https://www.dmm.co.jp/digital/video/-/detail/=/cid=kavr00501/?i3_ref=search&amp;i3_ord=1">KAVR-501 title</a>
+<a href="https://www.dmm.co.jp/rental/ppr/-/detail/=/cid=sone00614/?i3_ref=search">SONE-614 title</a>
+<a href="https://www.dmm.co.jp/rental/-/detail/=/cid=ssis00123/">SSIS-123 title</a>
 </div>
 </main>
 </body>
@@ -269,7 +269,7 @@ class TestParseSearchResults:
         )
         assert len(results) >= 1
         found = {r.number for r in results if r.number}
-        assert "SONE-614" in found or "SSIS-123" in found
+        assert "KAVR-501" in found or "SONE-614" in found
 
     def test_empty_search(self) -> None:
         results = self.scraper._parse_search_results(
