@@ -75,6 +75,54 @@ def _cleanup_browser():
 
 atexit.register(_cleanup_browser)
 
+_PW_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="playwright")
+
+
+def _fetch_page(url: str, settings: Settings, has_http_timeout: bool = False) -> str:
+    """公共方法：用 Playwright 渲染页面（浏览器进程复用）。
+
+    供 DmmScraper 和 DmmLegacyScraper 共用。
+    """
+    if not _HAS_PLAYWRIGHT:
+        raise RuntimeError(
+            "DMM 刮削需要 Playwright。请运行: uv sync && uv run playwright install chromium"
+        )
+
+    def _run() -> str:
+        browser = _get_browser()
+        timeout_ms = settings.http_timeout * 1000
+        context = browser.new_context(
+            user_agent=settings.user_agent,
+            locale="ja-JP",
+            timezone_id="Asia/Tokyo",
+        )
+        try:
+            if settings.dmm_cookie:
+                for pair in settings.dmm_cookie.split(";"):
+                    pair = pair.strip()
+                    if "=" in pair:
+                        name, value = pair.split("=", 1)
+                        context.add_cookies([{
+                            "name": name.strip(), "value": value.strip(),
+                            "domain": ".dmm.co.jp", "path": "/",
+                        }])
+            if settings.http_proxy:
+                context.set_default_navigation_timeout(timeout_ms)
+
+            page = context.new_page()
+            page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+            try:
+                page.wait_for_selector("text=配信開始日", timeout=min(timeout_ms, 20000))
+            except Exception:
+                logger.warning("DMM: 等待 配信開始日 超时，内容可能不完整")
+            page.wait_for_timeout(3000)
+            return page.content()
+        finally:
+            context.close()
+
+    future = _PW_EXECUTOR.submit(_run)
+    return future.result()
+
 
 class DmmScraper(BaseScraper):
     """DMM / FANZA (dmm.co.jp) 站点刮削实现。
@@ -91,67 +139,10 @@ class DmmScraper(BaseScraper):
         host = parsed.netloc.lower()
         return "dmm.co.jp" in host or "dmm.com" in host
 
-    _PW_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="playwright")
-
     def _request_page(
         self, url: str, settings: Settings, timeout: int | None = None
     ) -> str:
-        """使用 Playwright 浏览器渲染 DMM 页面（浏览器进程复用，避免反复启停）。
-
-        Playwright Sync API 不能在 asyncio 事件循环中直接使用，因此在
-        检测到事件循环时自动切换到线程池执行。
-        """
-        if not _HAS_PLAYWRIGHT:
-            raise RuntimeError(
-                "DMM 刮削需要 Playwright。请运行: uv sync && uv run playwright install chromium"
-            )
-
-        def _run() -> str:
-            browser = _get_browser()
-            timeout_ms = (timeout or settings.http_timeout) * 1000
-            context = browser.new_context(
-                user_agent=settings.user_agent,
-                locale="ja-JP",
-                timezone_id="Asia/Tokyo",
-            )
-            try:
-                if settings.dmm_cookie:
-                    for pair in settings.dmm_cookie.split(";"):
-                        pair = pair.strip()
-                        if "=" in pair:
-                            name, value = pair.split("=", 1)
-                            context.add_cookies(
-                                [
-                                    {
-                                        "name": name.strip(),
-                                        "value": value.strip(),
-                                        "domain": ".dmm.co.jp",
-                                        "path": "/",
-                                    }
-                                ]
-                            )
-                if settings.http_proxy:
-                    context.set_default_navigation_timeout(timeout_ms)
-
-                page = context.new_page()
-                page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
-
-                try:
-                    page.wait_for_selector(
-                        "text=配信開始日",
-                        timeout=min(timeout_ms or 30000, 20000),
-                    )
-                except Exception:
-                    logger.warning("DMM: 等待 配信開始日 超时，内容可能不完整")
-
-                page.wait_for_timeout(3000)
-                return page.content()
-            finally:
-                context.close()
-
-        # Playwright 所有操作集中在同一线程（线程池），避免跨线程使用浏览器
-        future = self._PW_EXECUTOR.submit(_run)
-        return future.result()
+        return _fetch_page(url, settings)
 
     def _extract_cid(self, url: str) -> str | None:
         """从 URL 中提取 content ID。"""
@@ -609,12 +600,8 @@ class DmmScraper(BaseScraper):
 
     @staticmethod
     def _to_digital_cid(raw_cid: str) -> str:
-        """将租赁/DVD 版 CID（118abp880r）转为数字视频 CID（abp00880）。
-
-        规则：去掉尾部 r 后缀，提取 maker 字母+数字部分，
-        数字零填充至 5 位。
-        """
-        cleaned = raw_cid.rstrip("r")
+        """将租赁/DVD 版 CID（118abp880r）转为数字视频 CID（abp00880）。"""
+        cleaned = raw_cid.rstrip("r").lstrip("0123456789")
         m = re.search(r"([A-Za-z]+)(\d+)$", cleaned)
         if not m:
             return raw_cid
@@ -628,7 +615,7 @@ class DmmScraper(BaseScraper):
         seen_urls: set[str] = set()
         results: list[SearchResult] = []
 
-        # 旧站：a[href*="cid="]
+        # 旧站：a[href*="cid="] — 提取 CID 转成 video.dmm.co.jp URL
         for a in tree.css('a[href*="cid="]'):
             href = a.attributes.get("href") or ""
             m = re.search(r"cid=([a-z0-9_]+)", href, re.I)
@@ -639,16 +626,14 @@ class DmmScraper(BaseScraper):
             if not title or len(title) < 5:
                 continue
             digital_cid = self._to_digital_cid(raw_cid)
-            content_url = (
-                f"https://video.dmm.co.jp/av/content/?id={digital_cid}"
-            )
-            if content_url in seen_urls:
+            video_url = f"https://video.dmm.co.jp/av/content/?id={digital_cid}"
+            if video_url in seen_urls:
                 continue
-            seen_urls.add(content_url)
+            seen_urls.add(video_url)
             number = self._cid_to_number(digital_cid)
             poster_url = self._find_search_poster(a)
             results.append(SearchResult(
-                title=title, number=number, url=content_url, poster_url=poster_url,
+                title=title, number=number, url=video_url, poster_url=poster_url,
             ))
 
         # 新站：a[href*="content/?id="]
@@ -686,3 +671,168 @@ class DmmScraper(BaseScraper):
             num = str(int(m.group(2))).zfill(3)
             return f"{m.group(1)}-{num}".upper()
         return cid.upper()
+
+
+class DmmLegacyScraper(BaseScraper):
+    """旧站 www.dmm.co.jp (rental/DVD) 站点刮削实现。
+
+    老站（rental/DVD）页面结构与新站 video.dmm.co.jp 不同，
+    标签名、布局均有差异，需要独立解析。
+    """
+
+    name = "dmm_legacy"
+
+    def supports(self, url: str) -> bool:
+        parsed = urlparse(url)
+        host = parsed.netloc.lower()
+        if "dmm.co.jp" not in host and "dmm.com" not in host:
+            return False
+        # 旧站：排除 video.dmm.co.jp（由 DmmScraper 处理）
+        return "video." not in host
+
+    @staticmethod
+    def _images_from_cid(base_url: str) -> tuple[list[str], list[str]]:
+        """从 CID 构造默认 poster 和 art URL（旧站没有内嵌图片时兜底）。"""
+        cid_match = re.search(r"cid=([a-z0-9_]+)|content/\?id=([a-z0-9_]+)", base_url, re.I)
+        cid = (cid_match.group(1) or cid_match.group(2)).lower() if cid_match else ""
+        posters: list[str] = []
+        art: list[str] = []
+        if cid:
+            posters.append(f"https://pics.dmm.co.jp/digital/video/{cid}/{cid}pl.jpg")
+            art.append(f"https://pics.dmm.co.jp/digital/video/{cid}/{cid}pl.jpg")
+        return posters, art
+
+    def scrape(self, url: str, settings: Settings) -> MovieMetadata:
+        html = _fetch_page(url, settings)
+        tree = HTMLParser(html)
+        metadata = self._parse_metadata(tree, url)
+        metadata.source_url = url  # type: ignore[assignment]
+        return metadata
+
+    def _parse_metadata(self, tree: HTMLParser, base_url: str) -> MovieMetadata:
+        raw_html = tree.html or ""
+        page_text = DmmScraper._strip_html(raw_html) if raw_html else ""
+
+        number = self._parse_number(page_text, raw_html)
+        main_title = self._parse_title(raw_html)
+        title = f"{number} {main_title}" if number and main_title else (main_title or number or "Unknown Title")
+
+        premiered = self._parse_premiered(page_text)
+        runtime = self._parse_runtime(page_text)
+        genres = self._parse_genres(page_text)
+        actors = self._parse_actors(page_text)
+        studio, label, series = self._parse_companies(page_text)
+        rating = self._parse_rating(page_text)
+        posters, art = self._images_from_cid(base_url)
+        plot = self._parse_plot(page_text)
+
+        return MovieMetadata(
+            title=title,
+            number=number,
+            plot=plot,
+            year=int(premiered.split("-")[0]) if premiered and "-" in premiered else None,
+            premiered=premiered,
+            releasedate=premiered,
+            runtime=runtime,
+            genres=genres,
+            actors=actors,
+            studio=studio,
+            label=label,
+            series=series,
+            directors=[],
+            rating=rating,
+            posters=posters,
+            art=art,
+        )
+
+    @staticmethod
+    def _parse_title(page_text: str) -> str | None:
+        m = re.search(r"<title[^>]*>(.*?)</title>", page_text, re.DOTALL | re.IGNORECASE)
+        if m:
+            title = m.group(1).strip()
+            for sep in ("｜", "|", " - "):
+                if sep in title:
+                    title = title.split(sep)[0]
+            return title or None
+        return None
+
+    @staticmethod
+    def _parse_number(page_text: str, raw_html: str | None = None) -> str | None:
+        _text = page_text or raw_html or ""
+        m = re.search(r"品番[：:]\s*([^\s<]+)", _text)
+        if m:
+            return m.group(1).strip()
+        return None
+
+    @staticmethod
+    def _parse_premiered(page_text: str) -> str | None:
+        for label in ("商品発売日", "発売日"):
+            m = re.search(re.escape(label) + r"[：:]\s*(\d{4})/(\d{2})/(\d{2})", page_text)
+            if m:
+                return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+        return None
+
+    @staticmethod
+    def _parse_runtime(page_text: str) -> int | None:
+        m = re.search(r"収録時間[：:]\s*(\d+)分", page_text)
+        if m:
+            try:
+                return int(m.group(1))
+            except ValueError:
+                return None
+        return None
+
+    @staticmethod
+    def _parse_genres(page_text: str) -> list[str]:
+        genres: list[str] = []
+        in_genres = False
+        for line in page_text.split("\n"):
+            s = line.strip()
+            if "ジャンル" in s and "：" in s:
+                in_genres = True
+                continue
+            if in_genres:
+                if s and any(s.startswith(lb) for lb in ("配信品番", "メーカー", "シリーズ", "AV女優")):
+                    break
+                if s and s not in genres:
+                    genres.append(s)
+        return genres
+
+    @staticmethod
+    def _parse_actors(page_text: str) -> list[Actor]:
+        m = re.search(r"出演者[：:][\s　]*\n([\s\S]+?)(?=\n\n|\n[^\s\n]+[：:]|\Z)", page_text)
+        if m:
+            raw = m.group(1)
+            return [Actor(name=n.strip("、，,")) for n in re.findall(r"[^\s　]+", raw) if n.strip("、，,")]
+        return []
+
+    @staticmethod
+    def _parse_companies(page_text: str) -> tuple[str | None, str | None, str | None]:
+        studio = label = series = None
+        m = re.search(r"メーカー[：:]\s*([^\n<]+)", page_text)
+        if m:
+            studio = m.group(1).strip()
+        m = re.search(r"レーベル[：:]\s*([^\n<]+)", page_text)
+        if m:
+            label = m.group(1).strip()
+        m = re.search(r"シリーズ[：:]\s*([^\n<]+)", page_text)
+        if m:
+            series = m.group(1).strip()
+        return studio, label, series
+
+    @staticmethod
+    def _parse_rating(page_text: str) -> float | None:
+        m = re.search(r"平均評価[：:][\s　]*([\d.]+)", page_text)
+        if m:
+            try:
+                return float(m.group(1))
+            except ValueError:
+                return None
+        return None
+
+    @staticmethod
+    def _parse_plot(page_text: str) -> str | None:
+        m = re.search(r"商品説明[：:][\s　]*\n([\s\S]+?)(?=\n\n|\Z)", page_text)
+        if m:
+            return m.group(1).strip() or None
+        return None
