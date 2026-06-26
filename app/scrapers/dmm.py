@@ -409,17 +409,18 @@ class DmmScraper(BaseScraper):
 
     def _parse_actors(self, page_text: str) -> list[Actor]:
         actors: list[Actor] = []
-        m = re.search(
-            r"出演者[：:][\s　]*\n([\s\S]+?)(?=\n\n|\n\S+[：:]|\Z)", page_text
-        )
-        if not m:
-            m = re.search(r"出演者[：:][\s　]*(.+?)(?=\s*[^\s]+\s*：)", page_text)
-        if m:
-            raw = m.group(1)
-            for name in re.findall(r"[^\s　]+", raw.strip()):
-                name_clean = name.strip("、，,")
-                if name_clean:
-                    actors.append(Actor(name=name_clean))
+        for pat in (
+            r"出演者[：:][\s　]*\n([\s\S]+?)(?=\n\s*[^\s\n]+[：:]|\Z)",
+            r"出演者[：:][\s　]*(.+?)(?=\s*[^\s]+\s*：)",
+        ):
+            m = re.search(pat, page_text)
+            if m:
+                raw = m.group(1)
+                for name in re.findall(r"[^\s　]+", raw.strip()):
+                    name_clean = name.strip("、，,-")
+                    if name_clean and "：" not in name_clean and ":" not in name_clean:
+                        actors.append(Actor(name=name_clean))
+                break
         return actors
 
     def _parse_companies(
@@ -822,25 +823,36 @@ class DmmLegacyScraper(BaseScraper):
     @staticmethod
     def _parse_genres(page_text: str) -> list[str]:
         genres: list[str] = []
-        in_genres = False
-        for line in page_text.split("\n"):
+        lines = page_text.split("\n")
+        for i, line in enumerate(lines):
             s = line.strip()
-            if "ジャンル" in s and "：" in s:
-                in_genres = True
+            if "ジャンル" not in s or "：" not in s:
                 continue
-            if in_genres:
-                if s and any(s.startswith(lb) for lb in ("配信品番", "メーカー", "シリーズ", "AV女優")):
-                    break
-                if s and s not in genres:
-                    genres.append(s)
+            if "ジャンルから探す" in s or "ジャンル一覧" in s:
+                continue
+            # 提取 "ジャンル：" 后面的内容（可能在下一行）
+            rest = re.sub(r"^.*?ジャンル[：:][\s　]*", "", s)
+            if not rest.strip() and i + 1 < len(lines):
+                rest = lines[i + 1].strip()
+            if rest:
+                for g in re.split(r"\s*&nbsp;\s*|\s{2,}", rest):
+                    g = g.strip()
+                    if g and g not in genres:
+                        genres.append(g)
+            break
         return genres
 
     @staticmethod
     def _parse_actors(page_text: str) -> list[Actor]:
-        m = re.search(r"出演者[：:][\s　]*\n([\s\S]+?)(?=\n\n|\n[^\s\n]+[：:]|\Z)", page_text)
+        m = re.search(r"出演者[：:][\s　]*\n([\s\S]+?)(?=\n\s*[^\s\n]+[：:]|\Z)", page_text)
         if m:
             raw = m.group(1)
-            return [Actor(name=n.strip("、，,")) for n in re.findall(r"[^\s　]+", raw) if n.strip("、，,")]
+            result = []
+            for name in re.findall(r"[^\s　]+", raw.strip()):
+                name_clean = name.strip("、，,-")
+                if name_clean and "：" not in name_clean and ":" not in name_clean and "----" not in name_clean:
+                    result.append(Actor(name=name_clean))
+            return result
         return []
 
     @staticmethod
