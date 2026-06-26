@@ -50,6 +50,16 @@ uv run uvicorn app.main:app --reload  # 开发服务器
 - Playwright 安装：`uv run playwright install chromium`
 - 纯单元测试（`tests/`），不依赖网络
 
+### Playwright 通用规则
+
+| 规则 | 说明 |
+|------|------|
+| **浏览器进程复用** | 模块级 `_get_browser()` 懒启动单例，`atexit` 清理，避免反复启停 |
+| **全部走同一线程** | Playwright Sync API 绑定创建线程，必须统一走 `ThreadPoolExecutor`（`max_workers=1`） |
+| **`_fetch_page()` 公共函数** | 共用 `_get_browser()` 和线程池，不同 scraper 无需重复实现 |
+| **搜索页不等关键标签** | 仅内容页（`/content/`、`/detail/`）等 `配信開始日`，搜索页只 `wait_for_timeout(2000)` |
+| **content 对象用完关闭** | 每个请求新建 `context`，`finally` 中 `context.close()` |
+
 ### 配置系统
 
 - **`Settings`**（`config.py`）: 环境变量驱动，`frozen=True`，`@lru_cache` 缓存
@@ -60,6 +70,27 @@ uv run uvicorn app.main:app --reload  # 开发服务器
 - 另一些字段仅表单传递：`move_to_subdir / rename_format / rename_dir / last_browse_path`
 - **DMM (video.dmm.co.jp)**：纯 CSR Next.js 站点，服务器 HTML 不含数据，必须用 Playwright 渲染 JS。解析策略基于页面文本标签（`配信開始日`、`収録時間` 等），不依赖 CSS 选择器
 - DMM 图片 URL 前缀 `awsimgsrc.dmm.co.jp/pics_dig/`，保持此域名在图片下载白名单中
+
+### DMM 架构说明（两个 Scraper）
+
+| Scraper | 匹配域名 | 用途 | 图片路径 |
+|---------|---------|------|---------|
+| `DmmScraper` | `video.dmm.co.jp` | 新站数字视频详情页 | `awsimgsrc.dmm.co.jp/pics_dig/digital/video/{cid}/{cid}pl.jpg` |
+| `DmmLegacyScraper` | `www.dmm.co.jp` | 旧站 DVD/租赁/DOD 页 | `pics.dmm.co.jp/mono/movie/{cid}/{cid}pl.jpg` |
+
+`get_enabled_scrapers()` 开启 `dmm` 时自动包含 `dmm_legacy`（`registry.py` 中处理）。
+
+### DMM 解析注意事项
+
+- **旧站标签同号不同格式**：`配信開始日` vs `貸出開始日`，`メーカー品番` vs `品番`
+- **旧站分类用 `&nbsp;` 分割**：`_parse_genres` 按 `&nbsp;` 切分
+- **旧站演员正则**：lookahead 需 `\n\s*[^\s\n]+[：:]` 支持标签前的空格
+- **旧站评分**：在用户评论区，格式 `平均評価\n 4.18`（无冒号）
+- **旧站样本图**：HTML 中是 `-N.jpg`（小图），需转为 `jp-N.jpg`（大图）
+- **旧站剧情**：截取 `平均評価` 后到 `サンプル画像`/`★` 之间的文本
+- **旧站图片路径**：有 `/mono/movie/{cid}/` 和 `/mono/movie/adult/{cid}/` 两种
+- **租赁 CID 后缀 `r`**：样本图用 base CID（如 `118abp880` 而非 `118abp880r`）
+- **搜索结果保留原始 URL**：不转 CID，由 `get_scraper()` 自动分派到对应解析器
 
 ### NFO
 
