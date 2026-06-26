@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from app.scrapers.dmm import DmmScraper
+from app.scrapers.dmm import DmmLegacyScraper, DmmScraper
 from app.scrapers.jav321 import Jav321Scraper
 from app.scrapers.javdb import JavdbScraper
 from app.scrapers.javhoo import JavhooScraper
@@ -48,9 +48,15 @@ class TestGetScraper:
         scraper = get_scraper("https://www.javhoo.com/en/ABF-360")
         assert isinstance(scraper, JavhooScraper)
 
-    def test_returns_dmm_for_dmm_url(self) -> None:
+    def test_returns_legacy_for_www_dmm(self) -> None:
         scraper = get_scraper(
             "https://www.dmm.co.jp/digital/video/-/detail/=/cid=sone00614/"
+        )
+        assert isinstance(scraper, DmmLegacyScraper)
+
+    def test_returns_dmm_for_video_dmm(self) -> None:
+        scraper = get_scraper(
+            "https://video.dmm.co.jp/av/content/?id=kavr00501"
         )
         assert isinstance(scraper, DmmScraper)
 

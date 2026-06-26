@@ -137,7 +137,9 @@ class DmmScraper(BaseScraper):
     def supports(self, url: str) -> bool:
         parsed = urlparse(url)
         host = parsed.netloc.lower()
-        return "dmm.co.jp" in host or "dmm.com" in host
+        # DmmScraper 仅处理 video.dmm.co.jp（新站数字视频）
+        # 旧站 www.dmm.co.jp 由 DmmLegacyScraper 处理
+        return "video.dmm.co.jp" in host or "video.dmm.com" in host
 
     def _request_page(
         self, url: str, settings: Settings, timeout: int | None = None

@@ -62,16 +62,11 @@ class TestSupports:
     def setup_method(self) -> None:
         self.scraper = DmmScraper()
 
-    def test_supports_dmm_co_jp(self) -> None:
-        assert self.scraper.supports(
-            "https://www.dmm.co.jp/digital/video/-/detail/=/cid=sone00614/"
-        )
-
     def test_supports_video_dmm_co_jp(self) -> None:
         assert self.scraper.supports("https://video.dmm.co.jp/av/content/?id=sone00614")
 
-    def test_supports_old_dmm_url(self) -> None:
-        assert self.scraper.supports(
+    def test_not_supports_www(self) -> None:
+        assert not self.scraper.supports(
             "https://www.dmm.co.jp/digital/video/-/detail/=/cid=ssis00123/"
         )
 
