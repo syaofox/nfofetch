@@ -804,7 +804,7 @@ class DmmLegacyScraper(BaseScraper):
 
     @staticmethod
     def _parse_premiered(page_text: str) -> str | None:
-        for label in ("商品発売日", "発売日"):
+        for label in ("商品発売日", "貸出開始日", "発売日", "配信開始日"):
             m = re.search(re.escape(label) + r"[：:]\s*(\d{4})/(\d{2})/(\d{2})", page_text)
             if m:
                 return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
@@ -871,17 +871,30 @@ class DmmLegacyScraper(BaseScraper):
 
     @staticmethod
     def _parse_rating(page_text: str) -> float | None:
-        m = re.search(r"平均評価[：:][\s　]*([\d.]+)", page_text)
-        if m:
-            try:
-                return float(m.group(1))
-            except ValueError:
-                return None
+        for pat in (
+            r"平均評価[：:][\s　]*\n\s*([\d.]+)",
+            r"平均評価[：:][\s　]*([\d.]+)",
+            r"平均評価[\s　]*\n\s*([\d.]+)",
+        ):
+            m = re.search(pat, page_text)
+            if m:
+                try:
+                    val = float(m.group(1))
+                    if val > 0:
+                        return val
+                except ValueError:
+                    return None
         return None
 
     @staticmethod
     def _parse_plot(page_text: str) -> str | None:
-        m = re.search(r"商品説明[：:][\s　]*\n([\s\S]+?)(?=\n\n|\Z)", page_text)
-        if m:
-            return m.group(1).strip() or None
+        for pat in (
+            r"商品説明[：:][\s　]*\n([\s\S]+?)(?=\n\n|\Z)",
+            r"平均評価[：:][\s　]*\n.*?\n([\s\S]+?)(?=\n\s*(?:サンプル画像|★|ページ|この商品を|当サービス|\Z))",
+        ):
+            m = re.search(pat, page_text)
+            if m:
+                text = m.group(1).strip()
+                if len(text) > 20:
+                    return text
         return None
