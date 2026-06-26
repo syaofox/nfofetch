@@ -684,14 +684,25 @@ class DmmLegacyScraper(BaseScraper):
 
     @staticmethod
     def _images_from_cid(base_url: str) -> tuple[list[str], list[str]]:
-        """从 CID 构造默认 poster 和 art URL（旧站没有内嵌图片时兜底）。"""
-        cid_match = re.search(r"cid=([a-z0-9_]+)|content/\?id=([a-z0-9_]+)", base_url, re.I)
-        cid = (cid_match.group(1) or cid_match.group(2)).lower() if cid_match else ""
+        """从旧站 URL 提取 CID，构造 poster 和 art 图片 URL。
+
+        旧站路径：https://pics.dmm.co.jp/mono/movie/{cid}/{cid}pl.jpg
+        新站路径：https://pics.dmm.co.jp/digital/video/{cid}/{cid}pl.jpg
+        """
+        cid_match = re.search(r"cid=([a-z0-9_]+)", base_url, re.I)
+        cid = cid_match.group(1).lower() if cid_match else ""
         posters: list[str] = []
         art: list[str] = []
-        if cid:
-            posters.append(f"https://pics.dmm.co.jp/digital/video/{cid}/{cid}pl.jpg")
-            art.append(f"https://pics.dmm.co.jp/digital/video/{cid}/{cid}pl.jpg")
+        if not cid:
+            return posters, art
+        base = f"https://pics.dmm.co.jp/mono/movie/{cid}/{cid}"
+        posters.append(f"{base}pl.jpg")
+        # 旧站样本图：-1.jpg -2.jpg ...
+        for i in range(1, 21):
+            url = f"{base}-{i}.jpg"
+            art.append(url)
+        if not art:
+            art.append(f"{base}pl.jpg")
         return posters, art
 
     def scrape(self, url: str, settings: Settings) -> MovieMetadata:
