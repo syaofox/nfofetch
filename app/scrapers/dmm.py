@@ -598,24 +598,17 @@ class DmmScraper(BaseScraper):
             node = node.parent
         return None
 
-    @staticmethod
-    def _to_digital_cid(raw_cid: str) -> str:
-        """将租赁/DVD 版 CID（118abp880r）转为数字视频 CID（abp00880）。"""
-        cleaned = raw_cid.rstrip("r").lstrip("0123456789")
-        m = re.search(r"([A-Za-z]+)(\d+)$", cleaned)
-        if not m:
-            return raw_cid
-        maker = m.group(1).lower()
-        num = m.group(2).zfill(5)
-        return f"{maker}{num}"
-
     def _parse_search_results(self, html: str, base_url: str) -> list[SearchResult]:
-        """解析搜索结果，兼容旧站（cid=）和新站（content/?id=）格式。"""
+        """解析搜索结果，兼容旧站（cid=）和新站（content/?id=）格式。
+
+        保持搜索结果的原始 URL，不同页面类型由对应解析器处理：
+        - video.dmm.co.jp → DmmScraper
+        - www.dmm.co.jp   → DmmLegacyScraper
+        """
         tree = HTMLParser(html)
         seen_urls: set[str] = set()
         results: list[SearchResult] = []
 
-        # 旧站：a[href*="cid="] — 提取 CID 转成 video.dmm.co.jp URL
         for a in tree.css('a[href*="cid="]'):
             href = a.attributes.get("href") or ""
             m = re.search(r"cid=([a-z0-9_]+)", href, re.I)
@@ -625,12 +618,11 @@ class DmmScraper(BaseScraper):
             title = (a.text(strip=True) or "").strip()
             if not title or len(title) < 5:
                 continue
-            digital_cid = self._to_digital_cid(raw_cid)
-            video_url = f"https://video.dmm.co.jp/av/content/?id={digital_cid}"
+            video_url = self._abspath_url(href, base_url)
             if video_url in seen_urls:
                 continue
             seen_urls.add(video_url)
-            number = self._cid_to_number(digital_cid)
+            number = self._cid_to_number(raw_cid)
             poster_url = self._find_search_poster(a)
             results.append(SearchResult(
                 title=title, number=number, url=video_url, poster_url=poster_url,
