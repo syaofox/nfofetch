@@ -192,7 +192,7 @@ SCRAPERS: list[BaseScraper] = [
 3. 返回统一的 `MovieMetadata` 格式
 4. 使用 Python 3.10+ 类型注解（`str | None` 而非 `Optional[str]`）
 5. `search()` 返回空列表 = 不支持搜索，`search_movie()` 不会报错
-6. **CSR（客户端渲染）站点**（如 DMM）：服务器 HTML 不含数据，必须用 Playwright 渲染 JS。参考 `dmm.py` 的 `_request_page()`，通过 `asyncio.get_running_loop()` 自动切换同步/异步线程池。添加依赖：`pyproject.toml` 加 `playwright>=1.50.0`，Dockerfile 安装 Chromium
+6. **CSR（客户端渲染）站点**（如 DMM）：服务器 HTML 不含数据，必须用 Playwright 渲染 JS。参考 `dmm.py` 的 `_fetch_page()`（模块级函数，浏览器进程复用 + 线程池）。Playwright Sync API 不能直接在 asyncio 事件循环中使用，必须统一走 `ThreadPoolExecutor`。添加依赖：`pyproject.toml` 加 `playwright>=1.50.0`，Dockerfile 安装 Chromium
 7. **站点有新旧版本时**（如 DMM 新旧站）：可创建两个 Scraper 共享 `_fetch_page()`，`supports()` 按域名区分，注册时后者兜底。`get_enabled_scrapers` 中自动关联（如开启 `dmm` 自动包含 `dmm_legacy`）
 8. **解析策略建议**：
    - 优先用页面文本稳定标签（`配信開始日`、`収録時間`）而非 CSS 类名
