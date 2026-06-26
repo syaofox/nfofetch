@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import atexit
 import json
 import logging
@@ -29,21 +28,22 @@ _CID_RE = re.compile(r"(?:cid=|id=)([a-z0-9_]+)", re.IGNORECASE)
 
 # Playwright 浏览器单例（懒启动，跨请求复用）
 _PLAYWRIGHT_LOCK = threading.Lock()
-_PLAYWRIGHT_INSTANCE = None
-_BROWSER_INSTANCE = None
+_PW_CM = None  # PlaywrightContextManager，用于清理
+_PLAYWRIGHT = None  # Playwright 对象
+_BROWSER = None  # Browser 实例
 
 
 def _get_browser():
     """获取或创建 Playwright 浏览器实例（线程安全）。"""
-    global _PLAYWRIGHT_INSTANCE, _BROWSER_INSTANCE
-    if _BROWSER_INSTANCE is not None:
-        return _BROWSER_INSTANCE
+    global _PW_CM, _PLAYWRIGHT, _BROWSER
+    if _BROWSER is not None:
+        return _BROWSER
     with _PLAYWRIGHT_LOCK:
-        if _BROWSER_INSTANCE is not None:
-            return _BROWSER_INSTANCE
-        _PLAYWRIGHT_INSTANCE = sync_playwright()
-        _PLAYWRIGHT_INSTANCE.__enter__()
-        _BROWSER_INSTANCE = _PLAYWRIGHT_INSTANCE.chromium.launch(
+        if _BROWSER is not None:
+            return _BROWSER
+        _PW_CM = sync_playwright()
+        _PLAYWRIGHT = _PW_CM.__enter__()
+        _BROWSER = _PLAYWRIGHT.chromium.launch(
             headless=True,
             args=[
                 "--no-sandbox",
@@ -52,24 +52,25 @@ def _get_browser():
                 "--disable-gpu",
             ],
         )
-    return _BROWSER_INSTANCE
+    return _BROWSER
 
 
 def _cleanup_browser():
     """应用退出时关闭浏览器。"""
-    global _PLAYWRIGHT_INSTANCE, _BROWSER_INSTANCE
-    if _BROWSER_INSTANCE is not None:
+    global _PW_CM, _PLAYWRIGHT, _BROWSER
+    if _BROWSER is not None:
         try:
-            _BROWSER_INSTANCE.close()
+            _BROWSER.close()
         except Exception:
             pass
-        _BROWSER_INSTANCE = None
-    if _PLAYWRIGHT_INSTANCE is not None:
+        _BROWSER = None
+    if _PW_CM is not None:
         try:
-            _PLAYWRIGHT_INSTANCE.__exit__(None, None, None)
+            _PW_CM.__exit__(None, None, None)
         except Exception:
             pass
-        _PLAYWRIGHT_INSTANCE = None
+        _PW_CM = None
+        _PLAYWRIGHT = None
 
 
 atexit.register(_cleanup_browser)
@@ -148,12 +149,9 @@ class DmmScraper(BaseScraper):
             finally:
                 context.close()
 
-        try:
-            asyncio.get_running_loop()
-            future = self._PW_EXECUTOR.submit(_run)
-            return future.result()
-        except RuntimeError:
-            return _run()
+        # Playwright 所有操作集中在同一线程（线程池），避免跨线程使用浏览器
+        future = self._PW_EXECUTOR.submit(_run)
+        return future.result()
 
     def _extract_cid(self, url: str) -> str | None:
         """从 URL 中提取 content ID。"""
@@ -609,6 +607,21 @@ class DmmScraper(BaseScraper):
             node = node.parent
         return None
 
+    @staticmethod
+    def _to_digital_cid(raw_cid: str) -> str:
+        """将租赁/DVD 版 CID（118abp880r）转为数字视频 CID（abp00880）。
+
+        规则：去掉尾部 r 后缀，提取 maker 字母+数字部分，
+        数字零填充至 5 位。
+        """
+        cleaned = raw_cid.rstrip("r")
+        m = re.search(r"([A-Za-z]+)(\d+)$", cleaned)
+        if not m:
+            return raw_cid
+        maker = m.group(1).lower()
+        num = m.group(2).zfill(5)
+        return f"{maker}{num}"
+
     def _parse_search_results(self, html: str, base_url: str) -> list[SearchResult]:
         """解析搜索结果，兼容旧站（cid=）和新站（content/?id=）格式。"""
         tree = HTMLParser(html)
@@ -625,13 +638,14 @@ class DmmScraper(BaseScraper):
             title = (a.text(strip=True) or "").strip()
             if not title or len(title) < 5:
                 continue
+            digital_cid = self._to_digital_cid(raw_cid)
             content_url = (
-                f"https://video.dmm.co.jp/av/content/?id={raw_cid}"
+                f"https://video.dmm.co.jp/av/content/?id={digital_cid}"
             )
             if content_url in seen_urls:
                 continue
             seen_urls.add(content_url)
-            number = self._cid_to_number(raw_cid)
+            number = self._cid_to_number(digital_cid)
             poster_url = self._find_search_poster(a)
             results.append(SearchResult(
                 title=title, number=number, url=content_url, poster_url=poster_url,
