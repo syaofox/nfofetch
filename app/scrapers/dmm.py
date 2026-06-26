@@ -98,13 +98,14 @@ _PW_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="playwright"
 def _fetch_page(url: str, settings: Settings) -> str:
     """公共方法：用 Playwright 渲染页面（浏览器进程复用）。
 
-    仅对内容页（content/、detail/）等待关键标签，搜索页等无需等待。
+    仅对 video.dmm.co.jp 内容页等待 配信開始日（新站 JS 渲染需确认），
+    旧站 www.dmm.co.jp 标签名不同，不等特定标签。
     """
     if not _HAS_PLAYWRIGHT:
         raise RuntimeError(
             "DMM 刮削需要 Playwright。请运行: uv sync && uv run playwright install chromium"
         )
-    is_content = "/content/" in url or "/detail/" in url
+    is_video_content = "video.dmm.co.jp" in url and ("/content/" in url or "/detail/" in url)
 
     def _run() -> str:
         browser = _get_browser()
@@ -126,7 +127,7 @@ def _fetch_page(url: str, settings: Settings) -> str:
                         }])
             page = context.new_page()
             page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
-            if is_content:
+            if is_video_content:
                 try:
                     page.wait_for_selector("text=配信開始日", timeout=min(timeout_ms, 15000))
                 except Exception:
