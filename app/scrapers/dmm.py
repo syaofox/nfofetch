@@ -78,15 +78,16 @@ atexit.register(_cleanup_browser)
 _PW_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="playwright")
 
 
-def _fetch_page(url: str, settings: Settings, has_http_timeout: bool = False) -> str:
+def _fetch_page(url: str, settings: Settings) -> str:
     """公共方法：用 Playwright 渲染页面（浏览器进程复用）。
 
-    供 DmmScraper 和 DmmLegacyScraper 共用。
+    仅对内容页（content/、detail/）等待关键标签，搜索页等无需等待。
     """
     if not _HAS_PLAYWRIGHT:
         raise RuntimeError(
             "DMM 刮削需要 Playwright。请运行: uv sync && uv run playwright install chromium"
         )
+    is_content = "/content/" in url or "/detail/" in url
 
     def _run() -> str:
         browser = _get_browser()
@@ -106,16 +107,15 @@ def _fetch_page(url: str, settings: Settings, has_http_timeout: bool = False) ->
                             "name": name.strip(), "value": value.strip(),
                             "domain": ".dmm.co.jp", "path": "/",
                         }])
-            if settings.http_proxy:
-                context.set_default_navigation_timeout(timeout_ms)
-
             page = context.new_page()
             page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
-            try:
-                page.wait_for_selector("text=配信開始日", timeout=min(timeout_ms, 20000))
-            except Exception:
-                logger.warning("DMM: 等待 配信開始日 超时，内容可能不完整")
-            page.wait_for_timeout(3000)
+            if is_content:
+                try:
+                    page.wait_for_selector("text=配信開始日", timeout=min(timeout_ms, 15000))
+                except Exception:
+                    logger.info("DMM: 内容页未找到 配信開始日，可能结构变更")
+            else:
+                page.wait_for_timeout(2000)
             return page.content()
         finally:
             context.close()
@@ -682,27 +682,35 @@ class DmmLegacyScraper(BaseScraper):
         # 旧站：排除 video.dmm.co.jp（由 DmmScraper 处理）
         return "video." not in host
 
-    @staticmethod
-    def _images_from_cid(base_url: str) -> tuple[list[str], list[str]]:
-        """从旧站 URL 提取 CID，构造 poster 和 art 图片 URL。
+    def _parse_images(self, tree: HTMLParser, base_url: str) -> tuple[list[str], list[str]]:
+        """从旧站页面提取 poster 和样本图 URL。
 
         旧站路径：https://pics.dmm.co.jp/mono/movie/{cid}/{cid}pl.jpg
-        新站路径：https://pics.dmm.co.jp/digital/video/{cid}/{cid}pl.jpg
         """
         cid_match = re.search(r"cid=([a-z0-9_]+)", base_url, re.I)
         cid = cid_match.group(1).lower() if cid_match else ""
         posters: list[str] = []
         art: list[str] = []
-        if not cid:
-            return posters, art
-        base = f"https://pics.dmm.co.jp/mono/movie/{cid}/{cid}"
-        posters.append(f"{base}pl.jpg")
-        # 旧站样本图：-1.jpg -2.jpg ...
-        for i in range(1, 21):
-            url = f"{base}-{i}.jpg"
-            art.append(url)
+
+        # 从页面中找图片链接
+        for img in tree.css("img[src]"):
+            src = img.attributes.get("src") or ""
+            if not cid or cid not in src:
+                continue
+            if "pl.jpg" in src or "ps.jpg" in src:
+                if not posters:
+                    posters.append(src if src.startswith("http") else f"https:{src}")
+            if src.endswith(".jpg") and cid in src:
+                url = src if src.startswith("http") else f"https:{src}"
+                if url not in art and url not in posters:
+                    art.append(url)
+
+        # 兜底：构造默认 URL
+        if not posters and cid:
+            base = f"https://pics.dmm.co.jp/mono/movie/{cid}/{cid}"
+            posters.append(f"{base}pl.jpg")
         if not art:
-            art.append(f"{base}pl.jpg")
+            art = list(posters)
         return posters, art
 
     def scrape(self, url: str, settings: Settings) -> MovieMetadata:
@@ -726,7 +734,7 @@ class DmmLegacyScraper(BaseScraper):
         actors = self._parse_actors(page_text)
         studio, label, series = self._parse_companies(page_text)
         rating = self._parse_rating(page_text)
-        posters, art = self._images_from_cid(base_url)
+        posters, art = self._parse_images(tree, base_url)
         plot = self._parse_plot(page_text)
 
         return MovieMetadata(
