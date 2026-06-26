@@ -14,6 +14,7 @@ app/scrapers/
 ├── base.py      # 抽象基类定义
 ├── javdb.py     # javdb 站点实现（参考实现）
 ├── jav321.py    # jav321 站点实现（另一参考）
+├── dmm.py       # DMM/FANZA 实现（CSR 站点，用 Playwright 渲染 JS）
 ├── registry.py  # scraper 注册与工厂函数
 └── your_site.py # 新站点实现
 ```
@@ -191,6 +192,7 @@ SCRAPERS: list[BaseScraper] = [
 3. 返回统一的 `MovieMetadata` 格式
 4. 使用 Python 3.10+ 类型注解（`str | None` 而非 `Optional[str]`）
 5. `search()` 返回空列表 = 不支持搜索，`search_movie()` 不会报错
+6. **CSR（客户端渲染）站点**（如 DMM）：服务器 HTML 不含数据，必须用 Playwright 渲染 JS。参考 `dmm.py` 的 `_request_page()`，通过 `asyncio.get_running_loop()` 自动切换同步/异步线程池。添加依赖：`pyproject.toml` 加 `playwright>=1.50.0`，Dockerfile 安装 Chromium
 
 ## 测试
 

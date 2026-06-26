@@ -46,6 +46,8 @@ uv run uvicorn app.main:app --reload  # 开发服务器
 - `from __future__ import annotations`
 - `str | None` 而非 `Optional[str]`
 - HTML 解析用 `selectolax`，HTTP 优先 `curl-cffi`，兜底 `httpx`
+- CSR 站点（如 DMM）用 Playwright 渲染 JS，`ThreadPoolExecutor` 规避 asyncio 冲突
+- Playwright 安装：`uv run playwright install chromium`
 - 纯单元测试（`tests/`），不依赖网络
 
 ### 配置系统
@@ -56,7 +58,8 @@ uv run uvicorn app.main:app --reload  # 开发服务器
 - UI 可覆盖的字段：`cookie / serial_writes / lock_enabled / write_delay / max_extra_images / delete_orphan_extrafanart / filter_actor_gender / download_concurrency / auto_trim_white_borders / enabled_scrapers`
 - DMM Cookie 字段名：`dmm_cookie`（环境变量 `NFOFETCH_DMM_COOKIE`）
 - 另一些字段仅表单传递：`move_to_subdir / rename_format / rename_dir / last_browse_path`
-- **DMM (video.dmm.co.jp)**：Next.js 站点，CSS 类名不稳定，解析策略基于页面文本中的稳定标签（`配信開始日`、`収録時間` 等），不依赖 CSS 选择器
+- **DMM (video.dmm.co.jp)**：纯 CSR Next.js 站点，服务器 HTML 不含数据，必须用 Playwright 渲染 JS。解析策略基于页面文本标签（`配信開始日`、`収録時間` 等），不依赖 CSS 选择器
+- DMM 图片 URL 前缀 `awsimgsrc.dmm.co.jp/pics_dig/`，保持此域名在图片下载白名单中
 
 ### NFO
 
