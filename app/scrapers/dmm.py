@@ -712,20 +712,20 @@ class DmmLegacyScraper(BaseScraper):
             else:
                 art.append(clean)
 
-        # 从 <a href> 和 <img src> 收集图片
         for tag in tree.css("a[href], img[src]"):
             src = (tag.attributes.get("href") or tag.attributes.get("src") or "")
             if "pics.dmm.co.jp" not in src:
                 continue
-            if raw_cid and raw_cid in src:
-                if "pl.jpg" in src or "ps.jpg" in src:
-                    _add(src, is_poster=True)
-                elif re.search(r"-\d+\.jpg$", src):
-                    _add(src, is_poster=False)
-            # 用 base_cid 匹配样本图（如租赁页 118abp880r 引用 118abp880-1.jpg）
-            if base_cid and base_cid != raw_cid and base_cid in src:
-                if re.search(r"-\d+\.jpg$", src):
-                    _add(src, is_poster=False)
+            # 检查是否匹配 raw_cid 或 base_cid（如 118abp880r 的 base=118abp880）
+            if not (raw_cid and raw_cid in src) and not (base_cid and base_cid in src):
+                continue
+            if "pl.jpg" in src or "ps.jpg" in src:
+                _add(src, is_poster=True)
+            elif re.search(r"-\d+\.jpg$", src) and "pt.jpg" not in src and "pl.jpg" not in src and "ps.jpg" not in src:
+                # 小图 -N.jpg → 构造大图 jp-N.jpg
+                big = re.sub(r"-(\d+\.jpg)$", r"jp-\1", src)
+                if big != src:
+                    _add(big, is_poster=False)
 
         # 兜底：构造默认 poster URL
         if not posters and raw_cid:
