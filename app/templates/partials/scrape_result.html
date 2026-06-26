@@ -23,7 +23,10 @@
             {% endif %}
           </h4>
           {% if result.metadata.plot %}
-            <p class="nf-meta-plot">{{ result.metadata.plot }}</p>
+            <div class="nf-plot-wrapper">
+              <p class="nf-meta-plot nf-plot-truncated">{{ result.metadata.plot }}</p>
+              <button type="button" class="nf-plot-toggle" onclick="this.previousElementSibling.classList.toggle('nf-plot-truncated');this.textContent=this.previousElementSibling.classList.contains('nf-plot-truncated')?'展开全文':'收起'">展开全文</button>
+            </div>
           {% endif %}
 
           <dl class="nf-meta-list">

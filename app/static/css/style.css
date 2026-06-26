@@ -251,6 +251,23 @@
   font-size: 0.9rem;
   color: #4b5563;
 }
+.nf-plot-truncated {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.nf-plot-toggle {
+  background: none;
+  border: none;
+  color: #0052d4;
+  cursor: pointer;
+  font-size: 0.82rem;
+  padding: 0.1rem 0;
+}
+.nf-plot-toggle:hover {
+  text-decoration: underline;
+}
 
 .nf-meta-list {
   margin: 0;
