@@ -34,10 +34,23 @@ _BROWSER = None  # Browser 实例
 
 
 def _get_browser():
-    """获取或创建 Playwright 浏览器实例（线程安全）。"""
+    """获取或创建 Playwright 浏览器实例（线程安全）。
+
+    内存安全措施：
+    - 浏览器进程崩溃后自动重建
+    - 限制单进程内存（--max_old_space_size）
+    - 模块级单例避免反复启停
+    """
     global _PW_CM, _PLAYWRIGHT, _BROWSER
     if _BROWSER is not None:
-        return _BROWSER
+        try:
+            # 检查浏览器进程是否还活着（进程被 OOM kill 后快速感知）
+            _BROWSER.contexts  # 轻量调用，死进程会抛异常
+            return _BROWSER
+        except Exception:
+            logger.warning("DMM: 浏览器进程已死，准备重启")
+            _cleanup_browser()
+
     with _PLAYWRIGHT_LOCK:
         if _BROWSER is not None:
             return _BROWSER
@@ -50,6 +63,10 @@ def _get_browser():
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
                 "--disable-gpu",
+                "--disable-software-rasterizer",
+                "--disable-background-networking",
+                "--disable-sync",
+                "--js-flags=--max_old_space_size=256",
             ],
         )
     return _BROWSER
