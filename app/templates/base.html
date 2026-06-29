@@ -587,6 +587,8 @@
             dirPanel.style.display = "";
             prePanel.style.display = "none";
             tabs[0].classList.add("nf-crop-tab-active");
+            // 切换到方向裁切时更新预览
+            if (window.nfUpdateDirectionPreview) window.nfUpdateDirectionPreview();
             // 切换到方向裁切时清除精确裁切数据
             document.getElementById("crop_x").value = "0";
             document.getElementById("crop_y").value = "0";
@@ -603,6 +605,33 @@
             tabs[1].classList.add("nf-crop-tab-active");
           }
         };
+
+        window.nfUpdateDirectionPreview = function () {
+          var dir = document.querySelector('input[name="crop_direction"]:checked');
+          if (!dir || dir.value === 'none') {
+            var wrap = document.getElementById('nf-direction-preview');
+            if (wrap) wrap.style.display = 'none';
+            return;
+          }
+          var poster = document.querySelector('input[name="poster_url"]:checked');
+          var imgUrl = poster ? poster.value : '';
+          if (!imgUrl) return;
+          var wrap = document.getElementById('nf-direction-preview');
+          var img = document.getElementById('nf-direction-preview-img');
+          if (!wrap || !img) return;
+          img.src = imgUrl;
+          img.style.objectPosition = dir.value;
+          wrap.style.display = '';
+        };
+
+        // 方向裁切预览：监听 poster/fanart 选择和方向变更
+        (function () {
+          document.body.addEventListener('change', function (e) {
+            if (e.target.matches && e.target.matches('input[name="crop_direction"], input[name="poster_url"]')) {
+              if (window.nfUpdateDirectionPreview) window.nfUpdateDirectionPreview();
+            }
+          });
+        })();
 
         window.nfConfirmCrop = function () {
           if (!_nfCropper) return;
