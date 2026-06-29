@@ -367,6 +367,7 @@
   </div>
 
   <script>
+    window._nfCanvasPreviewActive = false;
     window.nfUploadImage = function (file) {
       if (!file || !file.type.startsWith("image/")) return;
       var formData = new FormData();
