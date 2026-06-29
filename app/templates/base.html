@@ -652,8 +652,8 @@
                 if (btn) { btn.classList.remove('nf-crop-btn-active'); btn.textContent = '选择裁切区域…'; }
                 var smallPreview = document.getElementById('nf-crop-preview');
                 if (smallPreview) { smallPreview.style.display = 'none'; smallPreview.src = ''; }
-                window._nfCanvasPreviewActive = false;
               }
+              window._nfCanvasPreviewActive = false;
               if (window.nfUpdateDirectionPreview) window.nfUpdateDirectionPreview();
             }
           });
