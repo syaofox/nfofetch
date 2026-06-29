@@ -155,6 +155,7 @@
                   alt="候选图片 {{ loop.index }}"
                   class="nf-image-thumb"
                 />
+                <span class="nf-image-resolution"></span>
                 <div class="nf-image-option-controls">
                     <label class="nf-img-pill">
                       <input type="radio" name="poster_url" value="{{ img_url }}"
@@ -376,8 +377,9 @@
           var div = document.createElement("div");
           div.className = "nf-image-option";
           div.innerHTML =
-            '<img src="' + data.serve_url + '" alt="自定义图片" class="nf-image-thumb" />' +
+            '<img src="' + data.serve_url + '" alt="自定义图片" class="nf-image-thumb" onload="window.nfShowResolution(this)" />' +
             '<span class="nf-image-uploaded-badge">上传</span>' +
+            '<span class="nf-image-resolution"></span>' +
             '<div class="nf-image-option-controls">' +
               '<label class="nf-img-pill"><input type="radio" name="poster_url" value="' + data.path.replace(/"/g, "&quot;") + '" hidden /><span class="nf-img-pill-text">poster</span></label>' +
               '<label class="nf-img-pill"><input type="radio" name="fanart_url" value="' + data.path.replace(/"/g, "&quot;") + '" hidden /><span class="nf-img-pill-text">fanart</span></label>' +
@@ -406,5 +408,21 @@
       });
     })();
 
+    // Show image resolution on thumbnails
+    window.nfShowResolution = function (img) {
+      var res = img.parentElement.querySelector('.nf-image-resolution');
+      if (!res) return;
+      res.textContent = img.naturalWidth + ' \u00d7 ' + img.naturalHeight;
+    };
+    (function () {
+      var imgs = document.querySelectorAll('.nf-image-thumb');
+      for (var i = 0; i < imgs.length; i++) {
+        if (imgs[i].complete) {
+          window.nfShowResolution(imgs[i]);
+        } else {
+          imgs[i].addEventListener('load', function () { window.nfShowResolution(this); });
+        }
+      }
+    })();
   </script>
 {% endif %}
