@@ -455,6 +455,7 @@
         var _nfCropper = null;
 
         function _cropperOpts(img) {
+          var halfW = Math.floor(img.naturalWidth / 2);
           return {
             aspectRatio: NaN, viewMode: 1, dragMode: "crop",
             autoCrop: true, autoCropArea: 0.8,
@@ -462,6 +463,7 @@
             guides: true, center: true, highlight: false, background: true,
             movable: true, rotatable: false, scalable: false,
             zoomable: true, zoomOnTouch: true, zoomOnWheel: true,
+            data: { x: img.naturalWidth - halfW, y: 0, width: halfW, height: img.naturalHeight },
           };
         }
 
