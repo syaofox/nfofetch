@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pydantic import HttpUrl
-
 from app.schemas import (
     Actor,
     MovieMetadata,
@@ -12,8 +10,8 @@ from app.schemas import (
 )
 
 
-def _url(s: str) -> HttpUrl:
-    return HttpUrl(s)
+def _url(s: str) -> str:
+    return s
 
 
 class TestActor:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 
 
 class Actor(BaseModel):
@@ -8,7 +8,7 @@ class Actor(BaseModel):
 
     name: str
     role: str | None = None
-    thumb: HttpUrl | None = None
+    thumb: str | None = None
     gender: str | None = None
 
 
@@ -47,14 +47,12 @@ class MovieMetadata(BaseModel):
         default=None, description="评分（0-10 之间），无法解析时为 None"
     )
 
-    posters: list[HttpUrl] = Field(
+    posters: list[str] = Field(
         default_factory=list, description="封面图片 URL 列表，优先第一张"
     )
-    art: list[HttpUrl] = Field(
-        default_factory=list, description="背景图 / 剧照 URL 列表"
-    )
+    art: list[str] = Field(default_factory=list, description="背景图 / 剧照 URL 列表")
 
-    source_url: HttpUrl | None = Field(
+    source_url: str | None = Field(
         default=None, description="原始站点页面 URL，便于溯源"
     )
 

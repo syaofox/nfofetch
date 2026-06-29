@@ -5,8 +5,6 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from pydantic import HttpUrl
-
 from app.main import app
 from app.schemas import MovieMetadata, ScrapeResult
 from app.services.settings_service import load_user_settings
@@ -39,7 +37,7 @@ class TestScrapePathUpdate:
         metadata = MovieMetadata(
             title="Test Movie",
             number="TEST-123",
-            source_url=HttpUrl("https://javdb.com/v/test"),
+            source_url="https://javdb.com/v/test",
         )
         return base64.b64encode(metadata.model_dump_json().encode()).decode()
 

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import HttpUrl
-
 from app.schemas import Actor, MovieMetadata
 
 
@@ -29,14 +27,14 @@ def sample_movie_metadata() -> MovieMetadata:
         directors=["山田太郎"],
         rating=7.5,
         posters=[
-            HttpUrl("https://example.com/poster1.jpg"),
-            HttpUrl("https://example.com/poster2.jpg"),
+            "https://example.com/poster1.jpg",
+            "https://example.com/poster2.jpg",
         ],
         art=[
-            HttpUrl("https://example.com/art1.jpg"),
-            HttpUrl("https://example.com/art2.jpg"),
+            "https://example.com/art1.jpg",
+            "https://example.com/art2.jpg",
         ],
-        source_url=HttpUrl("https://javdb.com/v/abcdef"),
+        source_url="https://javdb.com/v/abcdef",
     )
 
 
