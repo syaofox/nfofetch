@@ -653,7 +653,7 @@ class DmmScraper(BaseScraper):
             if video_url in seen_urls:
                 continue
             seen_urls.add(video_url)
-            number = self._cid_to_number(raw_cid)
+            number: str | None = self._cid_to_number(raw_cid)
             poster_url = self._find_search_poster(a)
             results.append(
                 SearchResult(
@@ -677,7 +677,7 @@ class DmmScraper(BaseScraper):
                 continue
             seen_urls.add(video_url)
             cid_match = re.search(r"content/\?id=([a-z0-9_]+)", href)
-            number = self._cid_to_number(cid_match.group(1)) if cid_match else None
+            number = self._cid_to_number(cid_match.group(1)) if cid_match else None  # type: ignore[arg-type]
             poster_url = self._find_search_poster(a)
             results.append(
                 SearchResult(
@@ -835,8 +835,8 @@ class DmmLegacyScraper(BaseScraper):
             series=series,
             directors=[],
             rating=rating,
-            posters=posters,
-            art=art,
+            posters=posters,  # type: ignore[arg-type]
+            art=art,  # type: ignore[arg-type]
         )
 
     @staticmethod
