@@ -105,7 +105,9 @@ def _fetch_page(url: str, settings: Settings) -> str:
         raise RuntimeError(
             "DMM 刮削需要 Playwright。请运行: uv sync && uv run playwright install chromium"
         )
-    is_video_content = "video.dmm.co.jp" in url and ("/content/" in url or "/detail/" in url)
+    is_video_content = "video.dmm.co.jp" in url and (
+        "/content/" in url or "/detail/" in url
+    )
 
     def _run() -> str:
         browser = _get_browser()
@@ -121,15 +123,23 @@ def _fetch_page(url: str, settings: Settings) -> str:
                     pair = pair.strip()
                     if "=" in pair:
                         name, value = pair.split("=", 1)
-                        context.add_cookies([{
-                            "name": name.strip(), "value": value.strip(),
-                            "domain": ".dmm.co.jp", "path": "/",
-                        }])
+                        context.add_cookies(
+                            [
+                                {
+                                    "name": name.strip(),
+                                    "value": value.strip(),
+                                    "domain": ".dmm.co.jp",
+                                    "path": "/",
+                                }
+                            ]
+                        )
             page = context.new_page()
             page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
             if is_video_content:
                 try:
-                    page.wait_for_selector("text=配信開始日", timeout=min(timeout_ms, 15000))
+                    page.wait_for_selector(
+                        "text=配信開始日", timeout=min(timeout_ms, 15000)
+                    )
                 except Exception:
                     logger.info("DMM: 内容页未找到 配信開始日，可能结构变更")
             else:
@@ -645,9 +655,14 @@ class DmmScraper(BaseScraper):
             seen_urls.add(video_url)
             number = self._cid_to_number(raw_cid)
             poster_url = self._find_search_poster(a)
-            results.append(SearchResult(
-                title=title, number=number, url=video_url, poster_url=poster_url,
-            ))
+            results.append(
+                SearchResult(
+                    title=title,
+                    number=number,
+                    url=video_url,
+                    poster_url=poster_url,
+                )
+            )
 
         # 新站：a[href*="content/?id="]
         for a in tree.css('a[href*="content/?id="]'):
@@ -655,16 +670,23 @@ class DmmScraper(BaseScraper):
             title = a.text(strip=True) or ""
             if not title:
                 continue
-            video_url = href if href.startswith("http") else self._abspath_url(href, base_url)
+            video_url = (
+                href if href.startswith("http") else self._abspath_url(href, base_url)
+            )
             if video_url in seen_urls:
                 continue
             seen_urls.add(video_url)
             cid_match = re.search(r"content/\?id=([a-z0-9_]+)", href)
             number = self._cid_to_number(cid_match.group(1)) if cid_match else None
             poster_url = self._find_search_poster(a)
-            results.append(SearchResult(
-                title=title, number=number, url=video_url, poster_url=poster_url,
-            ))
+            results.append(
+                SearchResult(
+                    title=title,
+                    number=number,
+                    url=video_url,
+                    poster_url=poster_url,
+                )
+            )
 
         return results
 
@@ -703,7 +725,9 @@ class DmmLegacyScraper(BaseScraper):
         # 旧站：排除 video.dmm.co.jp（由 DmmScraper 处理）
         return "video." not in host
 
-    def _parse_images(self, tree: HTMLParser, base_url: str) -> tuple[list[str], list[str]]:
+    def _parse_images(
+        self, tree: HTMLParser, base_url: str
+    ) -> tuple[list[str], list[str]]:
         """从旧站页面提取 poster 和样本图 URL。
 
         旧站图片路径格式多样：
@@ -732,7 +756,7 @@ class DmmLegacyScraper(BaseScraper):
                 art.append(clean)
 
         for tag in tree.css("a[href], img[src]"):
-            src = (tag.attributes.get("href") or tag.attributes.get("src") or "")
+            src = tag.attributes.get("href") or tag.attributes.get("src") or ""
             if "pics.dmm.co.jp" not in src:
                 continue
             # 检查是否匹配 raw_cid 或 base_cid（如 118abp880r 的 base=118abp880）
@@ -740,7 +764,12 @@ class DmmLegacyScraper(BaseScraper):
                 continue
             if "pl.jpg" in src or "ps.jpg" in src:
                 _add(src, is_poster=True)
-            elif re.search(r"-\d+\.jpg$", src) and "pt.jpg" not in src and "pl.jpg" not in src and "ps.jpg" not in src:
+            elif (
+                re.search(r"-\d+\.jpg$", src)
+                and "pt.jpg" not in src
+                and "pl.jpg" not in src
+                and "ps.jpg" not in src
+            ):
                 # 小图 -N.jpg → 构造大图 jp-N.jpg
                 big = re.sub(r"-(\d+\.jpg)$", r"jp-\1", src)
                 if big != src:
@@ -748,7 +777,10 @@ class DmmLegacyScraper(BaseScraper):
 
         # 兜底：构造默认 poster URL
         if not posters and raw_cid:
-            for path in (f"mono/movie/adult/{raw_cid}/{raw_cid}", f"mono/movie/{raw_cid}/{raw_cid}"):
+            for path in (
+                f"mono/movie/adult/{raw_cid}/{raw_cid}",
+                f"mono/movie/{raw_cid}/{raw_cid}",
+            ):
                 url = f"https://pics.dmm.co.jp/{path}pl.jpg"
                 if url not in seen:
                     posters.append(url)
@@ -771,7 +803,11 @@ class DmmLegacyScraper(BaseScraper):
 
         number = self._parse_number(page_text, raw_html)
         main_title = self._parse_title(raw_html)
-        title = f"{number} {main_title}" if number and main_title else (main_title or number or "Unknown Title")
+        title = (
+            f"{number} {main_title}"
+            if number and main_title
+            else (main_title or number or "Unknown Title")
+        )
 
         premiered = self._parse_premiered(page_text)
         runtime = self._parse_runtime(page_text)
@@ -786,7 +822,9 @@ class DmmLegacyScraper(BaseScraper):
             title=title,
             number=number,
             plot=plot,
-            year=int(premiered.split("-")[0]) if premiered and "-" in premiered else None,
+            year=int(premiered.split("-")[0])
+            if premiered and "-" in premiered
+            else None,
             premiered=premiered,
             releasedate=premiered,
             runtime=runtime,
@@ -803,7 +841,9 @@ class DmmLegacyScraper(BaseScraper):
 
     @staticmethod
     def _parse_title(page_text: str) -> str | None:
-        m = re.search(r"<title[^>]*>(.*?)</title>", page_text, re.DOTALL | re.IGNORECASE)
+        m = re.search(
+            r"<title[^>]*>(.*?)</title>", page_text, re.DOTALL | re.IGNORECASE
+        )
         if m:
             title = m.group(1).strip()
             for sep in ("｜", "|", " - "):
@@ -823,7 +863,9 @@ class DmmLegacyScraper(BaseScraper):
     @staticmethod
     def _parse_premiered(page_text: str) -> str | None:
         for label in ("商品発売日", "貸出開始日", "発売日", "配信開始日"):
-            m = re.search(re.escape(label) + r"[：:]\s*(\d{4})/(\d{2})/(\d{2})", page_text)
+            m = re.search(
+                re.escape(label) + r"[：:]\s*(\d{4})/(\d{2})/(\d{2})", page_text
+            )
             if m:
                 return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
         return None
@@ -862,13 +904,20 @@ class DmmLegacyScraper(BaseScraper):
 
     @staticmethod
     def _parse_actors(page_text: str) -> list[Actor]:
-        m = re.search(r"出演者[：:][\s　]*\n([\s\S]+?)(?=\n\s*[^\s\n]+[：:]|\Z)", page_text)
+        m = re.search(
+            r"出演者[：:][\s　]*\n([\s\S]+?)(?=\n\s*[^\s\n]+[：:]|\Z)", page_text
+        )
         if m:
             raw = m.group(1)
             result = []
             for name in re.findall(r"[^\s　]+", raw.strip()):
                 name_clean = name.strip("、，,-")
-                if name_clean and "：" not in name_clean and ":" not in name_clean and "----" not in name_clean:
+                if (
+                    name_clean
+                    and "：" not in name_clean
+                    and ":" not in name_clean
+                    and "----" not in name_clean
+                ):
                     result.append(Actor(name=name_clean))
             return result
         return []

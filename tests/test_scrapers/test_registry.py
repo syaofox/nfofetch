@@ -55,9 +55,7 @@ class TestGetScraper:
         assert isinstance(scraper, DmmLegacyScraper)
 
     def test_returns_dmm_for_video_dmm(self) -> None:
-        scraper = get_scraper(
-            "https://video.dmm.co.jp/av/content/?id=kavr00501"
-        )
+        scraper = get_scraper("https://video.dmm.co.jp/av/content/?id=kavr00501")
         assert isinstance(scraper, DmmScraper)
 
 
