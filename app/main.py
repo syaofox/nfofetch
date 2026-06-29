@@ -33,7 +33,7 @@ from fastapi.templating import Jinja2Templates
 from app.config import Settings, get_settings
 from app.middleware import create_rate_limit_middleware
 from app.schemas import MovieMetadata, Preset, ScrapeResult, UserSettings
-from app.services.file_service import save_assets_for_existing_video
+from app.services.file_service import find_local_images, save_assets_for_existing_video
 from app.services.file_utils import VIDEO_EXTENSIONS
 from app.services.nfo_service import build_movie_nfo
 from app.services.scrape_service import is_url, scrape_movie, search_movie
@@ -388,6 +388,36 @@ async def serve_file(path: str = Query(...)) -> FileResponse:
     return FileResponse(target)
 
 
+@app.get("/api/local-image")
+async def serve_local_image(path: str = Query(...)) -> Response:
+    """服务视频同目录的本地图片，用于刮削预览展示。
+
+    路径必须在 NFOFETCH_BROWSE_ROOT 范围内。
+    使用 absolute() 而非 resolve() 以避免触发 FUSE 网络 stat。
+    """
+    base_dir = Path(os.getenv("NFOFETCH_BROWSE_ROOT", os.getcwd())).absolute()
+    target = Path(path).absolute()
+    try:
+        target.relative_to(base_dir)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="路径不在允许范围内")
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="文件不存在")
+    content = target.read_bytes()
+    ext = target.suffix.lower()
+    media_type = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+    }.get(ext, "application/octet-stream")
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Cache-Control": "no-cache", "Access-Control-Allow-Origin": "*"},
+    )
+
+
 def _merge_ui_settings(settings: Settings) -> Settings:
     """从 UserSettings 合并 UI 设置（优先于环境变量），返回新的 Settings 实例。
 
@@ -464,6 +494,7 @@ async def scrape_fetch(
     error: str | None = None
     metadata = None
     poster_candidates: list[str] = []
+    local_image_map: dict[str, str] = {}
 
     metadata_b64: str | None = None
     if is_url(url):
@@ -486,6 +517,13 @@ async def scrape_fetch(
     else:
         return await search_and_select(request, url, video_path=video_path)
 
+    # 扫描视频同目录的本地图片
+    if video_path:
+        for img_path in find_local_images(Path(video_path)):
+            serve_url = f"/api/local-image?path={urllib.parse.quote(img_path)}"
+            poster_candidates.append(serve_url)
+            local_image_map[serve_url] = img_path
+
     parsed_url = urllib.parse.urlparse(url)
     default_poster_first = "jav321" in parsed_url.netloc.lower()
 
@@ -497,6 +535,7 @@ async def scrape_fetch(
             "metadata": metadata,
             "metadata_b64": metadata_b64,
             "poster_candidates": poster_candidates,
+            "local_image_map": local_image_map,
             "error": error,
             "url": url,
             "video_path": video_path,
@@ -618,6 +657,16 @@ async def scrape(
                 _update_task(
                     task_id, phase=phase, current=current, total=total, detail=detail
                 )
+
+        # 将本地图片 serve URL 转回文件路径，_download_to_temp 可直接读取
+        if poster_url and poster_url.startswith("/api/local-image?path="):
+            poster_url = urllib.parse.parse_qs(urllib.parse.urlparse(poster_url).query)[
+                "path"
+            ][0]
+        if fanart_url and fanart_url.startswith("/api/local-image?path="):
+            fanart_url = urllib.parse.parse_qs(urllib.parse.urlparse(fanart_url).query)[
+                "path"
+            ][0]
 
         # 在线程池中执行阻塞 I/O，避免阻塞事件循环（Issue 7）
         loop = asyncio.get_running_loop()

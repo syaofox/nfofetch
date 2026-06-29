@@ -13,6 +13,7 @@ from app.services.file_service import (
     _move_video_to_subdir,
     _rename_directory,
     _scan_dir_names,
+    find_local_images,
 )
 from app.services.file_utils import (
     _atomic_write_text,
@@ -629,6 +630,43 @@ class TestScanDirNames:
     def test_ignores_oserror(self) -> None:
         result = _scan_dir_names(Path("/nonexistent/path"))
         assert result == set()
+
+
+class TestFindLocalImages:
+    def test_returns_image_files(self, tmp_path: Path) -> None:
+        video = tmp_path / "movie.mp4"
+        video.write_text("")
+        (tmp_path / "poster.jpg").write_text("img")
+        (tmp_path / "fanart.png").write_text("img")
+        (tmp_path / "extra.webp").write_text("img")
+        (tmp_path / "movie.nfo").write_text("nfo")
+        (tmp_path / "sub.srt").write_text("srt")
+        result = find_local_images(video)
+        assert sorted(result) == sorted(
+            [
+                str((tmp_path / "poster.jpg").absolute()),
+                str((tmp_path / "fanart.png").absolute()),
+                str((tmp_path / "extra.webp").absolute()),
+            ]
+        )
+
+    def test_nonexistent_video_path(self) -> None:
+        result = find_local_images(Path("/nonexistent/movie.mp4"))
+        assert result == []
+
+    def test_empty_directory(self, tmp_path: Path) -> None:
+        video = tmp_path / "movie.mp4"
+        video.write_text("")
+        result = find_local_images(video)
+        assert result == []
+
+    def test_only_images(self, tmp_path: Path) -> None:
+        video = tmp_path / "movie.mp4"
+        video.write_text("")
+        (tmp_path / "img1.jpg").write_text("img")
+        (tmp_path / "img2.jpeg").write_text("img")
+        result = find_local_images(video)
+        assert len(result) == 2
 
 
 class TestCheckReuseExisting:

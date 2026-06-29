@@ -68,6 +68,33 @@ def _delete_orphan_extrafanart(extra_dir: Path, valid_names: set[str]) -> None:
             logger.info("删除孤立剧照: %s", p.name)
 
 
+_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
+
+
+def find_local_images(video_path: Path) -> list[str]:
+    """扫描视频文件同目录下的图片文件，返回绝对路径列表。
+
+    用于在刮削预览中自动加载本地已有图片供用户选择。
+    FUSE 友好：先 stat 目录刷新缓存，再用 iterdir 扫描。
+    """
+    movie_dir = video_path.absolute().parent
+    try:
+        movie_dir.stat()  # FUSE: 触发 getattr 刷新缓存
+    except OSError:
+        return []
+    if not movie_dir.is_dir():
+        return []
+    images: list[str] = []
+    for entry in movie_dir.iterdir():
+        try:
+            if entry.is_file() and entry.suffix.lower() in _IMAGE_EXTS:
+                images.append(str(entry.absolute()))
+        except OSError:
+            continue
+    images.sort()
+    return images
+
+
 def _write_nfo_and_images(
     *,
     movie_dir: Path,

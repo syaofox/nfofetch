@@ -225,6 +225,7 @@ class TestMicroInteractionRendered:
                 "metadata": None,
                 "metadata_b64": None,
                 "poster_candidates": ["https://example.com/img.jpg"],
+                "local_image_map": {},
                 "error": None,
                 "url": "https://example.com",
                 "video_path": None,

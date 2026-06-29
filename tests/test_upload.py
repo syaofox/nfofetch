@@ -167,3 +167,57 @@ class TestUploadImageAPI:
         resp2 = client.get(serve_url)
         assert resp2.status_code == 200, f"serve failed: {resp2.text}"
         assert resp2.content == TEST_PNG
+
+
+class TestServeLocalImage:
+    """测试 /api/local-image 端点。"""
+
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        self.browse_root = tmp_path / "browse"
+        self.browse_root.mkdir()
+        monkeypatch.setenv("NFOFETCH_BROWSE_ROOT", str(self.browse_root))
+
+    @pytest.fixture
+    def client(self) -> TestClient:
+        return TestClient(app)
+
+    def test_serve_local_image(self, client: TestClient) -> None:
+        img_path = self.browse_root / "poster.jpg"
+        img_path.write_bytes(TEST_PNG)
+        resp = client.get(f"/api/local-image?path={img_path}")
+        assert resp.status_code == 200
+        assert resp.headers["content-type"] == "image/jpeg"
+        assert resp.content == TEST_PNG
+
+    def test_serve_local_image_png(self, client: TestClient) -> None:
+        img_path = self.browse_root / "fanart.png"
+        img_path.write_bytes(TEST_PNG)
+        resp = client.get(f"/api/local-image?path={img_path}")
+        assert resp.status_code == 200
+        assert resp.headers["content-type"] == "image/png"
+        assert resp.content == TEST_PNG
+
+    def test_serve_local_image_webp(self, client: TestClient) -> None:
+        img_path = self.browse_root / "extra.webp"
+        img_path.write_bytes(TEST_PNG)
+        resp = client.get(f"/api/local-image?path={img_path}")
+        assert resp.status_code == 200
+        assert resp.headers["content-type"] == "image/webp"
+        assert resp.content == TEST_PNG
+
+    def test_path_outside_browse_root(self, client: TestClient) -> None:
+        outside = Path("/tmp/evil.jpg")
+        outside.write_bytes(TEST_PNG)
+        resp = client.get(f"/api/local-image?path={outside}")
+        assert resp.status_code == 403
+
+    def test_nonexistent_file(self, client: TestClient) -> None:
+        resp = client.get(
+            f"/api/local-image?path={self.browse_root / 'nonexistent.jpg'}"
+        )
+        assert resp.status_code == 404
+
+    def test_missing_path_param(self, client: TestClient) -> None:
+        resp = client.get("/api/local-image")
+        assert resp.status_code == 422

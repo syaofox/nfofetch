@@ -36,6 +36,7 @@ def _render(
             "metadata": metadata,
             "metadata_b64": None,
             "poster_candidates": poster_candidates or [],
+            "local_image_map": {},
             "error": error,
             "url": url,
             "video_path": video_path,

@@ -186,22 +186,27 @@
 
           <div class="nf-image-grid" id="nf-image-grid">
             {% for img_url in poster_candidates %}
+              {% set is_local = img_url.startswith('/api/local-image') %}
+              {% set real_path = local_image_map.get(img_url, img_url) %}
               <div class="nf-image-option">
                 <img
                   src="{{ img_url }}"
                   alt="候选图片 {{ loop.index }}"
                   class="nf-image-thumb"
                 />
+                {% if is_local %}
+                  <span class="nf-image-uploaded-badge">本地</span>
+                {% endif %}
                 <span class="nf-image-resolution"></span>
                 <div class="nf-image-option-controls">
                     <label class="nf-img-pill">
-                      <input type="radio" name="poster_url" value="{{ img_url }}"
-                        {%- if (default_poster_first and loop.first) or (not default_poster_first and loop.index == 2) %} checked{% endif %} hidden />
+                      <input type="radio" name="poster_url" value="{{ real_path }}"
+                        {%- if not is_local and ((default_poster_first and loop.first) or (not default_poster_first and loop.index == 2)) %} checked{% endif %} hidden />
                       <span class="nf-img-pill-text">poster</span>
                     </label>
                     <label class="nf-img-pill">
-                      <input type="radio" name="fanart_url" value="{{ img_url }}"
-                        {%- if (default_poster_first and loop.index == 2) or (not default_poster_first and loop.first) %} checked{% endif %} hidden />
+                      <input type="radio" name="fanart_url" value="{{ real_path }}"
+                        {%- if not is_local and ((default_poster_first and loop.index == 2) or (not default_poster_first and loop.first)) %} checked{% endif %} hidden />
                       <span class="nf-img-pill-text">fanart</span>
                     </label>
                 </div>
