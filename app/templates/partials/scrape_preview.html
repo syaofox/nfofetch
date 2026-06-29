@@ -125,6 +125,43 @@
       {% endif %}
 
       {% if poster_candidates %}
+        <div class="nf-form-group nf-write-section">
+          <p class="nf-hint">裁切方式（仅对封面 poster 生效）：</p>
+          <div class="nf-crop-tabs">
+            <button type="button" class="nf-crop-tab nf-crop-tab-active" onclick="window.nfSwitchCropTab('direction')">方向裁切</button>
+            <button type="button" class="nf-crop-tab" onclick="window.nfSwitchCropTab('precise')">精确裁切</button>
+          </div>
+          <div id="nf-crop-panel-direction" class="nf-crop-panel">
+            <div class="nf-inline-fields">
+              <label class="nf-label-inline nf-crop-label nf-radio-custom">
+                <input type="radio" name="crop_direction" value="none" checked /> 不裁切
+              </label>
+              <label class="nf-label-inline nf-crop-label nf-radio-custom">
+                <input type="radio" name="crop_direction" value="left" /> 左
+              </label>
+              <label class="nf-label-inline nf-crop-label nf-radio-custom">
+                <input type="radio" name="crop_direction" value="center" /> 中
+              </label>
+              <label class="nf-label-inline nf-crop-label nf-radio-custom">
+                <input type="radio" name="crop_direction" value="right" /> 右
+              </label>
+            </div>
+          </div>
+          <div id="nf-crop-panel-precise" class="nf-crop-panel" style="display:none">
+            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+              <button type="button" class="nf-crop-btn" id="nf-crop-btn" onclick="window.nfOpenCropModal(this)">选择裁切区域…</button>
+              <img id="nf-crop-preview" class="nf-crop-preview" style="display:none" />
+            </div>
+            <input type="hidden" name="crop_x" id="crop_x" value="0" />
+            <input type="hidden" name="crop_y" id="crop_y" value="0" />
+            <input type="hidden" name="crop_w" id="crop_w" value="0" />
+            <input type="hidden" name="crop_h" id="crop_h" value="0" />
+            <input type="hidden" name="custom_poster_path" id="custom_poster_path" value="" />
+          </div>
+        </div>
+      {% endif %}
+
+      {% if poster_candidates %}
         <div class="nf-form-group">
           <p class="nf-hint">
             从下方图片中选择一张作为 <code>poster.jpg</code>（封面），以及一张作为
@@ -195,46 +232,6 @@
             <span class="nf-upload-zone-text">上传自定义图片（点击/拖拽/Ctrl+V）</span>
           </div>
           <div class="nf-image-grid" id="nf-image-grid"></div>
-        </div>
-      {% endif %}
-
-      {% if poster_candidates %}
-        <div class="nf-form-group nf-write-section">
-          <p class="nf-hint">裁切方式（仅对封面 poster 生效）：</p>
-          <div class="nf-crop-tabs">
-            <button type="button" class="nf-crop-tab nf-crop-tab-active" onclick="window.nfSwitchCropTab('direction')">方向裁切</button>
-            <button type="button" class="nf-crop-tab" onclick="window.nfSwitchCropTab('precise')">精确裁切</button>
-          </div>
-          <div id="nf-crop-panel-direction" class="nf-crop-panel">
-            <div class="nf-inline-fields">
-              <label class="nf-label-inline nf-crop-label nf-radio-custom">
-                <input type="radio" name="crop_direction" value="none" checked /> 不裁切
-              </label>
-              <label class="nf-label-inline nf-crop-label nf-radio-custom">
-                <input type="radio" name="crop_direction" value="left" /> 左
-              </label>
-              <label class="nf-label-inline nf-crop-label nf-radio-custom">
-                <input type="radio" name="crop_direction" value="center" /> 中
-              </label>
-              <label class="nf-label-inline nf-crop-label nf-radio-custom">
-                <input type="radio" name="crop_direction" value="right" /> 右
-              </label>
-            </div>
-            <div class="nf-direction-preview" id="nf-direction-preview" style="display:none">
-              <img id="nf-direction-preview-img" class="nf-direction-preview-img" />
-            </div>
-          </div>
-          <div id="nf-crop-panel-precise" class="nf-crop-panel" style="display:none">
-            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
-              <button type="button" class="nf-crop-btn" id="nf-crop-btn" onclick="window.nfOpenCropModal(this)">选择裁切区域…</button>
-              <img id="nf-crop-preview" class="nf-crop-preview" style="display:none" />
-            </div>
-            <input type="hidden" name="crop_x" id="crop_x" value="0" />
-            <input type="hidden" name="crop_y" id="crop_y" value="0" />
-            <input type="hidden" name="crop_w" id="crop_w" value="0" />
-            <input type="hidden" name="crop_h" id="crop_h" value="0" />
-            <input type="hidden" name="custom_poster_path" id="custom_poster_path" value="" />
-          </div>
         </div>
       {% endif %}
 

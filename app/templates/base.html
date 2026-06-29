@@ -583,13 +583,14 @@
           var prePanel = document.getElementById("nf-crop-panel-precise");
           var tabs = document.querySelectorAll(".nf-crop-tab");
           tabs.forEach(function (t) { t.classList.remove("nf-crop-tab-active"); });
+          var coverImg = document.querySelector('.nf-meta-poster-img');
+          var poster = document.querySelector('input[name="poster_url"]:checked');
+          var imgUrl = poster ? poster.value : '';
           if (tab === "direction") {
             dirPanel.style.display = "";
             prePanel.style.display = "none";
             tabs[0].classList.add("nf-crop-tab-active");
-            // 切换到方向裁切时更新预览
-            if (window.nfUpdateDirectionPreview) window.nfUpdateDirectionPreview();
-            // 切换到方向裁切时清除精确裁切数据
+            // 清除精确裁切数据
             document.getElementById("crop_x").value = "0";
             document.getElementById("crop_y").value = "0";
             document.getElementById("crop_w").value = "0";
@@ -597,40 +598,74 @@
             document.getElementById("custom_poster_path").value = "";
             var btn = document.getElementById("nf-crop-btn");
             if (btn) { btn.classList.remove("nf-crop-btn-active"); btn.textContent = "选择裁切区域…"; }
-            var preview = document.getElementById("nf-crop-preview");
-            if (preview) { preview.style.display = "none"; preview.src = ""; }
+            var smallPreview = document.getElementById("nf-crop-preview");
+            if (smallPreview) { smallPreview.style.display = "none"; smallPreview.src = ""; }
+            window._nfCanvasPreviewActive = false;
+            // 方向裁切预览
+            if (window.nfUpdateDirectionPreview) window.nfUpdateDirectionPreview();
           } else {
             dirPanel.style.display = "none";
             prePanel.style.display = "";
             tabs[1].classList.add("nf-crop-tab-active");
+            // 切到精确裁切时，封面预览恢复原始图片
+            if (coverImg && imgUrl) {
+              coverImg.src = imgUrl;
+              coverImg.style.objectPosition = 'center';
+            }
           }
         };
 
         window.nfUpdateDirectionPreview = function () {
           var dir = document.querySelector('input[name="crop_direction"]:checked');
-          if (!dir || dir.value === 'none') {
-            var wrap = document.getElementById('nf-direction-preview');
-            if (wrap) wrap.style.display = 'none';
-            return;
-          }
           var poster = document.querySelector('input[name="poster_url"]:checked');
           var imgUrl = poster ? poster.value : '';
-          if (!imgUrl) return;
-          var wrap = document.getElementById('nf-direction-preview');
-          var img = document.getElementById('nf-direction-preview-img');
-          if (!wrap || !img) return;
-          img.src = imgUrl;
-          img.style.objectPosition = dir.value;
-          wrap.style.display = '';
+          var coverImg = document.querySelector('.nf-meta-poster-img');
+          if (!coverImg || !imgUrl) return;
+          var prePanel = document.getElementById('nf-crop-panel-precise');
+          var preciseActive = prePanel && prePanel.style.display !== 'none';
+          if (preciseActive || window._nfCanvasPreviewActive) return;
+          if (dir && dir.value !== 'none') {
+            coverImg.src = imgUrl;
+            coverImg.style.objectPosition = dir.value;
+          } else {
+            coverImg.src = imgUrl;
+            coverImg.style.objectPosition = 'center';
+          }
         };
 
-        // 方向裁切预览：监听 poster/fanart 选择和方向变更
+        // 封面预览同步：监听 poster/crop 变更
         (function () {
           document.body.addEventListener('change', function (e) {
-            if (e.target.matches && e.target.matches('input[name="crop_direction"], input[name="poster_url"]')) {
+            if (e.target.matches && e.target.matches('input[name="crop_direction"]')) {
+              if (window.nfUpdateDirectionPreview) window.nfUpdateDirectionPreview();
+            }
+            if (e.target.matches && e.target.matches('input[name="poster_url"]')) {
+              // 切换 poster 时清除精确裁切
+              var cropX = document.getElementById('crop_x');
+              if (cropX && cropX.value !== '0') {
+                document.getElementById('crop_x').value = '0';
+                document.getElementById('crop_y').value = '0';
+                document.getElementById('crop_w').value = '0';
+                document.getElementById('crop_h').value = '0';
+                document.getElementById('custom_poster_path').value = '';
+                var btn = document.getElementById('nf-crop-btn');
+                if (btn) { btn.classList.remove('nf-crop-btn-active'); btn.textContent = '选择裁切区域…'; }
+                var smallPreview = document.getElementById('nf-crop-preview');
+                if (smallPreview) { smallPreview.style.display = 'none'; smallPreview.src = ''; }
+                window._nfCanvasPreviewActive = false;
+              }
               if (window.nfUpdateDirectionPreview) window.nfUpdateDirectionPreview();
             }
           });
+        })();
+
+        // 页面加载时封面预览同步到已选的 poster
+        (function () {
+          var poster = document.querySelector('input[name="poster_url"]:checked');
+          var coverImg = document.querySelector('.nf-meta-poster-img');
+          if (poster && coverImg) {
+            coverImg.src = poster.value;
+          }
         })();
 
         window.nfConfirmCrop = function () {
@@ -647,12 +682,22 @@
             btn.classList.add("nf-crop-btn-active");
             btn.textContent = "已裁切 " + w + "×" + h;
           }
-          // 生成预览缩略图
-          var canvas = _nfCropper.getCroppedCanvas({ maxWidth: 80, maxHeight: 80 });
+          // 小缩略图
+          var thumbCanvas = _nfCropper.getCroppedCanvas({ maxWidth: 80, maxHeight: 80 });
           var preview = document.getElementById("nf-crop-preview");
-          if (preview && canvas) {
-            preview.src = canvas.toDataURL();
+          if (preview && thumbCanvas) {
+            preview.src = thumbCanvas.toDataURL();
             preview.style.display = "inline-block";
+          }
+          // 封面预览大图
+          var coverImg = document.querySelector('.nf-meta-poster-img');
+          if (coverImg) {
+            var coverCanvas = _nfCropper.getCroppedCanvas({ maxWidth: 320, maxHeight: 480 });
+            if (coverCanvas) {
+              coverImg.src = coverCanvas.toDataURL();
+              coverImg.style.objectPosition = 'center';
+              window._nfCanvasPreviewActive = true;
+            }
           }
           window.nfCloseCropModal();
         };
