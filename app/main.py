@@ -376,9 +376,13 @@ async def api_upload_poster(file: UploadFile = File(...)) -> dict[str, str]:
 
 @app.get("/file")
 async def serve_file(path: str = Query(...)) -> FileResponse:
-    """服务本地图片文件，路径必须在 NFOFETCH_BROWSE_ROOT 范围内。"""
-    base_dir = Path(os.getenv("NFOFETCH_BROWSE_ROOT", os.getcwd())).resolve()
-    target = (base_dir / path).resolve()
+    """服务本地图片文件，路径必须在 NFOFETCH_BROWSE_ROOT 范围内。
+
+    支持绝对路径和相对 browse_root 的路径（均会校验安全性）。
+    使用 absolute() 而非 resolve() 以避免触发 FUSE 网络 stat。
+    """
+    base_dir = Path(os.getenv("NFOFETCH_BROWSE_ROOT", os.getcwd())).absolute()
+    target = Path(path).absolute()
     try:
         target.relative_to(base_dir)
     except ValueError:

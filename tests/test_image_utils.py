@@ -244,6 +244,117 @@ class TestDownloadImageWithCrop:
         assert ok is True
         mock_delay2.assert_called_once_with(0.15)
 
+    def test_crop_with_local_path(self, tmp_path: Path) -> None:
+        """使用本地文件路径时，裁切应正常生效。"""
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0.0,
+        )
+        src = tmp_path / "source.jpg"
+        img = Image.new("RGB", (1200, 800), (255, 0, 0))
+        img.save(str(src), format="JPEG")
+        dest = tmp_path / "poster.jpg"
+        ok = _download_image_with_crop(
+            str(src),
+            dest,
+            settings,
+            crop_direction="left",
+            http_timeout=5,
+        )
+        assert ok is True
+        assert dest.exists()
+        cropped = Image.open(dest)
+        assert cropped.width == int(800 * 2.0 / 3.0)
+        assert cropped.height == 800
+
+    def test_crop_with_local_path_all_directions(self, tmp_path: Path) -> None:
+        """使用本地文件路径时，所有裁切方向都应生效。"""
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0.0,
+        )
+        # 创建宽图 1800x800
+        src = tmp_path / "source.jpg"
+        img = Image.new("RGB", (1800, 800), (255, 0, 0))
+        img.save(str(src), format="JPEG")
+        target_w = int(800 * 2.0 / 3.0)
+
+        for direction in ("left", "center", "right"):
+            dest = tmp_path / f"poster_{direction}.jpg"
+            ok = _download_image_with_crop(
+                str(src),
+                dest,
+                settings,
+                crop_direction=direction,
+                http_timeout=5,
+            )
+            assert ok is True
+            assert dest.exists()
+            cropped = Image.open(dest)
+            assert cropped.size == (target_w, 800), f"{direction}: {cropped.size}"
+
+    def test_crop_with_local_path_exact(self, tmp_path: Path) -> None:
+        """使用本地文件路径时，精确裁切应生效。"""
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0.0,
+        )
+        src = tmp_path / "source.jpg"
+        # 创建 500x500 图片
+        img = Image.new("RGB", (500, 500), (255, 0, 0))
+        # 中间画 300x300 绿色
+        for x in range(100, 400):
+            for y in range(100, 400):
+                img.putpixel((x, y), (0, 255, 0))
+        img.save(str(src), format="JPEG")
+        dest = tmp_path / "cropped.jpg"
+        ok = _download_image_with_crop(
+            str(src),
+            dest,
+            settings,
+            crop_box=(100, 100, 300, 300),
+            http_timeout=5,
+        )
+        assert ok is True
+        assert dest.exists()
+        cropped = Image.open(dest)
+        assert cropped.size == (300, 300)
+
+    def test_crop_with_local_path_auto_trim(self, tmp_path: Path) -> None:
+        """本地文件路径 + auto_trim + direction 裁切。"""
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0.0,
+            auto_trim_white_borders=True,
+        )
+        # 1200x800 绿色内容 + 50px 白边 = 1300x900
+        total_w, total_h = 1300, 900
+        img = Image.new("RGB", (total_w, total_h), (255, 255, 255))
+        inner = Image.new("RGB", (1200, 800), (0, 255, 0))
+        img.paste(inner, (50, 50))
+        src = tmp_path / "source.png"
+        img.save(str(src), format="PNG")
+        dest = tmp_path / "result.png"
+        ok = _download_image_with_crop(
+            str(src),
+            dest,
+            settings,
+            crop_direction="center",
+            http_timeout=5,
+        )
+        assert ok is True
+        cropped = Image.open(dest)
+        # auto_trim → 1200x800 → 2:3 crop → 533x800
+        assert cropped.size == (int(800 * 2.0 / 3.0), 800)
+
 
 class TestTrimWhiteBorders:
     def _make_png(self, width: int, height: int, color: tuple[int, int, int]) -> bytes:
@@ -350,6 +461,33 @@ class TestTrimWhiteBorders:
         assert dest.exists()
         trimmed = Image.open(dest)
         assert trimmed.size == (100, 100)
+
+    def test_crop_with_local_path(self, tmp_path: Path) -> None:
+        """使用本地文件路径时，裁切应正常生效。"""
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0.0,
+        )
+        # 创建一张宽图 1200x800 作为本地图片
+        src = tmp_path / "source.jpg"
+        img = Image.new("RGB", (1200, 800), (255, 0, 0))
+        img.save(str(src), format="JPEG")
+        dest = tmp_path / "poster.jpg"
+        ok = _download_image_with_crop(
+            str(src),  # 本地文件绝对路径
+            dest,
+            settings,
+            crop_direction="left",
+            http_timeout=5,
+        )
+        assert ok is True
+        assert dest.exists()
+        cropped = Image.open(dest)
+        # 2:3 裁切: target_h=800, target_w=int(800*2/3)=533
+        assert cropped.width == int(800 * 2.0 / 3.0)
+        assert cropped.height == 800
 
 
 class TestDownloadImageWithCropAutoTrim:

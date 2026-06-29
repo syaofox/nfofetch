@@ -1552,6 +1552,191 @@ class TestNfoUrlHashSkip:
         assert poster_path.read_text() == "existing poster"
         assert fanart_path.read_text() == "existing fanart"
 
+    def test_poster_crop_applied_with_local_image(
+        self, tmp_path: Path, sample_movie_metadata
+    ) -> None:
+        """使用本地文件作为 poster_url + crop_direction，poster.jpg 应被裁切。"""
+        from PIL import Image
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.nfo_service import build_movie_nfo
+
+        video = tmp_path / "test.mp4"
+        video.write_text("fake")
+        # 创建本地图片（宽图 1200x800）
+        src = tmp_path / "thumb.jpg"
+        Image.new("RGB", (1200, 800), (255, 0, 0)).save(str(src), format="JPEG")
+
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+        )
+        nfo_text = build_movie_nfo(sample_movie_metadata)
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=nfo_text,
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+            poster_url=str(src),
+            crop_direction="left",
+        )
+
+        assert result.success
+        poster = tmp_path / "poster.jpg"
+        assert poster.exists()
+        cropped = Image.open(poster)
+        # 2:3 裁切: target_h=800, target_w=int(800*2/3)=533
+        assert cropped.size == (int(800 * 2.0 / 3.0), 800), (
+            f"poster 应为裁切后尺寸, 实际: {cropped.size}"
+        )
+
+    def test_poster_crop_applied_with_local_image_parallel(
+        self, tmp_path: Path, sample_movie_metadata
+    ) -> None:
+        """serial_writes=False（并行模式）也应正确裁切本地图片。"""
+        from PIL import Image
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.nfo_service import build_movie_nfo
+
+        video = tmp_path / "test.mp4"
+        video.write_text("fake")
+        src = tmp_path / "thumb.jpg"
+        Image.new("RGB", (1200, 800), (255, 0, 0)).save(str(src), format="JPEG")
+
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+            serial_writes=False,
+        )
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=build_movie_nfo(sample_movie_metadata),
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+            poster_url=str(src),
+            crop_direction="center",
+        )
+
+        assert result.success
+        poster = tmp_path / "poster.jpg"
+        assert poster.exists()
+        cropped = Image.open(poster)
+        assert cropped.size == (int(800 * 2.0 / 3.0), 800), (
+            f"poster 应为裁切后尺寸, 实际: {cropped.size}"
+        )
+
+    def test_crop_overrides_hash_skip(
+        self, tmp_path: Path, sample_movie_metadata
+    ) -> None:
+        """有裁切参数时，即使 hash 匹配也应重新下载以应用裁切。"""
+        from PIL import Image
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.nfo_service import build_movie_nfo
+
+        video = tmp_path / "test.mp4"
+        video.write_text("fake")
+        # 本地图片
+        src = tmp_path / "source.jpg"
+        Image.new("RGB", (1200, 800), (255, 0, 0)).save(str(src), format="JPEG")
+        # 已有 poster.jpg（旧内容）
+        poster_path = tmp_path / "poster.jpg"
+        poster_path.write_text("old poster")
+        # NFO hash 匹配本地图片路径
+        nfo_text = self._make_nfo_with_hashes(
+            "test", str(src), "https://example.com/art.jpg"
+        )
+        (tmp_path / "movie.nfo").write_text(nfo_text)
+
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+        )
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=build_movie_nfo(sample_movie_metadata),
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+            poster_url=str(src),
+            crop_direction="center",
+        )
+
+        assert result.success
+        assert poster_path.exists()
+        # 应为裁切后的图片，而非文本 "old poster"
+        cropped = Image.open(poster_path)
+        assert cropped.size == (int(800 * 2.0 / 3.0), 800)
+
+    def test_precise_crop_applied_with_local_image(
+        self, tmp_path: Path, sample_movie_metadata
+    ) -> None:
+        """精确裁切（crop_box + crop_direction=none）对本地图片应生效。"""
+        from PIL import Image
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.nfo_service import build_movie_nfo
+
+        video = tmp_path / "test.mp4"
+        video.write_text("fake")
+        src = tmp_path / "source.jpg"
+        img = Image.new("RGB", (500, 500), (255, 0, 0))
+        for x in range(100, 400):
+            for y in range(100, 400):
+                img.putpixel((x, y), (0, 255, 0))
+        img.save(str(src), format="JPEG")
+
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+        )
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=build_movie_nfo(sample_movie_metadata),
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+            poster_url=str(src),
+            crop_direction="none",
+            crop_box=(100, 100, 300, 300),
+        )
+
+        assert result.success, f"刮削失败: {result.message}"
+        poster = tmp_path / "poster.jpg"
+        assert poster.exists(), "poster.jpg 未被创建"
+        assert result.poster_path is not None, "result.poster_path 应为路径"
+        cropped = Image.open(poster)
+        assert cropped.size == (300, 300), (
+            f"精确裁切后应为 300x300, 实际: {cropped.size}"
+        )
+
     def test_different_url_triggers_redownload(
         self, tmp_path: Path, sample_movie_metadata
     ) -> None:

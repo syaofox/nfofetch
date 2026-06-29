@@ -165,8 +165,10 @@ def _write_nfo_and_images(
         fanart_candidates.append(str(art_urls[0]))
 
     # NFO URL hash 检测：存储在 NFO 中的 hash 与当前 URL 一致则跳过
-    poster_needs_download = False
-    if poster_url_val is not None:
+    # 若有裁切参数或 auto_trim 激活时，强制重新下载以应用裁切
+    _has_crop = crop_direction != "none" or crop_box is not None
+    poster_needs_download = _has_crop or settings.auto_trim_white_borders
+    if not poster_needs_download and poster_url_val is not None:
         stored = _read_nfo_url_hash(stored_root, "poster_url_hash")
         poster_needs_download = stored != _url_hash(poster_url_val)
     fanart_needs_download = False
@@ -495,6 +497,25 @@ def _rename_directory(
     return new_dir, new_video_path
 
 
+def _update_local_path_after_move(
+    url: str | None,
+    old_dir: Path,
+    new_dir: Path,
+) -> str | None:
+    """如果 url 是 old_dir 内的本地文件路径，更新目录前缀到 new_dir。
+
+    用于 rename_dir / move_to_subdir 后更新 poster_url/fanart_url。
+    """
+    if not url:
+        return url
+    try:
+        p = Path(url).absolute()
+        rel = p.relative_to(old_dir.absolute())
+    except ValueError:
+        return url
+    return str(new_dir / rel)
+
+
 def save_assets_for_existing_video(
     *,
     metadata: MovieMetadata,
@@ -546,12 +567,19 @@ def save_assets_for_existing_video(
             if on_progress:
                 on_progress("move_dir", 0, 1, "正在移动到子目录…")
             try:
+                old_movie_dir = movie_dir
                 movie_dir, final_video_path = _move_video_to_subdir(
                     movie_dir,
                     video_path,
                     metadata,
                     subdir_fmt,
                     settings,
+                )
+                poster_url = _update_local_path_after_move(
+                    poster_url, old_movie_dir, movie_dir
+                )
+                fanart_url = _update_local_path_after_move(
+                    fanart_url, old_movie_dir, movie_dir
                 )
             except OSError as e:
                 return ScrapeResult(
@@ -596,12 +624,19 @@ def save_assets_for_existing_video(
             if on_progress:
                 on_progress("rename_dir", 0, 1, "正在重命名文件夹…")
             try:
+                old_movie_dir = movie_dir
                 movie_dir, final_video_path = _rename_directory(
                     movie_dir,
                     metadata,
                     final_video_path,
                     fmt_dir,
                     filter_actor_gender=settings.filter_actor_gender,
+                )
+                poster_url = _update_local_path_after_move(
+                    poster_url, old_movie_dir, movie_dir
+                )
+                fanart_url = _update_local_path_after_move(
+                    fanart_url, old_movie_dir, movie_dir
                 )
             except OSError as e:
                 return ScrapeResult(

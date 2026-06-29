@@ -201,11 +201,13 @@
                 <div class="nf-image-option-controls">
                     <label class="nf-img-pill">
                       <input type="radio" name="poster_url" value="{{ real_path }}"
+                        data-display-url="{{ img_url }}"
                         {%- if not is_local and ((default_poster_first and loop.first) or (not default_poster_first and loop.index == 2)) %} checked{% endif %} hidden />
                       <span class="nf-img-pill-text">poster</span>
                     </label>
                     <label class="nf-img-pill">
                       <input type="radio" name="fanart_url" value="{{ real_path }}"
+                        data-display-url="{{ img_url }}"
                         {%- if not is_local and ((default_poster_first and loop.index == 2) or (not default_poster_first and loop.first)) %} checked{% endif %} hidden />
                       <span class="nf-img-pill-text">fanart</span>
                     </label>
@@ -387,8 +389,8 @@
             '<span class="nf-image-uploaded-badge">上传</span>' +
             '<span class="nf-image-resolution"></span>' +
             '<div class="nf-image-option-controls">' +
-              '<label class="nf-img-pill"><input type="radio" name="poster_url" value="' + data.path.replace(/"/g, "&quot;") + '" hidden /><span class="nf-img-pill-text">poster</span></label>' +
-              '<label class="nf-img-pill"><input type="radio" name="fanart_url" value="' + data.path.replace(/"/g, "&quot;") + '" hidden /><span class="nf-img-pill-text">fanart</span></label>' +
+              '<label class="nf-img-pill"><input type="radio" name="poster_url" value="' + data.path.replace(/"/g, "&quot;") + '" data-display-url="' + data.serve_url.replace(/"/g, "&quot;") + '" hidden /><span class="nf-img-pill-text">poster</span></label>' +
+              '<label class="nf-img-pill"><input type="radio" name="fanart_url" value="' + data.path.replace(/"/g, "&quot;") + '" data-display-url="' + data.serve_url.replace(/"/g, "&quot;") + '" hidden /><span class="nf-img-pill-text">fanart</span></label>' +
             '</div>';
           grid.appendChild(div);
         })

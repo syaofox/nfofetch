@@ -454,6 +454,10 @@
         // --- 精确裁切 ---
         var _nfCropper = null;
 
+        function _nfDisplayUrl(radio) {
+          return radio ? (radio.getAttribute('data-display-url') || radio.value) : '';
+        }
+
         function _cropperOpts(img) {
           var halfW = Math.floor(img.naturalWidth / 2);
           return {
@@ -585,21 +589,11 @@
           tabs.forEach(function (t) { t.classList.remove("nf-crop-tab-active"); });
           var coverImg = document.querySelector('.nf-meta-poster-img');
           var poster = document.querySelector('input[name="poster_url"]:checked');
-          var imgUrl = poster ? poster.value : '';
+          var imgUrl = _nfDisplayUrl(poster);
           if (tab === "direction") {
             dirPanel.style.display = "";
             prePanel.style.display = "none";
             tabs[0].classList.add("nf-crop-tab-active");
-            // 清除精确裁切数据
-            document.getElementById("crop_x").value = "0";
-            document.getElementById("crop_y").value = "0";
-            document.getElementById("crop_w").value = "0";
-            document.getElementById("crop_h").value = "0";
-            document.getElementById("custom_poster_path").value = "";
-            var btn = document.getElementById("nf-crop-btn");
-            if (btn) { btn.classList.remove("nf-crop-btn-active"); btn.textContent = "选择裁切区域…"; }
-            var smallPreview = document.getElementById("nf-crop-preview");
-            if (smallPreview) { smallPreview.style.display = "none"; smallPreview.src = ""; }
             window._nfCanvasPreviewActive = false;
             // 方向裁切预览
             if (window.nfUpdateDirectionPreview) window.nfUpdateDirectionPreview();
@@ -618,7 +612,7 @@
         window.nfUpdateDirectionPreview = function () {
           var dir = document.querySelector('input[name="crop_direction"]:checked');
           var poster = document.querySelector('input[name="poster_url"]:checked');
-          var imgUrl = poster ? poster.value : '';
+          var imgUrl = _nfDisplayUrl(poster);
           var coverImg = document.querySelector('.nf-meta-poster-img');
           if (!coverImg || !imgUrl) return;
           var prePanel = document.getElementById('nf-crop-panel-precise');
@@ -664,7 +658,7 @@
           var poster = document.querySelector('input[name="poster_url"]:checked');
           var coverImg = document.querySelector('.nf-meta-poster-img');
           if (poster && coverImg) {
-            coverImg.src = poster.value;
+            coverImg.src = _nfDisplayUrl(poster);
           }
         })();
 

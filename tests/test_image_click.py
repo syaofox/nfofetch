@@ -168,3 +168,116 @@ class TestImageThumbCss:
                 found = True
                 break
         assert found, ".nf-image-thumb CSS 块中未找到 cursor 属性"
+
+
+class TestDataDisplayUrl:
+    """验证 data-display-url 属性的渲染正确性。"""
+
+    def _render_preview(
+        self,
+        poster_candidates: list[str] | None = None,
+        local_image_map: dict[str, str] | None = None,
+        metadata: MovieMetadata | None = None,
+    ) -> str:
+        request = _make_request()
+        resp = templates.TemplateResponse(
+            request,
+            "partials/scrape_preview.html",
+            {
+                "request": request,
+                "metadata": metadata,
+                "metadata_b64": None,
+                "poster_candidates": poster_candidates or [],
+                "local_image_map": local_image_map or {},
+                "error": None,
+                "url": "https://example.com",
+                "video_path": "/path/to/video.mp4",
+            },
+        )
+        return bytes(resp.body).decode()
+
+    def test_local_image_has_data_display_url(self) -> None:
+        """本地图片的 data-display-url 应为 /api/local-image?path= 形式的 serve URL。"""
+        local_path = "/mnt/media/movie/thumb.jpg"
+        serve_url = "/api/local-image?path=%2Fmnt%2Fmedia%2Fmovie%2Fthumb.jpg"
+        html = self._render_preview(
+            poster_candidates=[serve_url],
+            local_image_map={serve_url: local_path},
+        )
+        before_script = html.split("<script")[0]
+        assert f'data-display-url="{serve_url}"' in before_script
+        assert f'value="{local_path}"' in before_script
+
+    def test_remote_image_has_data_display_url(self) -> None:
+        """远程图片的 data-display-url 应与 value 相同（URL 本身）。"""
+        url = "https://example.com/poster.jpg"
+        html = self._render_preview(
+            poster_candidates=[url],
+        )
+        before_script = html.split("<script")[0]
+        assert f'data-display-url="{url}"' in before_script
+        assert f'value="{url}"' in before_script
+
+    def test_data_display_url_on_poster_and_fanart(self) -> None:
+        """poster 和 fanart 两个 radio 都有 data-display-url。"""
+        url = "https://example.com/poster.jpg"
+        html = self._render_preview(
+            poster_candidates=[url],
+        )
+        before_script = html.split("<script")[0]
+        assert before_script.count("data-display-url") == 2
+
+    def test_data_display_url_for_local_not_checked(self) -> None:
+        """本地图片的 poster radio 默认不应 checked。"""
+        serve_url = "/api/local-image?path=%2Fmnt%2Ftest.jpg"
+        html = self._render_preview(
+            poster_candidates=[serve_url],
+            local_image_map={serve_url: "/mnt/test.jpg"},
+        )
+        before_script = html.split("<script")[0]
+        poster_input_start = before_script.index(
+            'name="poster_url" value="/mnt/test.jpg"'
+        )
+        poster_input = before_script[poster_input_start:]
+        assert "checked" not in poster_input[:80]
+
+
+class TestBaseTemplateDisplayUrl:
+    """验证 base.html 中 _nfDisplayUrl 相关 JS 逻辑。"""
+
+    BASE_HTML = BASE_TEMPLATE_PATH.read_text()
+
+    def test_nf_display_url_function_exists(self) -> None:
+        """_nfDisplayUrl 辅助函数存在。"""
+        assert "function _nfDisplayUrl" in self.BASE_HTML
+
+    def test_nf_display_url_uses_data_display_url(self) -> None:
+        """_nfDisplayUrl 优先读取 data-display-url。"""
+        assert "getAttribute('data-display-url')" in self.BASE_HTML
+
+    def test_nf_display_url_falls_back_to_value(self) -> None:
+        """_nfDisplayUrl 没有 data-display-url 时回退到 value。"""
+        assert "|| radio.value" in self.BASE_HTML
+
+    def test_update_direction_preview_uses_display_url(self) -> None:
+        """方向裁切预览使用 _nfDisplayUrl 获取图片 URL。"""
+        assert "var imgUrl = _nfDisplayUrl(poster);" in self.BASE_HTML
+
+    def test_switch_crop_tab_uses_display_url(self) -> None:
+        """切到精确裁切时使用 _nfDisplayUrl 获取图片 URL。"""
+        assert "var imgUrl = _nfDisplayUrl(poster);" in self.BASE_HTML
+
+    def test_page_load_sync_uses_display_url(self) -> None:
+        """页面加载时封面预览同步使用 _nfDisplayUrl。"""
+        assert "coverImg.src = _nfDisplayUrl(poster);" in self.BASE_HTML
+
+    def test_switch_to_direction_does_not_clear_precise_data(self) -> None:
+        """切到方向裁切 tab 时不应清除精确裁切数据。"""
+        assert 'document.getElementById("crop_x").value = "0"' not in self.BASE_HTML
+        assert 'document.getElementById("crop_y").value = "0"' not in self.BASE_HTML
+        assert 'document.getElementById("crop_w").value = "0"' not in self.BASE_HTML
+        assert 'document.getElementById("crop_h").value = "0"' not in self.BASE_HTML
+        assert (
+            'document.getElementById("custom_poster_path").value = ""'
+            not in self.BASE_HTML
+        )
