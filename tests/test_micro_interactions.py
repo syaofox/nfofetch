@@ -163,6 +163,13 @@ class TestCustomRadioInPreview:
         html = (TEMPLATES_DIR / "partials" / "image_options.html").read_text()
         assert "nf-radio-custom" in html
 
+    def test_crop_ratio_toggle_button_in_preview(self) -> None:
+        """scrape_preview.html 包含比例切换按钮。"""
+        html = (TEMPLATES_DIR / "partials" / "scrape_preview.html").read_text()
+        assert 'id="nf-crop-ratio-toggle"' in html
+        assert "window._nfToggleCropRatio" in html
+        assert "比例: 2:3" in html
+
 
 class TestRippleInPartials:
     """验证 partials 中的按钮也添加了 ripple。"""

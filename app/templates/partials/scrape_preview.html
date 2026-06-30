@@ -346,9 +346,12 @@
         </div>
         <div id="nf-crop-drop-hint" class="nf-crop-drop-hint">拖拽图片到此处或 Ctrl+V 粘贴</div>
       </div>
-      <div style="display:flex;gap:0.5rem;justify-content:flex-end;padding:0 1.5rem 1rem;">
-        <button type="button" class="nf-button nf-button-secondary nf-btn-ripple nf-btn-press" onclick="window.nfCloseCropModal()">取消</button>
-        <button type="button" class="nf-button nf-btn-ripple nf-btn-press" onclick="window.nfConfirmCrop()">确认裁切</button>
+      <div style="display:flex;gap:0.5rem;justify-content:space-between;padding:0 1.5rem 1rem;">
+        <button type="button" class="nf-crop-ratio-btn" id="nf-crop-ratio-toggle" onclick="window._nfToggleCropRatio()">比例: 2:3</button>
+        <div style="display:flex;gap:0.5rem;">
+          <button type="button" class="nf-button nf-button-secondary nf-btn-ripple nf-btn-press" onclick="window.nfCloseCropModal()">取消</button>
+          <button type="button" class="nf-button nf-btn-ripple nf-btn-press" onclick="window.nfConfirmCrop()">确认裁切</button>
+        </div>
       </div>
     </div>
   </div>

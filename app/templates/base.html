@@ -458,18 +458,41 @@
           return radio ? (radio.getAttribute('data-display-url') || radio.value) : '';
         }
 
+        var _nfCropRatioMode = 'cover'; // 'cover' (2:3) or 'free'
+
         function _cropperOpts(img) {
-          var halfW = Math.floor(img.naturalWidth / 2);
+          var isCover = _nfCropRatioMode === 'cover';
+          var w, x;
+          if (isCover) {
+            w = Math.round(img.naturalHeight * 2 / 3);
+            if (w > img.naturalWidth) w = img.naturalWidth;
+            x = Math.round((img.naturalWidth - w) / 2);
+          } else {
+            w = Math.floor(img.naturalWidth / 2);
+            x = img.naturalWidth - w;
+          }
           return {
-            aspectRatio: NaN, viewMode: 1, dragMode: "crop",
+            aspectRatio: isCover ? (2 / 3) : NaN, viewMode: 1, dragMode: "crop",
             autoCrop: true, autoCropArea: 0.8,
             responsive: true, restore: false,
             guides: true, center: true, highlight: false, background: true,
             movable: true, rotatable: false, scalable: false,
             zoomable: true, zoomOnTouch: true, zoomOnWheel: true,
-            data: { x: img.naturalWidth - halfW, y: 0, width: halfW, height: img.naturalHeight },
+            data: { x: x, y: 0, width: w, height: img.naturalHeight },
           };
         }
+
+        window._nfToggleCropRatio = function () {
+          _nfCropRatioMode = _nfCropRatioMode === 'cover' ? 'free' : 'cover';
+          var img = document.getElementById("nf-crop-image");
+          if (!img || !_nfCropper) return;
+          _destroyCropper();
+          _nfCropper = new Cropper(img, _cropperOpts(img));
+          var btn = document.getElementById("nf-crop-ratio-toggle");
+          if (btn) {
+            btn.textContent = _nfCropRatioMode === 'cover' ? '比例: 2:3' : '比例: 自由';
+          }
+        };
 
         function _destroyCropper() {
           if (_nfCropper) { _nfCropper.destroy(); _nfCropper = null; }

@@ -1426,6 +1426,29 @@
   background: #dbeafe;
 }
 
+/* 精确裁切比例切换按钮 */
+.nf-crop-ratio-btn {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 0.375rem;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #6b7280;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  white-space: nowrap;
+}
+
+.nf-crop-ratio-btn:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.nf-crop-ratio-btn:active {
+  transform: scale(0.97);
+}
+
 /* Crop label micro-interaction */
 .nf-crop-label {
   transition: color 0.15s ease, transform 0.12s ease;

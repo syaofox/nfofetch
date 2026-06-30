@@ -281,3 +281,27 @@ class TestBaseTemplateDisplayUrl:
             'document.getElementById("custom_poster_path").value = ""'
             not in self.BASE_HTML
         )
+
+    def test_crop_ratio_mode_variable_exists(self) -> None:
+        """_nfCropRatioMode 变量存在且默认 cover。"""
+        assert "var _nfCropRatioMode = 'cover'" in self.BASE_HTML
+
+    def test_toggle_crop_ratio_function_exists(self) -> None:
+        """_nfToggleCropRatio 全局函数存在。"""
+        assert "window._nfToggleCropRatio = function" in self.BASE_HTML
+
+    def test_dynamic_aspect_ratio_in_cropper_opts(self) -> None:
+        """_cropperOpts 使用 isCover 动态选择 aspectRatio。"""
+        assert "aspectRatio: isCover ? (2 / 3) : NaN" in self.BASE_HTML
+
+    def test_cover_mode_uses_full_height(self) -> None:
+        """cover 模式初始选框高度为图片高度。"""
+        assert "height: img.naturalHeight" in self.BASE_HTML
+
+    def test_toggle_button_text_2_3(self) -> None:
+        """_nfToggleCropRatio 中按钮文字包含 2:3。"""
+        assert "'比例: 2:3'" in self.BASE_HTML
+
+    def test_toggle_button_text_free(self) -> None:
+        """_nfToggleCropRatio 中切换到自由时按钮文字。"""
+        assert "'比例: 自由'" in self.BASE_HTML
