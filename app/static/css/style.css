@@ -1449,6 +1449,36 @@
   transform: scale(0.97);
 }
 
+/* 旋转按钮 */
+.nf-crop-rotate-btn {
+  font-size: 1rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+  cursor: pointer;
+  line-height: 1.2;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.nf-crop-rotate-btn:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.nf-crop-rotate-btn:active {
+  transform: scale(0.97);
+}
+
+/* 旋转角度信息 */
+.nf-crop-rotation-info {
+  font-size: 0.75rem;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
 /* Crop label micro-interaction */
 .nf-crop-label {
   transition: color 0.15s ease, transform 0.12s ease;

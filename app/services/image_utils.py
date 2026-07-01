@@ -199,22 +199,48 @@ def _download_image(
 CropBox = tuple[int, int, int, int] | None
 
 
+def _rotate_image(image_path: Path, angle: float) -> None:
+    """旋转图片指定角度（正数 = 顺时针）。
+
+    使用 expand=True 确保旋转后的完整内容不被裁切，
+    空区域用黑色填充。
+    """
+    if angle == 0:
+        return
+    from PIL import Image
+
+    img = Image.open(image_path)
+    rotated = img.rotate(-angle, expand=True, fillcolor=(0, 0, 0))
+    rotated.save(image_path, format=img.format)
+    logger.info(
+        "旋转图片: %s -> %.1f°（原图 %dx%d，旋转后 %dx%d）",
+        image_path.name,
+        angle,
+        img.width,
+        img.height,
+        rotated.width,
+        rotated.height,
+    )
+
+
 def _download_image_with_crop(
     url: str,
     dest: Path,
     settings: Settings,
     crop_direction: str = "none",
     crop_box: CropBox = None,
+    crop_rotation: float = 0,
     http_timeout: int = 20,
 ) -> bool:
     """下载图片，需要裁切时先下载到 /tmp 裁切后再移动到目标路径。
 
     避免在目标目录产生未裁切的临时文件。
-    处理顺序：auto_trim → 精确裁切(crop_box) → 方向裁切(crop_direction)。
+    处理顺序：auto_trim → 旋转 → 精确裁切(crop_box) → 方向裁切(crop_direction)。
     """
     if (
         crop_direction == "none"
         and crop_box is None
+        and crop_rotation == 0
         and not settings.auto_trim_white_borders
     ):
         return _download_image(url, dest, settings, http_timeout=http_timeout)
@@ -225,6 +251,8 @@ def _download_image_with_crop(
     try:
         if settings.auto_trim_white_borders:
             _trim_white_borders(tmp)
+        if crop_rotation != 0:
+            _rotate_image(tmp, crop_rotation)
         if crop_box is not None:
             _crop_image_exact(tmp, *crop_box)
         if crop_direction != "none":

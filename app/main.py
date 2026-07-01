@@ -616,6 +616,7 @@ async def scrape(
     crop_y: int = Form(default=0),
     crop_w: int = Form(default=0),
     crop_h: int = Form(default=0),
+    crop_rotation: float = Form(default=0),
     custom_poster_path: str | None = Form(default=None),
     custom_fanart_path: str | None = Form(default=None),
     move_to_subdir: bool = Form(default=False),
@@ -687,6 +688,7 @@ async def scrape(
             crop_box=(crop_x, crop_y, crop_w, crop_h)
             if crop_w > 0 and crop_h > 0
             else None,
+            crop_rotation=crop_rotation,
             custom_poster_path=custom_poster_path,
             custom_fanart_path=custom_fanart_path,
             move_to_subdir=move_to_subdir,

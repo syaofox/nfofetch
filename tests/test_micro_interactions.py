@@ -170,6 +170,19 @@ class TestCustomRadioInPreview:
         assert "window._nfToggleCropRatio" in html
         assert "比例: 2:3" in html
 
+    def test_crop_rotate_buttons_in_preview(self) -> None:
+        """scrape_preview.html 包含旋转按钮。"""
+        html = (TEMPLATES_DIR / "partials" / "scrape_preview.html").read_text()
+        assert "window._nfRotateImage" in html
+        assert "nf-crop-rotate-btn" in html
+        assert "nf-crop-rotation-info" in html
+        assert "旋转: 0°" in html
+
+    def test_crop_rotation_hidden_input(self) -> None:
+        """scrape_preview.html 包含 crop_rotation 隐藏输入。"""
+        html = (TEMPLATES_DIR / "partials" / "scrape_preview.html").read_text()
+        assert 'name="crop_rotation"' in html
+
 
 class TestRippleInPartials:
     """验证 partials 中的按钮也添加了 ripple。"""

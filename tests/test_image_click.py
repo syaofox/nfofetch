@@ -282,6 +282,19 @@ class TestBaseTemplateDisplayUrl:
             not in self.BASE_HTML
         )
 
+    def test_rotatable_enabled_in_cropper_opts(self) -> None:
+        """Cropper.js 启用了 rotatable: true。"""
+        assert "rotatable: true" in self.BASE_HTML
+        assert "rotatable: false" not in self.BASE_HTML
+
+    def test_nf_rotate_image_function_exists(self) -> None:
+        """_nfRotateImage 全局函数存在。"""
+        assert "window._nfRotateImage = function" in self.BASE_HTML
+
+    def test_nf_confirm_crop_writes_rotation(self) -> None:
+        """nfConfirmCrop 将旋转角度写入 crop_rotation。"""
+        assert 'document.getElementById("crop_rotation").value' in self.BASE_HTML
+
     def test_crop_ratio_mode_variable_exists(self) -> None:
         """_nfCropRatioMode 变量存在且默认 cover。"""
         assert "var _nfCropRatioMode = 'cover'" in self.BASE_HTML

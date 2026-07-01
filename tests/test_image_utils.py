@@ -16,6 +16,7 @@ from app.services.image_utils import (
     _download_image,
     _download_image_with_crop,
     _download_to_temp,
+    _rotate_image,
     _trim_white_borders,
 )
 
@@ -612,3 +613,165 @@ class TestDownloadImageWithCropBox:
         assert ok is True
         cropped = Image.open(dest)
         assert cropped.size == (300, 300)
+
+
+class TestRotateImage:
+    def test_rotate_90_clockwise(self, tmp_path: Path) -> None:
+        """旋转 90° 顺时针，宽高应互换。"""
+        img = Image.new("RGB", (200, 100), (255, 0, 0))
+        path = tmp_path / "test.png"
+        img.save(path, format="PNG")
+        _rotate_image(path, 90)
+        result = Image.open(path)
+        assert result.size == (100, 200)
+
+    def test_rotate_180(self, tmp_path: Path) -> None:
+        """旋转 180°，尺寸不变。"""
+        img = Image.new("RGB", (200, 100), (255, 0, 0))
+        path = tmp_path / "test.png"
+        img.save(path, format="PNG")
+        _rotate_image(path, 180)
+        result = Image.open(path)
+        assert result.size == (200, 100)
+
+    def test_rotate_minus_90(self, tmp_path: Path) -> None:
+        """旋转 -90°（逆时针），宽高应互换。"""
+        img = Image.new("RGB", (200, 100), (255, 0, 0))
+        path = tmp_path / "test.png"
+        img.save(path, format="PNG")
+        _rotate_image(path, -90)
+        result = Image.open(path)
+        assert result.size == (100, 200)
+
+    def test_rotate_0_noop(self, tmp_path: Path) -> None:
+        """angle=0 不应做任何操作。"""
+        img = Image.new("RGB", (200, 100), (255, 0, 0))
+        path = tmp_path / "test.png"
+        img.save(path, format="PNG")
+        _rotate_image(path, 0)
+        result = Image.open(path)
+        assert result.size == (200, 100)
+
+    def test_rotate_preserves_content(self, tmp_path: Path) -> None:
+        """旋转后像素内容应正确。"""
+        img = Image.new("RGB", (100, 50), (255, 0, 0))
+        img.putpixel((90, 10), (0, 255, 0))  # 右下角绿点
+        path = tmp_path / "test.png"
+        img.save(path, format="PNG")
+        _rotate_image(path, 90)
+        result = Image.open(path)
+        # 90° 顺时针后，(90,10) → (10, 40) 附近
+        assert result.size == (50, 100)
+
+
+class TestDownloadImageWithCropRotation:
+    """验证 _download_image_with_crop 的旋转 + 裁切组合。"""
+
+    def test_rotation_applied_before_crop(self, tmp_path: Path) -> None:
+        """先旋转再精确裁切。"""
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0.0,
+        )
+        src = tmp_path / "source.jpg"
+        # 竖图 100x200（宽 100，高 200）→ 旋转 90° → 横图 200x100 → 裁切中间 100x100
+        img = Image.new("RGB", (100, 200), (255, 0, 0))
+        img.save(str(src), format="JPEG")
+        dest = tmp_path / "cropped.jpg"
+        ok = _download_image_with_crop(
+            str(src),
+            dest,
+            settings,
+            crop_rotation=90,
+            crop_box=(50, 0, 100, 100),
+            http_timeout=5,
+        )
+        assert ok is True
+        result = Image.open(dest)
+        # 旋转后 200x100，裁切从 (50,0) 起 100x100
+        assert result.size == (100, 100)
+
+    def test_rotation_without_crop(self, tmp_path: Path) -> None:
+        """只旋转不裁切。"""
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0.0,
+        )
+        src = tmp_path / "source.jpg"
+        img = Image.new("RGB", (200, 100), (255, 0, 0))
+        img.save(str(src), format="JPEG")
+        dest = tmp_path / "rotated.jpg"
+        ok = _download_image_with_crop(
+            str(src),
+            dest,
+            settings,
+            crop_rotation=90,
+            crop_direction="none",
+            http_timeout=5,
+        )
+        assert ok is True
+        result = Image.open(dest)
+        assert result.size == (100, 200)
+
+    def test_rotation_then_direction_crop(self, tmp_path: Path) -> None:
+        """旋转 + 方向裁切组合。"""
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0.0,
+        )
+        src = tmp_path / "source.jpg"
+        # 横图 900x600 → 旋转 90° → 竖图 600x900 → 方向裁切(左) → 2:3
+        img = Image.new("RGB", (900, 600), (255, 0, 0))
+        img.save(str(src), format="JPEG")
+        dest = tmp_path / "result.jpg"
+        ok = _download_image_with_crop(
+            str(src),
+            dest,
+            settings,
+            crop_rotation=90,
+            crop_direction="left",
+            http_timeout=5,
+        )
+        assert ok is True
+        result = Image.open(dest)
+        # 旋转后 600x900，2:3 裁切: 宽=600, 高=900 → target_w = 900*2/3 = 600
+        # 但 direction 裁切基于 2:3，宽=高*2/3 = 600，所以 600x900
+        expected_w = int(900 * 2.0 / 3.0)
+        assert result.size == (expected_w, 900)
+
+    def test_rotation_skips_download_fast_path(self, tmp_path: Path) -> None:
+        """旋转非 0 时不应走快速路径（直接 _download_image）。"""
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0.0,
+        )
+        dest = tmp_path / "poster.jpg"
+        fake_tmp = tmp_path / "fake_tmp.jpg"
+        fake_tmp.write_text("fake")
+        with patch(
+            "app.services.image_utils._download_image", return_value=True
+        ) as mock_dl:
+            with patch(
+                "app.services.image_utils._download_to_temp",
+                return_value=fake_tmp,
+            ):
+                with patch("app.services.image_utils._rotate_image"):
+                    with patch("app.services.image_utils._crop_image"):
+                        ok = _download_image_with_crop(
+                            "https://example.com/img.jpg",
+                            dest,
+                            settings,
+                            crop_rotation=90,
+                            crop_direction="none",
+                            http_timeout=5,
+                        )
+        assert ok is True
+        mock_dl.assert_not_called()

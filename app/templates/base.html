@@ -480,7 +480,7 @@
             autoCrop: true, autoCropArea: 0.8,
             responsive: true, restore: false,
             guides: true, center: true, highlight: false, background: true,
-            movable: true, rotatable: false, scalable: false,
+            movable: true, rotatable: true, scalable: false,
             zoomable: true, zoomOnTouch: true, zoomOnWheel: true,
             data: { x: x, y: 0, width: w, height: img.naturalHeight },
           };
@@ -668,6 +668,7 @@
                 document.getElementById('crop_y').value = '0';
                 document.getElementById('crop_w').value = '0';
                 document.getElementById('crop_h').value = '0';
+                document.getElementById('crop_rotation').value = '0';
                 document.getElementById('custom_poster_path').value = '';
                 var btn = document.getElementById('nf-crop-btn');
                 if (btn) { btn.classList.remove('nf-crop-btn-active'); btn.textContent = '选择裁切区域…'; }
@@ -689,6 +690,17 @@
           }
         })();
 
+        window._nfRotateImage = function (deg) {
+          if (!_nfCropper) return;
+          _nfCropper.rotate(deg);
+          // 更新旋转角度显示
+          var rotEl = document.getElementById("nf-crop-rotation-info");
+          if (rotEl) {
+            var angle = _nfCropper.getData(true).rotate || 0;
+            rotEl.textContent = angle ? "旋转: " + angle + "°" : "旋转: 0°";
+          }
+        };
+
         window.nfConfirmCrop = function () {
           if (!_nfCropper) return;
           var data = _nfCropper.getData(true);
@@ -698,6 +710,7 @@
           document.getElementById("crop_y").value = Math.round(data.y);
           document.getElementById("crop_w").value = w;
           document.getElementById("crop_h").value = h;
+          document.getElementById("crop_rotation").value = Math.round(data.rotate || 0);
           var btn = document.getElementById("nf-crop-btn");
           if (btn) {
             btn.classList.add("nf-crop-btn-active");

@@ -105,6 +105,7 @@ def _write_nfo_and_images(
     fanart_url: str | None = None,
     crop_direction: str = "none",
     crop_box: CropBox = None,
+    crop_rotation: float = 0,
     download_concurrency: int = 4,
     http_timeout: int = 20,
     batch_timeout: int = 120,
@@ -165,8 +166,8 @@ def _write_nfo_and_images(
         fanart_candidates.append(str(art_urls[0]))
 
     # NFO URL hash 检测：存储在 NFO 中的 hash 与当前 URL 一致则跳过
-    # 若有裁切参数或 auto_trim 激活时，强制重新下载以应用裁切
-    _has_crop = crop_direction != "none" or crop_box is not None
+    # 若有裁切/旋转参数或 auto_trim 激活时，强制重新下载以应用裁切
+    _has_crop = crop_direction != "none" or crop_box is not None or crop_rotation != 0
     poster_needs_download = _has_crop or settings.auto_trim_white_borders
     if not poster_needs_download and poster_url_val is not None:
         stored = _read_nfo_url_hash(stored_root, "poster_url_hash")
@@ -188,6 +189,7 @@ def _write_nfo_and_images(
                 settings,
                 crop_direction=crop_direction,
                 crop_box=crop_box,
+                crop_rotation=crop_rotation,
                 http_timeout=http_timeout,
             )
         elif poster_url_val and not poster_needs_download:
@@ -228,6 +230,7 @@ def _write_nfo_and_images(
                     settings,
                     crop_direction=crop_direction,
                     crop_box=crop_box,
+                    crop_rotation=crop_rotation,
                     http_timeout=http_timeout,
                 )
             elif poster_url_val and not poster_needs_download:
@@ -527,6 +530,7 @@ def save_assets_for_existing_video(
     fanart_url: str | None = None,
     crop_direction: str = "none",
     crop_box: CropBox = None,
+    crop_rotation: float = 0,
     custom_poster_path: str | None = None,
     custom_fanart_path: str | None = None,
     move_to_subdir: bool = False,
@@ -672,6 +676,7 @@ def save_assets_for_existing_video(
                 fanart_url=fanart_url,
                 crop_direction=crop_direction,
                 crop_box=crop_box,
+                crop_rotation=crop_rotation,
                 download_concurrency=download_concurrency,
                 http_timeout=http_timeout,
                 batch_timeout=batch_timeout,
@@ -701,6 +706,7 @@ def save_assets_for_existing_video(
             fanart_url=fanart_url,
             crop_direction=crop_direction,
             crop_box=crop_box,
+            crop_rotation=crop_rotation,
             download_concurrency=download_concurrency,
             http_timeout=http_timeout,
             batch_timeout=batch_timeout,

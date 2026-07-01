@@ -156,6 +156,7 @@
             <input type="hidden" name="crop_y" id="crop_y" value="0" />
             <input type="hidden" name="crop_w" id="crop_w" value="0" />
             <input type="hidden" name="crop_h" id="crop_h" value="0" />
+            <input type="hidden" name="crop_rotation" id="crop_rotation" value="0" />
             <input type="hidden" name="custom_poster_path" id="custom_poster_path" value="" />
           </div>
         </div>
@@ -347,7 +348,12 @@
         <div id="nf-crop-drop-hint" class="nf-crop-drop-hint">拖拽图片到此处或 Ctrl+V 粘贴</div>
       </div>
       <div style="display:flex;gap:0.5rem;justify-content:space-between;padding:0 1.5rem 1rem;">
-        <button type="button" class="nf-crop-ratio-btn" id="nf-crop-ratio-toggle" onclick="window._nfToggleCropRatio()">比例: 2:3</button>
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+          <button type="button" class="nf-crop-ratio-btn" id="nf-crop-ratio-toggle" onclick="window._nfToggleCropRatio()">比例: 2:3</button>
+          <button type="button" class="nf-crop-rotate-btn" onclick="window._nfRotateImage(-90)" title="向左旋转 90°">↺</button>
+          <button type="button" class="nf-crop-rotate-btn" onclick="window._nfRotateImage(90)" title="向右旋转 90°">↻</button>
+          <span id="nf-crop-rotation-info" class="nf-crop-rotation-info">旋转: 0°</span>
+        </div>
         <div style="display:flex;gap:0.5rem;">
           <button type="button" class="nf-button nf-button-secondary nf-btn-ripple nf-btn-press" onclick="window.nfCloseCropModal()">取消</button>
           <button type="button" class="nf-button nf-btn-ripple nf-btn-press" onclick="window.nfConfirmCrop()">确认裁切</button>

@@ -1737,6 +1737,51 @@ class TestNfoUrlHashSkip:
             f"精确裁切后应为 300x300, 实际: {cropped.size}"
         )
 
+    def test_rotation_applied_with_local_image(
+        self, tmp_path: Path, sample_movie_metadata
+    ) -> None:
+        """旋转 90° 对本地图片应生效（宽高互换）。"""
+        from PIL import Image
+        from app.config import Settings
+        from app.services.file_service import save_assets_for_existing_video
+        from app.services.nfo_service import build_movie_nfo
+
+        video = tmp_path / "test.mp4"
+        video.write_text("fake")
+        src = tmp_path / "source.jpg"
+        # 横图 300x200
+        img = Image.new("RGB", (300, 200), (255, 0, 0))
+        img.save(str(src), format="JPEG")
+
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0,
+            max_extra_images=2,
+            http_timeout=5,
+            batch_timeout=10,
+        )
+
+        result = save_assets_for_existing_video(
+            metadata=sample_movie_metadata,
+            nfo_text=build_movie_nfo(sample_movie_metadata),
+            video_path=video,
+            settings=settings,
+            max_extra_images=2,
+            poster_url=str(src),
+            crop_direction="none",
+            crop_rotation=90,
+        )
+
+        assert result.success, f"刮削失败: {result.message}"
+        poster = tmp_path / "poster.jpg"
+        assert poster.exists(), "poster.jpg 未被创建"
+        rotated = Image.open(poster)
+        assert rotated.size == (200, 300), (
+            f"旋转 90° 后应为 200x300, 实际: {rotated.size}"
+        )
+
     def test_different_url_triggers_redownload(
         self, tmp_path: Path, sample_movie_metadata
     ) -> None:
