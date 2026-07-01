@@ -380,6 +380,10 @@
             saveBrowsePath(path.substring(0, idx));
           }
           window.nfCloseFileBrowser();
+          // 自动提取番号：选中后从完整路径提取
+          if (window.nfGetAutoExtract()) {
+            window.nfExtractId(path);
+          }
         };
 
         window.nfFilterBrowser = function (input) {
@@ -726,7 +730,7 @@
           }
         };
 
-        window.nfExtractId = function () {
+        window.nfExtractId = function (text) {
           var input = document.getElementById("url");
           if (!input) return;
 
@@ -740,38 +744,46 @@
             _closePopup();
           }
 
+          // text 参数提供时为自动模式（从完整路径提取），走简化逻辑
+          var isAuto = (text !== undefined);
+          var sourceText = isAuto ? text : input.value;
+
           _closePopup();
-          var text = input.value;
           var ids = [];
 
           // 标准番号：ABC-123 / ABC_123
           var reStd = /([A-Za-z]{2,6})[-_]?(\d{2,8})/g;
           var m;
-          while ((m = reStd.exec(text)) !== null) {
+          while ((m = reStd.exec(sourceText)) !== null) {
             ids.push(m[1].toUpperCase() + "-" + String(parseInt(m[2], 10)).padStart(3, "0"));
           }
           // 纯数字番号：101413-455（连字符版）
           var reNumH = /(\d{4,})\s*-\s*(\d{2,6})/g;
-          while ((m = reNumH.exec(text)) !== null) {
+          while ((m = reNumH.exec(sourceText)) !== null) {
             ids.push(m[1] + "-" + m[2]);
           }
           // 纯数字番号：101413_455（下划线版，与连字符版为不同番号）
           var reNumU = /(\d{4,})\s*_\s*(\d{2,6})/g;
-          while ((m = reNumU.exec(text)) !== null) {
+          while ((m = reNumU.exec(sourceText)) !== null) {
             ids.push(m[1] + "_" + m[2]);
           }
           // n 前缀番号：n0179 / N0179
           var reN = /n(\d{2,8})/gi;
-          while ((m = reN.exec(text)) !== null) {
+          while ((m = reN.exec(sourceText)) !== null) {
             ids.push("N" + m[1]);
           }
           // 去重
           ids = ids.filter(function (v, i) { return ids.indexOf(v) === i; });
 
-          if (ids.length === 0) return;
+          if (ids.length === 0) {
+            if (isAuto) {
+              input.value = sourceText;
+            }
+            return;
+          }
           if (ids.length === 1) { input.value = ids[0]; return; }
 
-          // 多匹配 → 弹出选择
+          // 多匹配 → 弹出选择（自动模式也弹，让用户选择）
           var rect = input.getBoundingClientRect();
           var popup = document.createElement("div");
           popup.id = "nf-id-popup";
@@ -806,6 +818,44 @@
             });
           }, 0);
         };
+      })();
+
+      // 自动提取番号：localStorage 持久化
+      var AUTO_EXTRACT_KEY = "nfofetch_auto_extract";
+
+      window.nfGetAutoExtract = function () {
+        try {
+          return localStorage.getItem(AUTO_EXTRACT_KEY) === "true";
+        } catch (e) {
+          return false;
+        }
+      };
+
+      window.nfSetAutoExtract = function (checked) {
+        try {
+          localStorage.setItem(AUTO_EXTRACT_KEY, checked ? "true" : "false");
+        } catch (e) {}
+      };
+
+      // 页面加载后恢复自动提取开关状态
+      (function () {
+        function restoreAutoExtract() {
+          var cb = document.getElementById("auto_extract_id");
+          if (cb) {
+            cb.checked = window.nfGetAutoExtract();
+          }
+        }
+        // 监听 toggle 变化 → 保存状态
+        document.body.addEventListener("change", function (e) {
+          if (e.target && e.target.id === "auto_extract_id") {
+            window.nfSetAutoExtract(e.target.checked);
+          }
+        });
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", restoreAutoExtract);
+        } else {
+          restoreAutoExtract();
+        }
       })();
 
       window.nfOpenSettingsModal = function () {

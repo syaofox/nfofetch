@@ -4,6 +4,7 @@ from app.main import BASE_DIR, TEMPLATES_DIR
 
 CSS_PATH = BASE_DIR / "static" / "css" / "style.css"
 BASE_HTML_PATH = TEMPLATES_DIR / "base.html"
+INDEX_HTML_PATH = TEMPLATES_DIR / "index.html"
 
 
 class TestExtractIdJs:
@@ -12,7 +13,7 @@ class TestExtractIdJs:
     HTML = BASE_HTML_PATH.read_text()
 
     def test_function_exists(self) -> None:
-        """nfExtractId 函数存在。"""
+        """nfExtractId 函数存在（含可选参数 text）。"""
         assert "window.nfExtractId = function" in self.HTML
 
     def test_standard_id_regex(self) -> None:
@@ -35,8 +36,8 @@ class TestExtractIdJs:
         """n 前缀番号转大写 N + 原样数字。"""
         assert 'ids.push("N" + m[1])' in self.HTML
 
-    def test_multi_match_popup(self) -> None:
-        """多匹配时弹出选择窗口。"""
+    def test_multi_match_popup_manual(self) -> None:
+        """手动模式多匹配时弹出选择窗口。"""
         assert "nf-id-popup" in self.HTML
         assert "选择番号" in self.HTML
 
@@ -52,6 +53,87 @@ class TestExtractIdJs:
     def test_click_outside_closes(self) -> None:
         """点击外部关闭弹窗。"""
         assert "contains(e.target)" in self.HTML
+
+    def test_auto_mode_param(self) -> None:
+        """自动模式通过 text 参数传入。"""
+        assert "var isAuto = (text !== undefined)" in self.HTML
+
+    def test_auto_mode_source_text(self) -> None:
+        """自动模式使用传入的 text，手动模式使用 input.value。"""
+        assert "var sourceText = isAuto ? text : input.value" in self.HTML
+
+    def test_multi_match_popup_in_both_modes(self) -> None:
+        """多匹配时无论模式都弹出选择窗口（无自动取第一条的短路逻辑）。"""
+        assert "多匹配时取第一个" not in self.HTML
+
+    def test_auto_mode_no_match_fallback(self) -> None:
+        """自动模式无匹配时回退填入原始文本。"""
+        assert "input.value = sourceText" in self.HTML
+
+
+class TestAutoExtractToggle:
+    """验证 index.html 中自动提取番号的开关。"""
+
+    HTML = INDEX_HTML_PATH.read_text()
+
+    def test_toggle_exists(self) -> None:
+        """auto_extract_id 开关存在。"""
+        assert 'id="auto_extract_id"' in self.HTML
+
+    def test_toggle_uses_nf_toggle_class(self) -> None:
+        """开关使用 .nf-toggle 样式。"""
+        assert 'class="nf-toggle" for="auto_extract_id"' in self.HTML
+
+    def test_toggle_label(self) -> None:
+        """开关有中文描述。"""
+        assert "选择文件后自动从路径提取番号" in self.HTML
+
+    def test_manual_button_still_exists(self) -> None:
+        """手动提取番号按钮仍然保留。"""
+        assert "window.nfExtractId()" in self.HTML
+        assert "提取番号" in self.HTML
+
+
+class TestAutoExtractJs:
+    """验证 base.html 中自动提取番号的 JS 逻辑。"""
+
+    HTML = BASE_HTML_PATH.read_text()
+
+    def test_auto_extract_key_defined(self) -> None:
+        """AUTO_EXTRACT_KEY 常量存在。"""
+        assert "AUTO_EXTRACT_KEY" in self.HTML
+        assert "nfofetch_auto_extract" in self.HTML
+
+    def test_get_auto_extract_exists(self) -> None:
+        """nfGetAutoExtract 函数存在。"""
+        assert "window.nfGetAutoExtract = function" in self.HTML
+
+    def test_get_auto_extract_uses_localstorage(self) -> None:
+        """nfGetAutoExtract 读取 localStorage。"""
+        assert "localStorage.getItem(AUTO_EXTRACT_KEY)" in self.HTML
+
+    def test_set_auto_extract_exists(self) -> None:
+        """nfSetAutoExtract 函数存在。"""
+        assert "window.nfSetAutoExtract = function" in self.HTML
+
+    def test_set_auto_extract_writes_localstorage(self) -> None:
+        """nfSetAutoExtract 写入 localStorage。"""
+        assert "localStorage.setItem(AUTO_EXTRACT_KEY" in self.HTML
+
+    def test_select_file_calls_auto_extract(self) -> None:
+        """nfSelectFile 在自动模式下调用 nfExtractId(path)。"""
+        assert "window.nfGetAutoExtract()" in self.HTML
+        assert "window.nfExtractId(path)" in self.HTML
+
+    def test_restore_on_load(self) -> None:
+        """页面加载时恢复开关状态。"""
+        assert "restoreAutoExtract" in self.HTML
+        assert "cb.checked = window.nfGetAutoExtract()" in self.HTML
+
+    def test_change_listener_persists(self) -> None:
+        """开关变化时保存状态。"""
+        assert 'e.target.id === "auto_extract_id"' in self.HTML
+        assert "window.nfSetAutoExtract(e.target.checked)" in self.HTML
 
 
 class TestExtractIdCss:
