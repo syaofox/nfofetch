@@ -69,6 +69,17 @@ def _crop_image_exact(image_path: Path, x: int, y: int, w: int, h: int) -> None:
     if w <= 0 or h <= 0:
         logger.warning("裁切尺寸无效 (%dx%d)，跳过精确裁切", w, h)
         return
+    if x < 0 or y < 0 or x + w > orig[0] or y + h > orig[1]:
+        logger.warning(
+            "裁切区域超出图片边界 (区域: %d,%d %dx%d，图片 %dx%d)，跳过精确裁切",
+            x,
+            y,
+            w,
+            h,
+            orig[0],
+            orig[1],
+        )
+        return
     cropped = img.crop((x, y, x + w, y + h))
     cropped.save(image_path, format=img.format)
     logger.info(
@@ -121,7 +132,7 @@ def _crop_image(image_path: Path, direction: str) -> None:
     cropped = img.crop((x, y, x + target_w, y + target_h))
     cropped.save(image_path, format=img.format)
     logger.info(
-        "裁切 poster: %s -> %dx%d（direction=%s, 原图 %dx%d）",
+        "裁切 poster: %s -> %dx%d（direction=%s，原图 %dx%d）",
         image_path.name,
         cropped.width,
         cropped.height,
@@ -231,12 +242,27 @@ def _download_image_with_crop(
     crop_box: CropBox = None,
     crop_rotation: float = 0,
     http_timeout: int = 20,
+    skip_all_processing: bool = False,
 ) -> bool:
     """下载图片，需要裁切时先下载到 /tmp 裁切后再移动到目标路径。
 
     避免在目标目录产生未裁切的临时文件。
     处理顺序：auto_trim → 旋转 → 精确裁切(crop_box) → 方向裁切(crop_direction)。
+
+    skip_all_processing=True 时仅复制文件，不执行任何裁切/旋转/白边去除。
     """
+    if skip_all_processing:
+        tmp = _download_to_temp(url, settings, http_timeout=http_timeout)
+        if tmp is None:
+            return False
+        try:
+            _write_delay(settings.write_delay)
+            shutil.move(str(tmp), str(dest))
+            return True
+        except Exception:
+            tmp.unlink(missing_ok=True)
+            return False
+
     if (
         crop_direction == "none"
         and crop_box is None

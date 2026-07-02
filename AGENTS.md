@@ -40,6 +40,7 @@ uv run uvicorn app.main:app --reload  # 开发服务器
 | **`?: undefined` 守卫** | 读取 HTMX 动态渲染的元素时，不存在则 `undefined`，避免覆盖已有设置 |
 | **确认弹窗用按钮 click，不用 `beforeRequest`** | 多个 `beforeRequest` handler 同时 `preventDefault()` 导致异步流程混乱 |
 | **`escapejs` 在测试中不可用** | 测试环境没有该过滤器，改用 `data-*` 属性传值 |
+| **精确裁切上传 canvas Blob** | `nfConfirmCrop` 通过 `getCroppedCanvas().toBlob()` 上传裁切结果到 `/api/upload-image`，不走坐标传后端；方向裁切仍用 `crop_direction` 后端处理 |
 
 ### 代码风格
 

@@ -106,6 +106,7 @@ def _write_nfo_and_images(
     crop_direction: str = "none",
     crop_box: CropBox = None,
     crop_rotation: float = 0,
+    skip_all_processing: bool = False,
     download_concurrency: int = 4,
     http_timeout: int = 20,
     batch_timeout: int = 120,
@@ -167,8 +168,11 @@ def _write_nfo_and_images(
 
     # NFO URL hash 检测：存储在 NFO 中的 hash 与当前 URL 一致则跳过
     # 若有裁切/旋转参数或 auto_trim 激活时，强制重新下载以应用裁切
+    # skip_all_processing 时（前端已精确裁切上传），仍需下载但跳过所有处理
     _has_crop = crop_direction != "none" or crop_box is not None or crop_rotation != 0
-    poster_needs_download = _has_crop or settings.auto_trim_white_borders
+    poster_needs_download = (
+        _has_crop or settings.auto_trim_white_borders or skip_all_processing
+    )
     if not poster_needs_download and poster_url_val is not None:
         stored = _read_nfo_url_hash(stored_root, "poster_url_hash")
         poster_needs_download = stored != _url_hash(poster_url_val)
@@ -191,6 +195,7 @@ def _write_nfo_and_images(
                 crop_box=crop_box,
                 crop_rotation=crop_rotation,
                 http_timeout=http_timeout,
+                skip_all_processing=skip_all_processing,
             )
         elif poster_url_val and not poster_needs_download:
             poster_ok = True
@@ -232,6 +237,7 @@ def _write_nfo_and_images(
                     crop_box=crop_box,
                     crop_rotation=crop_rotation,
                     http_timeout=http_timeout,
+                    skip_all_processing=skip_all_processing,
                 )
             elif poster_url_val and not poster_needs_download:
                 poster_ok = True
@@ -677,6 +683,7 @@ def save_assets_for_existing_video(
                 crop_direction=crop_direction,
                 crop_box=crop_box,
                 crop_rotation=crop_rotation,
+                skip_all_processing=bool(custom_poster_path),
                 download_concurrency=download_concurrency,
                 http_timeout=http_timeout,
                 batch_timeout=batch_timeout,
@@ -707,6 +714,7 @@ def save_assets_for_existing_video(
             crop_direction=crop_direction,
             crop_box=crop_box,
             crop_rotation=crop_rotation,
+            skip_all_processing=bool(custom_poster_path),
             download_concurrency=download_concurrency,
             http_timeout=http_timeout,
             batch_timeout=batch_timeout,

@@ -548,6 +548,38 @@ class TestCropImageExact:
         cropped = Image.open(path)
         assert cropped.size == (200, 200)
 
+    def test_negative_x_skipped(self, tmp_path: Path) -> None:
+        img = Image.new("RGB", (200, 200), (255, 0, 0))
+        path = tmp_path / "test.png"
+        img.save(path, format="PNG")
+        _crop_image_exact(path, -10, 0, 100, 100)
+        cropped = Image.open(path)
+        assert cropped.size == (200, 200)
+
+    def test_negative_y_skipped(self, tmp_path: Path) -> None:
+        img = Image.new("RGB", (200, 200), (255, 0, 0))
+        path = tmp_path / "test.png"
+        img.save(path, format="PNG")
+        _crop_image_exact(path, 0, -10, 100, 100)
+        cropped = Image.open(path)
+        assert cropped.size == (200, 200)
+
+    def test_x_plus_w_exceeds_width_skipped(self, tmp_path: Path) -> None:
+        img = Image.new("RGB", (200, 200), (255, 0, 0))
+        path = tmp_path / "test.png"
+        img.save(path, format="PNG")
+        _crop_image_exact(path, 150, 0, 100, 100)
+        cropped = Image.open(path)
+        assert cropped.size == (200, 200)
+
+    def test_y_plus_h_exceeds_height_skipped(self, tmp_path: Path) -> None:
+        img = Image.new("RGB", (200, 200), (255, 0, 0))
+        path = tmp_path / "test.png"
+        img.save(path, format="PNG")
+        _crop_image_exact(path, 0, 150, 100, 100)
+        cropped = Image.open(path)
+        assert cropped.size == (200, 200)
+
 
 class TestDownloadImageWithCropBox:
     def test_crop_box_applied_before_direction(self, tmp_path: Path) -> None:
@@ -775,3 +807,95 @@ class TestDownloadImageWithCropRotation:
                         )
         assert ok is True
         mock_dl.assert_not_called()
+
+
+class TestSkipAllProcessing:
+    """验证 skip_all_processing 参数。"""
+
+    def test_skip_all_processing_skips_fast_path(self, tmp_path: Path) -> None:
+        """skip_all_processing=True 不应走快速路径（_download_image）。"""
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0.0,
+        )
+        dest = tmp_path / "poster.jpg"
+        fake_tmp = tmp_path / "fake_tmp.jpg"
+        fake_tmp.write_text("fake")
+
+        with patch(
+            "app.services.image_utils._download_image", return_value=True
+        ) as mock_dl:
+            with patch(
+                "app.services.image_utils._download_to_temp",
+                return_value=fake_tmp,
+            ):
+                with patch("app.services.image_utils._rotate_image") as mock_rot:
+                    with patch("app.services.image_utils._crop_image") as mock_crop:
+                        with patch(
+                            "app.services.image_utils._trim_white_borders"
+                        ) as mock_trim:
+                            ok = _download_image_with_crop(
+                                "https://example.com/img.jpg",
+                                dest,
+                                settings,
+                                crop_direction="left",
+                                crop_box=(10, 10, 50, 50),
+                                crop_rotation=90,
+                                skip_all_processing=True,
+                                http_timeout=5,
+                            )
+
+        assert ok is True
+        mock_dl.assert_not_called()
+        mock_rot.assert_not_called()
+        mock_crop.assert_not_called()
+        mock_trim.assert_not_called()
+
+    def test_skip_all_processing_still_copies_file(self, tmp_path: Path) -> None:
+        """skip_all_processing=True 仍应将文件复制到目标路径。"""
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0.0,
+        )
+        src = tmp_path / "source.jpg"
+        img = Image.new("RGB", (200, 100), (255, 0, 0))
+        img.save(str(src), format="JPEG")
+        dest = tmp_path / "result.jpg"
+        ok = _download_image_with_crop(
+            str(src),
+            dest,
+            settings,
+            skip_all_processing=True,
+            http_timeout=5,
+        )
+        assert ok is True
+        assert dest.exists()
+        result = Image.open(dest)
+        assert result.size == (200, 100)
+
+    def test_skip_all_processing_default_false(self, tmp_path: Path) -> None:
+        """skip_all_processing 默认为 False，不影响正常裁切路径。"""
+        settings = Settings(
+            user_agent="test-agent",
+            http_proxy=None,
+            javdb_cookie=None,
+            write_delay=0.0,
+        )
+        src = tmp_path / "source.jpg"
+        img = Image.new("RGB", (1200, 800), (255, 0, 0))
+        img.save(str(src), format="JPEG")
+        dest = tmp_path / "cropped.jpg"
+        ok = _download_image_with_crop(
+            str(src),
+            dest,
+            settings,
+            crop_direction="left",
+            http_timeout=5,
+        )
+        assert ok is True
+        cropped = Image.open(dest)
+        assert cropped.width < 1200

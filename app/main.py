@@ -344,8 +344,8 @@ async def api_upload_image(file: UploadFile = File(...)) -> dict[str, str]:
 @app.get("/api/uploaded-image")
 async def serve_uploaded_image(path: str = Query(...)) -> Response:
     """服务上传到 /tmp 的预览图片（含安全校验）。"""
-    target = Path(path).resolve()
-    tmp_dir = Path(tempfile.gettempdir()).resolve()
+    target = Path(path).absolute()
+    tmp_dir = Path(tempfile.gettempdir()).absolute()
     if not str(target).startswith(str(tmp_dir)):
         raise HTTPException(status_code=403, detail="路径不在临时目录内")
     if _UPLOAD_PREFIX not in target.name:

@@ -273,14 +273,15 @@ class TestBaseTemplateDisplayUrl:
 
     def test_switch_to_direction_does_not_clear_precise_data(self) -> None:
         """切到方向裁切 tab 时不应清除精确裁切数据。"""
-        assert 'document.getElementById("crop_x").value = "0"' not in self.BASE_HTML
-        assert 'document.getElementById("crop_y").value = "0"' not in self.BASE_HTML
-        assert 'document.getElementById("crop_w").value = "0"' not in self.BASE_HTML
-        assert 'document.getElementById("crop_h").value = "0"' not in self.BASE_HTML
-        assert (
-            'document.getElementById("custom_poster_path").value = ""'
-            not in self.BASE_HTML
-        )
+        # 提取 nfSwitchCropTab 函数体检查
+        idx = self.BASE_HTML.index("window.nfSwitchCropTab = function")
+        end = self.BASE_HTML.index("};\n\n", idx) + 3
+        switch_fn = self.BASE_HTML[idx:end]
+        assert "crop_x" not in switch_fn
+        assert "crop_y" not in switch_fn
+        assert "crop_w" not in switch_fn
+        assert "crop_h" not in switch_fn
+        assert "custom_poster_path" not in switch_fn
 
     def test_rotatable_enabled_in_cropper_opts(self) -> None:
         """Cropper.js 启用了 rotatable: true。"""
@@ -318,8 +319,8 @@ class TestBaseTemplateDisplayUrl:
         assert "swapped" in self.BASE_HTML
         assert "angle === 90" in self.BASE_HTML
 
-    def test_nf_confirm_crop_writes_rotation(self) -> None:
-        """nfConfirmCrop 将旋转角度写入 crop_rotation。"""
+    def test_nf_confirm_crop_clears_rotation(self) -> None:
+        """nfConfirmCrop 将旋转角度清零（前端已上传裁切结果）。"""
         assert 'document.getElementById("crop_rotation").value' in self.BASE_HTML
 
     def test_crop_ratio_mode_variable_exists(self) -> None:
@@ -373,10 +374,25 @@ class TestBaseTemplateDisplayUrl:
         """_nfToggleCropRatio 中切换到自由时按钮文字。"""
         assert "'比例: 自由'" in self.BASE_HTML
 
-    def test_confirm_crop_always_uses_get_cropped_canvas(self) -> None:
-        """nfConfirmCrop 使用 getCroppedCanvas。"""
+    def test_confirm_crop_uploads_blob(self) -> None:
+        """nfConfirmCrop 上传 getCroppedCanvas Blob 到 /api/upload-image。"""
+        assert "var fullCanvas = _nfCropper.getCroppedCanvas();" in self.BASE_HTML
+        assert "fullCanvas.toBlob" in self.BASE_HTML
+        assert 'fetch("/api/upload-image"' in self.BASE_HTML
+        assert (
+            'document.getElementById("custom_poster_path").value = data.path'
+            in self.BASE_HTML
+        )
+        assert 'document.getElementById("crop_x").value' in self.BASE_HTML
+
+    def test_confirm_crop_still_uses_get_cropped_canvas_for_preview(self) -> None:
+        """nfConfirmCrop 仍使用 getCroppedCanvas 生成前端预览。"""
         assert (
             "var coverCanvas = _nfCropper.getCroppedCanvas({ maxWidth: 320, maxHeight: 480 });"
+            in self.BASE_HTML
+        )
+        assert (
+            "var thumbCanvas = _nfCropper.getCroppedCanvas({ maxWidth: 80, maxHeight: 80 });"
             in self.BASE_HTML
         )
 

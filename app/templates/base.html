@@ -764,27 +764,41 @@
 
         window.nfConfirmCrop = function () {
           if (!_nfCropper) return;
-          var data = _nfCropper.getData(true);
-          var w = Math.round(data.width);
-          var h = Math.round(data.height);
-          document.getElementById("crop_x").value = Math.round(data.x);
-          document.getElementById("crop_y").value = Math.round(data.y);
-          document.getElementById("crop_w").value = w;
-          document.getElementById("crop_h").value = h;
-          document.getElementById("crop_rotation").value = Math.round(data.rotate || 0);
           var btn = document.getElementById("nf-crop-btn");
           if (btn) {
             btn.classList.add("nf-crop-btn-active");
-            btn.textContent = "已裁切 " + w + "×" + h;
+            btn.textContent = "正在上传…";
           }
-          // 小缩略图
+          // 上传全分辨率裁切结果到服务端，替代传递坐标
+          var fullCanvas = _nfCropper.getCroppedCanvas();
+          fullCanvas.toBlob(function (blob) {
+            var formData = new FormData();
+            formData.append("file", blob, "crop.jpg");
+            fetch("/api/upload-image", { method: "POST", body: formData })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (data.path) {
+                  document.getElementById("custom_poster_path").value = data.path;
+                  // 清除旧的坐标参数（不再需要后端处理）
+                  document.getElementById("crop_x").value = '0';
+                  document.getElementById("crop_y").value = '0';
+                  document.getElementById("crop_w").value = '0';
+                  document.getElementById("crop_h").value = '0';
+                  document.getElementById("crop_rotation").value = '0';
+                  if (btn) btn.textContent = "已裁切";
+                }
+              })
+              .catch(function () {
+                if (btn) btn.textContent = "裁切上传失败";
+              });
+          });
+          // 小缩略图和封面预览保持同步（前端即时显示）
           var thumbCanvas = _nfCropper.getCroppedCanvas({ maxWidth: 80, maxHeight: 80 });
           var preview = document.getElementById("nf-crop-preview");
           if (preview && thumbCanvas) {
             preview.src = thumbCanvas.toDataURL();
             preview.style.display = "inline-block";
           }
-          // 封面预览大图
           var coverImg = document.querySelector('.nf-meta-poster-img');
           if (coverImg) {
             var coverCanvas = _nfCropper.getCroppedCanvas({ maxWidth: 320, maxHeight: 480 });
