@@ -752,27 +752,13 @@
 
         window._nfMaximizeCropBox = function () {
           if (!_nfCropper) return;
-          var imageData = _nfCropper.getImageData();
-          if (!imageData) return;
-          var iw = imageData.naturalWidth, ih = imageData.naturalHeight;
-          var x, y, w, h;
-          if (_nfCropRatioMode === 'free') {
-            w = iw; h = ih; x = 0; y = 0;
-          } else {
-            var ratio = _nfCropRatioMode === 'cover' ? (2 / 3) : (3 / 4);
-            if (iw <= ih) {
-              w = iw; h = Math.round(iw / ratio);
-              if (h > ih) { h = ih; w = Math.round(ih * ratio); }
-            } else {
-              h = ih; w = Math.round(ih * ratio);
-              if (w > iw) { w = iw; h = Math.round(iw / ratio); }
-            }
-            x = Math.round((iw - w) / 2);
-            y = Math.round((ih - h) / 2);
-          }
-          _nfCropper.setData({
-            x: x, y: y, width: w, height: h,
-            rotate: _nfCropper.getData(true).rotate || 0,
+          var canvasData = _nfCropper.getCanvasData();
+          if (!canvasData) return;
+          _nfCropper.setCropBoxData({
+            left: canvasData.left,
+            top: canvasData.top,
+            width: canvasData.width,
+            height: canvasData.height,
           });
         };
 

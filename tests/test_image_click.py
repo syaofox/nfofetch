@@ -384,26 +384,17 @@ class TestBaseTemplateDisplayUrl:
         """_nfMaximizeCropBox 全局函数存在。"""
         assert "window._nfMaximizeCropBox = function" in self.BASE_HTML
 
-    def test_maximize_crop_box_sets_data(self) -> None:
-        """_nfMaximizeCropBox 调用 setData 设置裁剪框。"""
-        assert "_nfCropper.setData({" in self.BASE_HTML
+    def test_maximize_uses_canvas_data(self) -> None:
+        """_nfMaximizeCropBox 使用 getCanvasData/setCropBoxData。"""
+        assert "_nfCropper.getCanvasData()" in self.BASE_HTML
+        assert "_nfCropper.setCropBoxData({" in self.BASE_HTML
 
-    def test_maximize_crop_box_preserves_rotation(self) -> None:
-        """setData 保留当前旋转角度。"""
-        assert "rotate: _nfCropper.getData(true).rotate || 0" in self.BASE_HTML
-
-    def test_maximize_free_mode_full_image(self) -> None:
-        """free 模式时裁剪框覆盖全图。"""
-        assert "w = iw; h = ih; x = 0; y = 0;" in self.BASE_HTML
-
-    def test_maximize_cover_ratio(self) -> None:
-        """cover 模式使用 2/3 比例。"""
-        assert "_nfCropRatioMode === 'cover' ? (2 / 3) : (3 / 4)" in self.BASE_HTML
-
-    def test_maximize_crop_box_fills_shorter_side(self) -> None:
-        """按较短边铺满原则计算最大裁剪框。"""
-        assert "if (iw <= ih)" in self.BASE_HTML
-        assert "w = iw; h = Math.round(iw / ratio);" in self.BASE_HTML
+    def test_maximize_sets_crop_box_to_full_canvas(self) -> None:
+        """裁剪框设为 canvas 的完整区域。"""
+        assert "canvasData.left" in self.BASE_HTML
+        assert "canvasData.top" in self.BASE_HTML
+        assert "canvasData.width" in self.BASE_HTML
+        assert "canvasData.height" in self.BASE_HTML
 
     def test_dblclick_listener_registered(self) -> None:
         """通过事件委托在 document.body 上注册双击监听。"""
