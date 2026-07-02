@@ -66,6 +66,11 @@ class TestImageClickJsInBase:
         """包含描述性注释。"""
         assert "图片单击设 poster，双击设 fanart" in self.BASE_HTML
 
+    def test_single_click_triggers_poster_selected(self) -> None:
+        """单击设 poster 后调用 _nfOnPosterSelected 更新封面预览。"""
+        assert "posterRadio.checked = true;" in self.BASE_HTML
+        assert "window._nfOnPosterSelected()" in self.BASE_HTML
+
 
 class TestImageThumbInPreview:
     """验证 scrape_preview.html 渲染出可点击的图片元素。"""
@@ -146,6 +151,15 @@ class TestImageThumbInPreview:
         html = self._render_preview(error="出错了")
         assert 'class="nf-image-thumb"' not in html
         assert "出错了" in html
+
+    def test_cover_sync_script_exists(self) -> None:
+        """包含封面预览同步到选中 poster 的脚本。"""
+        html = self._render_preview(
+            poster_candidates=["https://example.com/img1.jpg"],
+        )
+        assert "封面预览同步到当前选中的 poster" in html
+        assert "window._nfDisplayUrl(poster)" in html
+        assert "coverImg.src" in html
 
 
 class TestImageThumbCss:
@@ -436,3 +450,20 @@ class TestBaseTemplateDisplayUrl:
     def test_hint_text_mentions_dblclick(self) -> None:
         """提示文字说明双击最大化功能。"""
         assert "双击最大化裁剪框" in self.BASE_HTML
+
+    def test_nf_on_poster_selected_function_exists(self) -> None:
+        """_nfOnPosterSelected 全局函数存在。"""
+        assert "window._nfOnPosterSelected = function" in self.BASE_HTML
+
+    def test_nf_on_poster_selected_clears_crop_data(self) -> None:
+        """_nfOnPosterSelected 清除精确裁切数据。"""
+        assert 'document.getElementById("crop_x").value' in self.BASE_HTML
+        assert 'document.getElementById("crop_y").value' in self.BASE_HTML
+        assert 'document.getElementById("crop_w").value' in self.BASE_HTML
+        assert 'document.getElementById("crop_h").value' in self.BASE_HTML
+        assert 'document.getElementById("crop_rotation").value' in self.BASE_HTML
+        assert 'document.getElementById("custom_poster_path").value' in self.BASE_HTML
+
+    def test_nf_on_poster_selected_updates_preview(self) -> None:
+        """_nfOnPosterSelected 调用 nfUpdateDirectionPreview 更新预览。"""
+        assert "window.nfUpdateDirectionPreview" in self.BASE_HTML

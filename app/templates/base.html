@@ -671,6 +671,25 @@
           }
         };
 
+        // 切换 poster 时的公共逻辑：清除精确裁切 + 更新封面预览
+        window._nfOnPosterSelected = function () {
+          var cropX = document.getElementById('crop_x');
+          if (cropX && cropX.value !== '0') {
+            document.getElementById('crop_x').value = '0';
+            document.getElementById('crop_y').value = '0';
+            document.getElementById('crop_w').value = '0';
+            document.getElementById('crop_h').value = '0';
+            document.getElementById('crop_rotation').value = '0';
+            document.getElementById('custom_poster_path').value = '';
+            var btn = document.getElementById('nf-crop-btn');
+            if (btn) { btn.classList.remove('nf-crop-btn-active'); btn.textContent = '选择裁切区域…'; }
+            var smallPreview = document.getElementById('nf-crop-preview');
+            if (smallPreview) { smallPreview.style.display = 'none'; smallPreview.src = ''; }
+          }
+          window._nfCanvasPreviewActive = false;
+          if (window.nfUpdateDirectionPreview) window.nfUpdateDirectionPreview();
+        };
+
         // 封面预览同步：监听 poster/crop 变更
         (function () {
           document.body.addEventListener('change', function (e) {
@@ -678,22 +697,7 @@
               if (window.nfUpdateDirectionPreview) window.nfUpdateDirectionPreview();
             }
             if (e.target.matches && e.target.matches('input[name="poster_url"]')) {
-              // 切换 poster 时清除精确裁切
-              var cropX = document.getElementById('crop_x');
-              if (cropX && cropX.value !== '0') {
-                document.getElementById('crop_x').value = '0';
-                document.getElementById('crop_y').value = '0';
-                document.getElementById('crop_w').value = '0';
-                document.getElementById('crop_h').value = '0';
-                document.getElementById('crop_rotation').value = '0';
-                document.getElementById('custom_poster_path').value = '';
-                var btn = document.getElementById('nf-crop-btn');
-                if (btn) { btn.classList.remove('nf-crop-btn-active'); btn.textContent = '选择裁切区域…'; }
-                var smallPreview = document.getElementById('nf-crop-preview');
-                if (smallPreview) { smallPreview.style.display = 'none'; smallPreview.src = ''; }
-              }
-              window._nfCanvasPreviewActive = false;
-              if (window.nfUpdateDirectionPreview) window.nfUpdateDirectionPreview();
+              window._nfOnPosterSelected();
             }
           });
         })();
@@ -1394,7 +1398,10 @@
               var posterRadio = option.querySelector(
                 "input[name='poster_url']"
               );
-              if (posterRadio) posterRadio.checked = true;
+              if (posterRadio) {
+                posterRadio.checked = true;
+                window._nfOnPosterSelected();
+              }
             }, 250);
           }
         });

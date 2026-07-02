@@ -441,5 +441,14 @@
         }
       }
     })();
+
+    // 封面预览同步到当前选中的 poster
+    (function () {
+      var poster = document.querySelector('input[name="poster_url"]:checked');
+      var coverImg = document.querySelector('.nf-meta-poster-img');
+      if (poster && coverImg && window._nfDisplayUrl) {
+        coverImg.src = window._nfDisplayUrl(poster);
+      }
+    })();
   </script>
 {% endif %}
