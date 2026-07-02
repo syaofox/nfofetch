@@ -760,11 +760,12 @@
             w = iw; h = ih; x = 0; y = 0;
           } else {
             var ratio = _nfCropRatioMode === 'cover' ? (2 / 3) : (3 / 4);
-            var hByW = Math.round(iw / ratio);
-            if (hByW <= ih) {
-              w = iw; h = hByW;
+            if (iw <= ih) {
+              w = iw; h = Math.round(iw / ratio);
+              if (h > ih) { h = ih; w = Math.round(ih * ratio); }
             } else {
               h = ih; w = Math.round(ih * ratio);
+              if (w > iw) { w = iw; h = Math.round(iw / ratio); }
             }
             x = Math.round((iw - w) / 2);
             y = Math.round((ih - h) / 2);

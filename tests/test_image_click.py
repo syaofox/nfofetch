@@ -400,9 +400,10 @@ class TestBaseTemplateDisplayUrl:
         """cover 模式使用 2/3 比例。"""
         assert "_nfCropRatioMode === 'cover' ? (2 / 3) : (3 / 4)" in self.BASE_HTML
 
-    def test_maximize_crop_box_try_width_first(self) -> None:
-        """按宽度优先尝试最大化，超出则切换为高度优先。"""
-        assert "hByW <= ih" in self.BASE_HTML
+    def test_maximize_crop_box_fills_shorter_side(self) -> None:
+        """按较短边铺满原则计算最大裁剪框。"""
+        assert "if (iw <= ih)" in self.BASE_HTML
+        assert "w = iw; h = Math.round(iw / ratio);" in self.BASE_HTML
 
     def test_dblclick_listener_registered(self) -> None:
         """通过事件委托在 document.body 上注册双击监听。"""
