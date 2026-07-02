@@ -326,21 +326,39 @@ class TestBaseTemplateDisplayUrl:
         """_nfCropRatioMode 变量存在且默认 cover。"""
         assert "var _nfCropRatioMode = 'cover'" in self.BASE_HTML
 
+    def test_crop_ratio_modes_three_options(self) -> None:
+        """_nfToggleCropRatio 在三个模式间循环：2:3 → 3:4 → 自由。"""
+        assert "['cover', '3_4', 'free']" in self.BASE_HTML
+
     def test_toggle_crop_ratio_function_exists(self) -> None:
         """_nfToggleCropRatio 全局函数存在。"""
         assert "window._nfToggleCropRatio = function" in self.BASE_HTML
 
     def test_dynamic_aspect_ratio_in_cropper_opts(self) -> None:
-        """_cropperOpts 使用 isCover 动态选择 aspectRatio。"""
-        assert "aspectRatio: isCover ? (2 / 3) : NaN" in self.BASE_HTML
+        """_cropperOpts 使用 isCover/is3_4 动态选择 aspectRatio。"""
+        assert (
+            "aspectRatio: isCover ? (2 / 3) : (is3_4 ? (3 / 4) : NaN)" in self.BASE_HTML
+        )
 
     def test_cover_mode_uses_full_height(self) -> None:
         """cover 模式初始选框高度为图片高度。"""
         assert "height: img.naturalHeight" in self.BASE_HTML
 
+    def test_3_4_mode_uses_three_fourth_width(self) -> None:
+        """3:4 模式初始选框宽度为图片高度的 3/4。"""
+        assert "img.naturalHeight * 3 / 4" in self.BASE_HTML
+
+    def test_toggle_labels_map_exists(self) -> None:
+        """_nfToggleCropRatio 中有 labels 映射表存储三种文字。"""
+        assert "labels[_nfCropRatioMode]" in self.BASE_HTML
+
     def test_toggle_button_text_2_3(self) -> None:
         """_nfToggleCropRatio 中按钮文字包含 2:3。"""
         assert "'比例: 2:3'" in self.BASE_HTML
+
+    def test_toggle_button_text_3_4(self) -> None:
+        """_nfToggleCropRatio 中按钮文字包含 3:4。"""
+        assert "'比例: 3:4'" in self.BASE_HTML
 
     def test_toggle_button_text_free(self) -> None:
         """_nfToggleCropRatio 中切换到自由时按钮文字。"""

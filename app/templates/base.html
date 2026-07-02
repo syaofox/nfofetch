@@ -462,13 +462,18 @@
           return radio ? (radio.getAttribute('data-display-url') || radio.value) : '';
         }
 
-        var _nfCropRatioMode = 'cover'; // 'cover' (2:3) or 'free'
+        var _nfCropRatioMode = 'cover'; // 'cover' (2:3), '3_4' (3:4), or 'free'
 
         function _cropperOpts(img) {
           var isCover = _nfCropRatioMode === 'cover';
+          var is3_4 = _nfCropRatioMode === '3_4';
           var w, x;
           if (isCover) {
             w = Math.round(img.naturalHeight * 2 / 3);
+            if (w > img.naturalWidth) w = img.naturalWidth;
+            x = Math.round((img.naturalWidth - w) / 2);
+          } else if (is3_4) {
+            w = Math.round(img.naturalHeight * 3 / 4);
             if (w > img.naturalWidth) w = img.naturalWidth;
             x = Math.round((img.naturalWidth - w) / 2);
           } else {
@@ -476,7 +481,8 @@
             x = img.naturalWidth - w;
           }
           return {
-            aspectRatio: isCover ? (2 / 3) : NaN, viewMode: 1, dragMode: "crop",
+            aspectRatio: isCover ? (2 / 3) : (is3_4 ? (3 / 4) : NaN),
+            viewMode: 1, dragMode: "crop",
             autoCrop: true, autoCropArea: 0.8,
             responsive: true, restore: false,
             guides: true, center: true, highlight: false, background: true,
@@ -487,14 +493,17 @@
         }
 
         window._nfToggleCropRatio = function () {
-          _nfCropRatioMode = _nfCropRatioMode === 'cover' ? 'free' : 'cover';
+          var modes = ['cover', '3_4', 'free'];
+          var idx = modes.indexOf(_nfCropRatioMode);
+          _nfCropRatioMode = modes[(idx + 1) % modes.length];
           var img = document.getElementById("nf-crop-image");
           if (!img || !_nfCropper) return;
           _destroyCropper();
           _nfCropper = new Cropper(img, _cropperOpts(img));
           var btn = document.getElementById("nf-crop-ratio-toggle");
           if (btn) {
-            btn.textContent = _nfCropRatioMode === 'cover' ? '比例: 2:3' : '比例: 自由';
+            var labels = { cover: '比例: 2:3', '3_4': '比例: 3:4', free: '比例: 自由' };
+            btn.textContent = labels[_nfCropRatioMode];
           }
         };
 
