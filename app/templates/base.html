@@ -764,10 +764,24 @@
           _closePopup();
           var ids = [];
 
-          // 标准番号：ABC-123 / ABC_123
-          var reStd = /([A-Za-z]{2,6})[-_]?(\d{2,8})/g;
+          // 特殊前缀番号（不补0，直接拼接）：HEYZO 固定4位，PT 可变位数
           var m;
-          while ((m = reStd.exec(sourceText)) !== null) {
+          var cleanedText = sourceText;
+          // HEYZO 番号：HEYZO-0282（固定4位，保留前导零，不用 parseInt）
+          var reHeyzo = /(HEYZO)[-_]?(\d{4})/gi;
+          cleanedText = cleanedText.replace(/HEYZO[-_]?\d{4}/gi, "");
+          while ((m = reHeyzo.exec(sourceText)) !== null) {
+            ids.push(m[1].toUpperCase() + "-" + m[2]);
+          }
+          // PT 番号：PT-12（可变位数，不补0）
+          var rePT = /(PT)[-_]?(\d+)/gi;
+          cleanedText = cleanedText.replace(/PT[-_]?\d+/gi, "");
+          while ((m = rePT.exec(sourceText)) !== null) {
+            ids.push(m[1].toUpperCase() + "-" + m[2]);
+          }
+          // 标准番号：ABC-123 / ABC_123（对 cleanedText 匹配，规避特殊前缀干扰）
+          var reStd = /([A-Za-z]{2,6})[-_]?(\d{2,8})/g;
+          while ((m = reStd.exec(cleanedText)) !== null) {
             ids.push(m[1].toUpperCase() + "-" + String(parseInt(m[2], 10)).padStart(3, "0"));
           }
           // 纯数字番号：101413-455（连字符版）

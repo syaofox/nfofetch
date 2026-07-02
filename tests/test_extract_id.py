@@ -16,6 +16,42 @@ class TestExtractIdJs:
         """nfExtractId 函数存在（含可选参数 text）。"""
         assert "window.nfExtractId = function" in self.HTML
 
+    def test_heyzo_regex_exists(self) -> None:
+        """HEYZO 专用正则在 JS 中。"""
+        assert "reHeyzo" in self.HTML
+
+    def test_heyzo_pattern(self) -> None:
+        """HEYZO 正则匹配 HEYZO-0282 格式（固定4位，保留前导零）。"""
+        assert r"(HEYZO)[-_]?(\d{4})" in self.HTML
+
+    def test_heyzo_output_preserves_raw_digits(self) -> None:
+        """HEYZO 番号输出直接用 m[2]（原始数字字符串），不用 parseInt。"""
+        assert 'm[1].toUpperCase() + "-" + m[2]' in self.HTML
+
+    def test_cleaned_text_removes_heyzo(self) -> None:
+        """cleanedText 从源文本移除 HEYZO 模式。"""
+        assert "cleanedText" in self.HTML
+
+    def test_standard_regex_uses_cleaned_text(self) -> None:
+        """标准正则对 cleanedText 匹配，避免 HEYZO/PT 误匹配。"""
+        assert "reStd.exec(cleanedText)" in self.HTML
+
+    def test_pt_regex_exists(self) -> None:
+        """PT 专用正则在 JS 中。"""
+        assert "rePT" in self.HTML
+
+    def test_pt_pattern(self) -> None:
+        """PT 正则匹配 PT-12 格式（可变位数，不补0）。"""
+        assert r"(PT)[-_]?(\d+)" in self.HTML
+
+    def test_pt_output_preserves_raw_digits(self) -> None:
+        """PT 番号输出直接用 m[2]（原始数字字符串），不补0。"""
+        assert 'm[1].toUpperCase() + "-" + m[2]' in self.HTML
+
+    def test_pt_removed_from_cleaned_text(self) -> None:
+        """PT 模式从 cleanedText 中移除。"""
+        assert "PT[-_]?\\d+" in self.HTML
+
     def test_standard_id_regex(self) -> None:
         """匹配标准番号正则在 JS 中。"""
         assert "([A-Za-z]{2,6})[-_]?(\\d{2,8})" in self.HTML
