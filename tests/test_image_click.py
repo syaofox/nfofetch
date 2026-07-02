@@ -324,8 +324,9 @@ class TestBaseTemplateDisplayUrl:
         assert 'document.getElementById("crop_rotation").value' in self.BASE_HTML
 
     def test_crop_ratio_mode_variable_exists(self) -> None:
-        """_nfCropRatioMode 变量存在且默认 cover。"""
-        assert "var _nfCropRatioMode = 'cover'" in self.BASE_HTML
+        """_nfCropRatioMode 从 localStorage 读取，默认 cover。"""
+        assert "localStorage.getItem('nf_crop_ratio_mode') || 'cover'" in self.BASE_HTML
+        assert "localStorage.setItem('nf_crop_ratio_mode'" in self.BASE_HTML
 
     def test_crop_ratio_modes_three_options(self) -> None:
         """_nfToggleCropRatio 在三个模式间循环：2:3 → 3:4 → 自由。"""
@@ -373,6 +374,13 @@ class TestBaseTemplateDisplayUrl:
     def test_toggle_button_text_free(self) -> None:
         """_nfToggleCropRatio 中切换到自由时按钮文字。"""
         assert "'比例: 自由'" in self.BASE_HTML
+
+    def test_init_ratio_button_on_image_load(self) -> None:
+        """_loadImageToCropper 中载入图片后同步按钮文字。"""
+        assert (
+            "btn.textContent = labels[_nfCropRatioMode] || '比例: 2:3'"
+            in self.BASE_HTML
+        )
 
     def test_confirm_crop_uploads_blob(self) -> None:
         """nfConfirmCrop 上传 getCroppedCanvas Blob 到 /api/upload-image。"""

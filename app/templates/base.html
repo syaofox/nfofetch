@@ -462,7 +462,7 @@
           return radio ? (radio.getAttribute('data-display-url') || radio.value) : '';
         }
 
-        var _nfCropRatioMode = 'cover'; // 'cover' (2:3), '3_4' (3:4), or 'free'
+        var _nfCropRatioMode = localStorage.getItem('nf_crop_ratio_mode') || 'cover';
 
         function _cropperOpts(img) {
           var isCover = _nfCropRatioMode === 'cover';
@@ -498,6 +498,7 @@
           var modes = ['cover', '3_4', 'free'];
           var idx = modes.indexOf(_nfCropRatioMode);
           _nfCropRatioMode = modes[(idx + 1) % modes.length];
+          localStorage.setItem('nf_crop_ratio_mode', _nfCropRatioMode);
           var img = document.getElementById("nf-crop-image");
           if (!img || !_nfCropper) return;
           _destroyCropper();
@@ -520,6 +521,11 @@
           img.src = src;
           img.onload = function () {
             _nfCropper = new Cropper(img, _cropperOpts(img));
+            var btn = document.getElementById("nf-crop-ratio-toggle");
+            if (btn) {
+              var labels = { cover: '比例: 2:3', '3_4': '比例: 3:4', free: '比例: 自由' };
+              btn.textContent = labels[_nfCropRatioMode] || '比例: 2:3';
+            }
             document.getElementById("nf-crop-drop-hint").textContent =
               img.naturalWidth + "×" + img.naturalHeight + " — 拖拽/粘贴可替换，双击最大化裁剪框";
           };
