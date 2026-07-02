@@ -379,3 +379,44 @@ class TestBaseTemplateDisplayUrl:
             "var coverCanvas = _nfCropper.getCroppedCanvas({ maxWidth: 320, maxHeight: 480 });"
             in self.BASE_HTML
         )
+
+    def test_maximize_crop_box_function_exists(self) -> None:
+        """_nfMaximizeCropBox 全局函数存在。"""
+        assert "window._nfMaximizeCropBox = function" in self.BASE_HTML
+
+    def test_maximize_crop_box_sets_data(self) -> None:
+        """_nfMaximizeCropBox 调用 setData 设置裁剪框。"""
+        assert "_nfCropper.setData({" in self.BASE_HTML
+
+    def test_maximize_crop_box_preserves_rotation(self) -> None:
+        """setData 保留当前旋转角度。"""
+        assert "rotate: _nfCropper.getData(true).rotate || 0" in self.BASE_HTML
+
+    def test_maximize_free_mode_full_image(self) -> None:
+        """free 模式时裁剪框覆盖全图。"""
+        assert "w = iw; h = ih; x = 0; y = 0;" in self.BASE_HTML
+
+    def test_maximize_cover_ratio(self) -> None:
+        """cover 模式使用 2/3 比例。"""
+        assert "_nfCropRatioMode === 'cover' ? (2 / 3) : (3 / 4)" in self.BASE_HTML
+
+    def test_maximize_crop_box_try_width_first(self) -> None:
+        """按宽度优先尝试最大化，超出则切换为高度优先。"""
+        assert "hByW <= ih" in self.BASE_HTML
+
+    def test_dblclick_listener_registered(self) -> None:
+        """通过事件委托在 document.body 上注册双击监听。"""
+        assert "document.body.addEventListener('dblclick'" in self.BASE_HTML
+        assert "window._nfMaximizeCropBox()" in self.BASE_HTML
+
+    def test_dblclick_checks_modal_visible(self) -> None:
+        """双击事件中检查弹窗是否可见。"""
+        assert "modal.style.display === 'none'" in self.BASE_HTML
+
+    def test_dblclick_checks_dropzone_target(self) -> None:
+        """双击事件中检查点击目标是否在裁剪区域。"""
+        assert "e.target.closest('.nf-crop-dropzone')" in self.BASE_HTML
+
+    def test_hint_text_mentions_dblclick(self) -> None:
+        """提示文字说明双击最大化功能。"""
+        assert "双击最大化裁剪框" in self.BASE_HTML

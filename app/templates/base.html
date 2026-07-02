@@ -521,7 +521,7 @@
           img.onload = function () {
             _nfCropper = new Cropper(img, _cropperOpts(img));
             document.getElementById("nf-crop-drop-hint").textContent =
-              img.naturalWidth + "×" + img.naturalHeight + " — 拖拽/粘贴可替换";
+              img.naturalWidth + "×" + img.naturalHeight + " — 拖拽/粘贴可替换，双击最大化裁剪框";
           };
         }
 
@@ -692,6 +692,15 @@
           });
         })();
 
+        // 双击裁切区域最大化裁剪框
+        document.body.addEventListener('dblclick', function (e) {
+          if (!_nfCropper) return;
+          var modal = document.getElementById('nf-crop-modal');
+          if (!modal || modal.style.display === 'none') return;
+          if (!e.target.closest('.nf-crop-dropzone')) return;
+          window._nfMaximizeCropBox();
+        });
+
         // 页面加载时封面预览同步到已选的 poster
         (function () {
           var poster = document.querySelector('input[name="poster_url"]:checked');
@@ -739,6 +748,31 @@
             var angle = _nfCropper.getData(true).rotate || 0;
             rotEl.textContent = angle ? "旋转: " + Math.round(angle) + "°" : "旋转: 0°";
           }
+        };
+
+        window._nfMaximizeCropBox = function () {
+          if (!_nfCropper) return;
+          var imageData = _nfCropper.getImageData();
+          if (!imageData) return;
+          var iw = imageData.naturalWidth, ih = imageData.naturalHeight;
+          var x, y, w, h;
+          if (_nfCropRatioMode === 'free') {
+            w = iw; h = ih; x = 0; y = 0;
+          } else {
+            var ratio = _nfCropRatioMode === 'cover' ? (2 / 3) : (3 / 4);
+            var hByW = Math.round(iw / ratio);
+            if (hByW <= ih) {
+              w = iw; h = hByW;
+            } else {
+              h = ih; w = Math.round(ih * ratio);
+            }
+            x = Math.round((iw - w) / 2);
+            y = Math.round((ih - h) / 2);
+          }
+          _nfCropper.setData({
+            x: x, y: y, width: w, height: h,
+            rotate: _nfCropper.getData(true).rotate || 0,
+          });
         };
 
         window.nfConfirmCrop = function () {
