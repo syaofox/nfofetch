@@ -467,19 +467,21 @@
         function _cropperOpts(img) {
           var isCover = _nfCropRatioMode === 'cover';
           var is3_4 = _nfCropRatioMode === '3_4';
-          var w, x;
+          var w, x, h, y;
           if (isCover) {
-            w = Math.round(img.naturalHeight * 2 / 3);
-            if (w > img.naturalWidth) w = img.naturalWidth;
-            x = Math.round((img.naturalWidth - w) / 2);
+            h = Math.min(img.naturalHeight, 300);
+            w = Math.round(h * 2 / 3);
+            if (w > img.naturalWidth) { w = img.naturalWidth; h = Math.round(w * 3 / 2); }
           } else if (is3_4) {
-            w = Math.round(img.naturalHeight * 3 / 4);
-            if (w > img.naturalWidth) w = img.naturalWidth;
-            x = Math.round((img.naturalWidth - w) / 2);
+            h = Math.min(img.naturalHeight, 200);
+            w = Math.round(h * 3 / 4);
+            if (w > img.naturalWidth) { w = img.naturalWidth; h = Math.round(w * 4 / 3); }
           } else {
-            w = Math.floor(img.naturalWidth / 2);
-            x = img.naturalWidth - w;
+            w = 200; h = 200;
+            if (w > img.naturalWidth) { w = img.naturalWidth; h = Math.min(img.naturalHeight, 200); }
           }
+          x = Math.round((img.naturalWidth - w) / 2);
+          y = Math.round((img.naturalHeight - h) / 2);
           return {
             aspectRatio: isCover ? (2 / 3) : (is3_4 ? (3 / 4) : NaN),
             viewMode: 1, dragMode: "crop",
@@ -488,7 +490,7 @@
             guides: true, center: true, highlight: false, background: true,
             movable: true, rotatable: true, scalable: false,
             zoomable: true, zoomOnTouch: true, zoomOnWheel: true,
-            data: { x: x, y: 0, width: w, height: img.naturalHeight },
+            data: { x: x, y: y, width: w, height: h },
           };
         }
 
