@@ -690,14 +690,43 @@
           }
         })();
 
+        function _nfFitCanvasAfterRotate() {
+          if (!_nfCropper) return;
+          var imageData = _nfCropper.getImageData();
+          var containerData = _nfCropper.getContainerData();
+          if (!imageData || !containerData) return;
+          var angle = Math.round((_nfCropper.getData(true).rotate || 0) % 360);
+          if (angle < 0) angle += 360;
+          var swapped = angle === 90 || angle === 270;
+          var aspectRatio = swapped
+            ? (imageData.naturalHeight / imageData.naturalWidth)
+            : (imageData.naturalWidth / imageData.naturalHeight);
+          var cw = containerData.width;
+          var ch = containerData.height;
+          var newW, newH;
+          if (cw / ch > aspectRatio) {
+            newH = ch;
+            newW = Math.round(ch * aspectRatio);
+          } else {
+            newW = cw;
+            newH = Math.round(cw / aspectRatio);
+          }
+          _nfCropper.setCanvasData({
+            left: Math.round((cw - newW) / 2),
+            top: Math.round((ch - newH) / 2),
+            width: newW,
+            height: newH,
+          });
+        }
+
         window._nfRotateImage = function (deg) {
           if (!_nfCropper) return;
           _nfCropper.rotate(deg);
-          // 更新旋转角度显示
+          _nfFitCanvasAfterRotate();
           var rotEl = document.getElementById("nf-crop-rotation-info");
           if (rotEl) {
             var angle = _nfCropper.getData(true).rotate || 0;
-            rotEl.textContent = angle ? "旋转: " + angle + "°" : "旋转: 0°";
+            rotEl.textContent = angle ? "旋转: " + Math.round(angle) + "°" : "旋转: 0°";
           }
         };
 

@@ -291,6 +291,33 @@ class TestBaseTemplateDisplayUrl:
         """_nfRotateImage 全局函数存在。"""
         assert "window._nfRotateImage = function" in self.BASE_HTML
 
+    def test_nf_fit_canvas_after_rotate_exists(self) -> None:
+        """_nfFitCanvasAfterRotate 辅助函数存在。"""
+        assert "function _nfFitCanvasAfterRotate" in self.BASE_HTML
+
+    def test_nf_rotate_image_calls_fit_canvas(self) -> None:
+        """_nfRotateImage 调用 _nfFitCanvasAfterRotate。"""
+        assert "_nfFitCanvasAfterRotate()" in self.BASE_HTML
+
+    def test_fit_canvas_uses_get_image_data(self) -> None:
+        """_nfFitCanvasAfterRotate 使用 getImageData 获取原始尺寸。"""
+        assert "getImageData()" in self.BASE_HTML
+        assert "naturalHeight" in self.BASE_HTML
+        assert "naturalWidth" in self.BASE_HTML
+
+    def test_fit_canvas_uses_get_container_data(self) -> None:
+        """_nfFitCanvasAfterRotate 使用 getContainerData 获取容器尺寸。"""
+        assert "getContainerData()" in self.BASE_HTML
+
+    def test_fit_canvas_uses_set_canvas_data(self) -> None:
+        """_nfFitCanvasAfterRotate 使用 setCanvasData 调整画布。"""
+        assert "setCanvasData" in self.BASE_HTML
+
+    def test_fit_canvas_detects_swapped_aspect(self) -> None:
+        """_nfFitCanvasAfterRotate 检测 90/270 度旋转以交换宽高比。"""
+        assert "swapped" in self.BASE_HTML
+        assert "angle === 90" in self.BASE_HTML
+
     def test_nf_confirm_crop_writes_rotation(self) -> None:
         """nfConfirmCrop 将旋转角度写入 crop_rotation。"""
         assert 'document.getElementById("crop_rotation").value' in self.BASE_HTML
