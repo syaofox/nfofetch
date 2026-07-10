@@ -16,7 +16,9 @@ from app.config import Settings
 from app.schemas import MovieMetadata, ScrapeResult
 from app.services.file_utils import (
     _atomic_write_text,
+    _parse_nfo_with_comments,
     _read_nfo_art_mapping,
+    _read_nfo_comment_value,
     _read_nfo_url_hash,
     _url_hash,
     _write_delay,
@@ -125,10 +127,7 @@ def _write_nfo_and_images(
     nfo_path = movie_dir / "movie.nfo"
     stored_root: ET.Element | None = None
     if nfo_path.name in existing_names:
-        try:
-            stored_root = ET.parse(nfo_path).getroot()
-        except Exception:
-            logger.warning("NFO 解析失败（将重新生成）: %s", nfo_path, exc_info=True)
+        stored_root = _parse_nfo_with_comments(nfo_path)
 
     # 下载图片
     poster_path: Path | None = None
@@ -393,28 +392,44 @@ def _write_nfo_and_images(
 
     _write_delay(settings.write_delay)
 
-    # 写入 NFO（含 URL hash 信息）
+    # 写入 NFO（nfofetch 私有数据以 XML 注释存储，不影响第三方解析器）
     root = ET.fromstring(nfo_text)
-    if poster_ok and poster_url_val:
-        el = ET.SubElement(root, "poster_url_hash")
-        el.text = _url_hash(poster_url_val)
+
+    # 添加 <art> 本地图片引用（Emby 标准）
+    art_el = ET.SubElement(root, "art")
+    if poster_path is not None:
+        el = ET.SubElement(art_el, "poster")
+        el.text = str(poster_path)
     if fanart_path is not None:
-        el = ET.SubElement(root, "fanart_url_hash")
-        el.text = _url_hash(fanart_candidates[0])
-    all_art: dict[str, str] = {}
-    all_art.update(art_mapping)
+        el = ET.SubElement(art_el, "fanart")
+        el.text = str(fanart_path)
+        for extra_path in extra_paths:
+            if extra_path.suffix.lower() == ".jpg":
+                el = ET.SubElement(art_el, "fanart")
+                el.text = str(extra_path)
+
+    comments: list[str] = []
+    if metadata.source_url:
+        comments.append(f"nfofetch:source_url={metadata.source_url}")
+    if poster_ok and poster_url_val:
+        comments.append(f"nfofetch:poster_url_hash={_url_hash(poster_url_val)}")
+    if fanart_path is not None:
+        comments.append(f"nfofetch:fanart_url_hash={_url_hash(fanart_candidates[0])}")
+    all_art_val: dict[str, str] = {}
+    all_art_val.update(art_mapping)
     for art_url, dest_path in extra_art_write:
-        all_art[_url_hash(art_url)] = dest_path.name
+        all_art_val[_url_hash(art_url)] = dest_path.name
     if settings.delete_orphan_extrafanart:
-        valid = set(all_art.values())
+        valid = set(all_art_val.values())
         logger.info("删除孤立剧照: extra_dir=%s valid=%s", extra_dir, valid)
         _delete_orphan_extrafanart(extra_dir, valid)
-    for h, fn in all_art.items():
-        el = ET.SubElement(root, "art_url")
-        el.set("hash", h)
-        el.text = fn
+    for h, fn in all_art_val.items():
+        comments.append(f"nfofetch:art_url {h}={fn}")
+    for c in comments:
+        root.append(ET.Comment(f" {c} "))
     ET.indent(root)
-    final_nfo = ET.tostring(root, encoding="unicode")
+    final_nfo = '<?xml version="1.0" encoding="utf-8" standalone="yes"?>\n'
+    final_nfo += ET.tostring(root, encoding="unicode")
     _report("nfo", 0, 1, "正在写入 NFO 文件…")
     _atomic_write_text(nfo_path, final_nfo, delay=settings.write_delay)
 
@@ -444,11 +459,17 @@ def _check_reuse_existing(
     nfo_path = movie_dir / "movie.nfo"
     try:
 
-        def _parse_nfo() -> ET.Element:
-            return ET.parse(nfo_path).getroot()
+        def _parse_nfo() -> ET.Element | None:
+            return _parse_nfo_with_comments(nfo_path)
 
         root = run_with_timeout(_parse_nfo, 10.0)
+        if root is None:
+            return False
         if source_url:
+            stored = _read_nfo_comment_value(root, "source_url")
+            if stored == source_url:
+                return True
+            # 旧版：<source_url> 元素
             url_el = root.find("source_url")
             if url_el is not None and url_el.text == source_url:
                 return True

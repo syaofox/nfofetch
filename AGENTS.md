@@ -1,6 +1,6 @@
 # AGENTS.md
 
-nfofetch: FastAPI + HTMX 影片刮削工具，生成 Jellyfin 兼容的 NFO/图片。
+nfofetch: FastAPI + HTMX 影片刮削工具，生成 Jellyfin/Emby 兼容的 NFO/图片。
 
 > **Before any task**: run `index_repository(repo_path, mode: "moderate")` to keep the knowledge graph in sync.
 
@@ -47,10 +47,12 @@ uv run uvicorn app.main:app --reload  # 开发服务器
 
 ### NFO
 
-- **URL hash 存 NFO XML**（`<poster_url_hash>` / `<fanart_url_hash>` / `<art_url hash="...">`），不额外创建文件
+- **URL hash 存 NFO XML 注释**（`<!-- nfofetch:poster_url_hash=... -->` / `<!-- nfofetch:art_url hash=filename -->`），兼容 Jellyfin/Emby 解析器
+- **`<uniqueid>` 必须存在**（Kodi v18+ / Emby 标准），type 固定 `nfofetch`，value 为番号
+- `<series>` 必须用 `<set><name>` 格式（Emby 标准），不可直接用 `<series>`
 - poster/fanart 固定文件名 `poster.jpg` / `fanart.jpg`；extrafanart 顺序命名 `01.jpg` `02.jpg`…
 - **永不删除 extrafanart**，只补充新 URL
-- **写入时机**：图片下载完成后，在 `_write_nfo_and_images` 中追加 hash 再写入；调用者传入的 `nfo_text` 不含 hash
+- **写入时机**：图片下载完成后，在 `_write_nfo_and_images` 中以 XML 注释形式追加 hash 再写入；调用者传入的 `nfo_text` 不含 hash
 
 ### 前端约束
 

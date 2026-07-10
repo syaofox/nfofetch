@@ -10,12 +10,25 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutureTimeou
 from pathlib import Path
 from typing import Any, Callable, TypeVar
 from xml.etree import ElementTree as ET
+from xml.etree.ElementTree import TreeBuilder, XMLParser
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
 _SHARED_EXECUTOR = ThreadPoolExecutor(max_workers=8)
+
+
+def _parse_nfo_with_comments(path: Path) -> ET.Element | None:
+    """解析 NFO 文件并保留 XML 注释，返回根元素。"""
+    try:
+        builder = TreeBuilder(insert_comments=True)
+        parser = XMLParser(target=builder)
+        tree = ET.parse(str(path), parser=parser)
+        return tree.getroot()
+    except Exception:
+        logger.warning("NFO 解析失败（含注释）: %s", path, exc_info=True)
+        return None
 
 
 def run_with_timeout(
@@ -50,27 +63,78 @@ def _url_hash(url: str) -> str:
     return hashlib.md5(url.encode()).hexdigest()[:_ART_URL_HASH_LEN]
 
 
-def _read_nfo_url_hash(root: ET.Element | None, tag: str) -> str | None:
-    """从 NFO 根元素读取指定 tag 的 URL hash 文本。"""
+def _read_nfo_comment_value(root: ET.Element | None, key: str) -> str | None:
+    """从 NFO 的 XML 注释中读取 nfofetch 私有键值。
+
+    注释格式: <!-- nfofetch:{key}={value} -->
+    也兼容旧版 <!-- nfofetch: {key}={value} -->
+    """
     if root is None:
         return None
+    for child in root:
+        if isinstance(child.tag, type(ET.Comment)):
+            text = (child.text or "").strip()
+            if text.startswith("nfofetch:"):
+                parts = text.removeprefix("nfofetch:").strip().split("=", 1)
+                if len(parts) == 2 and parts[0].strip() == key:
+                    return parts[1].strip()
+    return None
+
+
+def _read_nfo_url_hash(root: ET.Element | None, tag: str) -> str | None:
+    """从 NFO 读取 URL hash。
+
+    优先从 nfofetch XML 注释中读取（新版），
+    其次从 XML 元素读取（旧版向后兼容）。
+    """
+    if root is None:
+        return None
+    # 新版：XML 注释
+    val = _read_nfo_comment_value(root, tag)
+    if val is not None:
+        return val
+    # 旧版：直接 XML 元素
     el = root.find(tag)
     if el is not None and el.text:
         txt = el.text.strip()
-        return txt if txt else None
+        if txt:
+            return txt
     return None
 
 
 def _read_nfo_art_mapping(root: ET.Element | None) -> dict[str, str]:
-    """从 NFO 读取 art_url 映射（url_hash → filename）。"""
+    """从 NFO 读取 art_url 映射（url_hash → filename）。
+
+    优先从旧版 <art_url hash="..."> 元素读取，
+    其次从 nfofetch XML 注释中读取。
+    """
     mapping: dict[str, str] = {}
     if root is None:
         return mapping
+    # 旧版：<art_url hash="...">filename</art_url>
     for el in root.findall("art_url"):
         h = el.get("hash", "").strip()
         fn = (el.text or "").strip()
         if h and fn:
             mapping[h] = fn
+    if mapping:
+        return mapping
+    # 新版：从 XML 注释读取
+    for child in root:
+        if not isinstance(child.tag, type(ET.Comment)):
+            continue
+        text = (child.text or "").strip()
+        if not text.startswith("nfofetch:"):
+            continue
+        rest = text.removeprefix("nfofetch:").strip()
+        # art_url key=filename
+        if rest.startswith("art_url "):
+            inner = rest[len("art_url ") :].strip()
+            parts = inner.split("=", 1)
+            if len(parts) == 2:
+                h, fn = parts[0].strip(), parts[1].strip()
+                if h and fn:
+                    mapping[h] = fn
     return mapping
 
 

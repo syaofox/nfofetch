@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 
 import pytest
 
 from xml.etree import ElementTree as ET
 
 from app.services.file_utils import (
+    _parse_nfo_with_comments,
     _read_nfo_art_mapping,
+    _read_nfo_comment_value,
     _read_nfo_url_hash,
     _url_hash,
     _write_delay,
@@ -113,6 +116,107 @@ class TestReadNfoArtMapping:
 
     def test_none_root(self) -> None:
         assert _read_nfo_art_mapping(None) == {}
+
+
+class TestReadNfoCommentValue:
+    def _make_nfo_with_comments(self, comments: list[str]) -> ET.Element:
+        root = ET.Element("movie")
+        for c in comments:
+            root.append(ET.Comment(f" nfofetch:{c} "))
+        return root
+
+    def test_found(self) -> None:
+        root = self._make_nfo_with_comments(["source_url=https://example.com"])
+        assert _read_nfo_comment_value(root, "source_url") == "https://example.com"
+
+    def test_missing_key(self) -> None:
+        root = self._make_nfo_with_comments(["other_key=value"])
+        assert _read_nfo_comment_value(root, "source_url") is None
+
+    def test_none_root(self) -> None:
+        assert _read_nfo_comment_value(None, "key") is None
+
+    def test_no_comments(self) -> None:
+        root = ET.Element("movie")
+        assert _read_nfo_comment_value(root, "key") is None
+
+
+class TestReadNfoUrlHashFromComment:
+    """新版 _read_nfo_url_hash 也应能从 XML 注释中读取。"""
+
+    def _make_nfo_from_comment(self, key: str, value: str) -> ET.Element:
+        root = ET.Element("movie")
+        root.append(ET.Comment(f" nfofetch:{key}={value} "))
+        return root
+
+    def test_read_from_comment(self) -> None:
+        root = self._make_nfo_from_comment("poster_url_hash", "abc123def456")
+        assert _read_nfo_url_hash(root, "poster_url_hash") == "abc123def456"
+
+    def test_comment_preferred_over_element(self) -> None:
+        """新版注释优先于旧版元素。"""
+        h_comment = "comment_hash"
+        root = ET.Element("movie")
+        # 旧版元素
+        el = ET.SubElement(root, "poster_url_hash")
+        el.text = "element_hash"
+        # 新版注释
+        root.append(ET.Comment(f" nfofetch:poster_url_hash={h_comment} "))
+        assert _read_nfo_url_hash(root, "poster_url_hash") == h_comment
+
+    def test_fallback_to_element(self) -> None:
+        """无注释时回退到旧版元素。"""
+        root = ET.Element("movie")
+        el = ET.SubElement(root, "poster_url_hash")
+        el.text = "abc123def456"
+        assert _read_nfo_url_hash(root, "poster_url_hash") == "abc123def456"
+
+
+class TestReadNfoArtMappingFromComment:
+    """新版 _read_nfo_art_mapping 也应能从 XML 注释中读取。"""
+
+    def _make_nfo_from_comments(self, pairs: list[tuple[str, str]]) -> ET.Element:
+        root = ET.Element("movie")
+        for h, fn in pairs:
+            root.append(ET.Comment(f" nfofetch:art_url {h}={fn} "))
+        return root
+
+    def test_read_from_comment_single(self) -> None:
+        h = _url_hash("https://example.com/1.jpg")
+        root = self._make_nfo_from_comments([(h, "01.jpg")])
+        assert _read_nfo_art_mapping(root) == {h: "01.jpg"}
+
+    def test_read_from_comment_multiple(self) -> None:
+        h1 = _url_hash("https://example.com/1.jpg")
+        h2 = _url_hash("https://example.com/2.jpg")
+        root = self._make_nfo_from_comments([(h1, "01.jpg"), (h2, "02.jpg")])
+        assert _read_nfo_art_mapping(root) == {h1: "01.jpg", h2: "02.jpg"}
+
+    def test_no_art_comments(self) -> None:
+        root = ET.Element("movie")
+        root.append(ET.Comment(" nfofetch:other=value "))
+        assert _read_nfo_art_mapping(root) == {}
+
+
+class TestParseNfoWithComments:
+    def test_parse_with_comments(self, tmp_path: Path) -> None:
+        nfo_path = tmp_path / "movie.nfo"
+        nfo_path.write_text(
+            '<?xml version="1.0" encoding="utf-8"?>\n'
+            "<movie>\n"
+            "  <title>Test</title>\n"
+            "  <!-- nfofetch:source_url=https://example.com -->\n"
+            "</movie>",
+            encoding="utf-8",
+        )
+        root = _parse_nfo_with_comments(nfo_path)
+        assert root is not None
+        assert root.findtext("title") == "Test"
+        assert _read_nfo_comment_value(root, "source_url") == "https://example.com"
+
+    def test_missing_file(self, tmp_path: Path) -> None:
+        root = _parse_nfo_with_comments(tmp_path / "nonexistent.nfo")
+        assert root is None
 
 
 class TestWriteDelay:

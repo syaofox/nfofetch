@@ -56,17 +56,31 @@ class TestBuildMovieNfo:
         root = _parse_nfo(nfo)
         assert root.findtext("runtime") == "120"
 
-    def test_id_is_number(self, sample_movie_metadata):
+    def test_id_and_uniqueid(self, sample_movie_metadata):
         nfo = build_movie_nfo(sample_movie_metadata)
         root = _parse_nfo(nfo)
         assert root.findtext("id") == "ABP-123"
+        uid = root.find("uniqueid")
+        assert uid is not None
+        assert uid.text == "ABP-123"
+        assert uid.get("type") == "nfofetch"
+        assert uid.get("default") == "true"
 
-    def test_studio_label_series(self, sample_movie_metadata):
+    def test_uniqueid_fallback_when_no_number(self, minimal_metadata):
+        """number 为空时不应生成 <uniqueid>。"""
+        nfo = build_movie_nfo(minimal_metadata)
+        root = _parse_nfo(nfo)
+        assert root.find("uniqueid") is None
+
+    def test_studio_label_set(self, sample_movie_metadata):
         nfo = build_movie_nfo(sample_movie_metadata)
         root = _parse_nfo(nfo)
         assert root.findtext("studio") == "Prestige"
         assert root.findtext("label") == "Premium"
-        assert root.findtext("series") == "Premium Beautiful"
+        # <series> 已改为 <set><name>
+        assert root.find("series") is None
+        set_name = root.findtext("set/name")
+        assert set_name == "Premium Beautiful"
 
     def test_rating(self, sample_movie_metadata):
         nfo = build_movie_nfo(sample_movie_metadata)
@@ -106,10 +120,11 @@ class TestBuildMovieNfo:
         root = _parse_nfo(nfo)
         assert root.findtext("thumb") == "https://example.com/poster1.jpg"
 
-    def test_source_url(self, sample_movie_metadata):
-        nfo = build_movie_nfo(sample_movie_metadata)
+    def test_original_title_fallback(self, minimal_metadata):
+        """original_title 为空时回退到 title"""
+        nfo = build_movie_nfo(minimal_metadata)
         root = _parse_nfo(nfo)
-        assert root.findtext("source_url") == "https://javdb.com/v/abcdef"
+        assert root.findtext("originaltitle") == "Unknown Title"
 
     def test_minimal_metadata(self, minimal_metadata):
         nfo = build_movie_nfo(minimal_metadata)
