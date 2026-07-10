@@ -82,6 +82,7 @@ def _jinja_escapejs(value: str) -> str:
         .replace('"', '\\"')
         .replace("\n", "\\n")
         .replace("\r", "\\r")
+        .replace("</", "<\\/")
     )
 
 

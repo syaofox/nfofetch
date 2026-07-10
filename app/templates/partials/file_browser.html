@@ -88,7 +88,12 @@
         >删除</button>
       </div>
     {% else %}
-      <div class="nf-file-browser-empty nf-file-browser-empty-default">此目录下没有可显示的文件或子目录。</div>
+      <div class="nf-file-browser-empty nf-file-browser-empty-default">
+        此目录下没有可显示的文件或子目录。
+        {% if parent_dir %}
+          <button type="button" class="nf-button nf-button-secondary nf-btn-ripple nf-btn-press" style="margin-top:0.5rem;font-size:0.8rem;padding:0.3rem 0.7rem" onclick="window.nfBrowseUp('{{ parent_dir|escapejs }}', '{{ current_dir|escapejs }}')">返回上级目录</button>
+        {% endif %}
+      </div>
     {% endfor %}
     {% if entries %}
       <div class="nf-file-browser-empty nf-file-browser-empty-filter" style="display:none">未匹配到任何文件或目录。</div>

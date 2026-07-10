@@ -36,6 +36,19 @@
       </div>
     </div>
 
+    <script>
+      document.addEventListener("keydown", function (e) {
+        if (e.key !== "Escape") return;
+        document.querySelectorAll(".nf-modal").forEach(function (m) {
+          if (m.style.display !== "none") m.style.display = "none";
+        });
+        var cropModal = document.getElementById("nf-crop-modal");
+        if (cropModal && cropModal.style.display !== "none") {
+          window.nfCloseCropModal();
+        }
+      });
+    </script>
+
     <header class="nf-header">
       <div class="nf-container">
         <div class="nf-header-row">
@@ -179,12 +192,15 @@
       (function () {
         var progressTimer = null;
         var currentTaskId = null;
+        var failCount = 0;
+        var MAX_FAIL = 30;
 
         function pollProgress() {
           if (!currentTaskId) return;
           fetch("/api/scrape-task/" + currentTaskId)
             .then(function (r) { return r.json(); })
             .then(function (data) {
+              failCount = 0;
               var textEl = document.getElementById("nf-loading-text");
               if (textEl) {
                 textEl.textContent = data.detail || "处理中…";
@@ -196,11 +212,19 @@
                 stopPolling();
               }
             })
-            .catch(function () {});
+            .catch(function () {
+              failCount++;
+              if (failCount >= MAX_FAIL) {
+                stopPolling();
+                var textEl = document.getElementById("nf-loading-text");
+                if (textEl) textEl.textContent = "请求超时，请刷新页面重试";
+              }
+            });
         }
 
         function startPolling(taskId) {
           stopPolling();
+          failCount = 0;
           currentTaskId = taskId;
           var textEl = document.getElementById("nf-loading-text");
           if (textEl) textEl.textContent = "正在连接…";
@@ -214,6 +238,7 @@
             progressTimer = null;
           }
           currentTaskId = null;
+          failCount = 0;
         }
 
         function injectTaskIdAndSubmit(form, taskId) {
@@ -396,13 +421,24 @@
           for (var i = 0; i < items.length; i++) {
             var name = items[i].getAttribute("data-name") || "";
             var match = !q || name.indexOf(q) !== -1;
-            items[i].parentElement.style.display = match ? "" : "none";
+            items[i].parentElement.classList.toggle("nf-filter-hidden", !match);
             if (match) visible++;
           }
           if (empty) {
             empty.style.display = visible === 0 ? "" : "none";
           }
         };
+
+        // 过滤清除时恢复显示
+        document.body.addEventListener("htmx:afterSwap", function (e) {
+          var filterInput = document.querySelector(".nf-file-browser-search");
+          if (filterInput && !filterInput.value) {
+            var wrappers = document.querySelectorAll(".nf-file-browser-item-wrapper.nf-filter-hidden");
+            for (var j = 0; j < wrappers.length; j++) {
+              wrappers[j].classList.remove("nf-filter-hidden");
+            }
+          }
+        });
 
         window._nfDeletePendingPath = "";
 
@@ -675,12 +711,12 @@
         window._nfOnPosterSelected = function () {
           var cropX = document.getElementById('crop_x');
           if (cropX && cropX.value !== '0') {
-            document.getElementById('crop_x').value = '0';
-            document.getElementById('crop_y').value = '0';
-            document.getElementById('crop_w').value = '0';
-            document.getElementById('crop_h').value = '0';
-            document.getElementById('crop_rotation').value = '0';
-            document.getElementById('custom_poster_path').value = '';
+            setVal('crop_x', '0');
+            setVal('crop_y', '0');
+            setVal('crop_w', '0');
+            setVal('crop_h', '0');
+            setVal('crop_rotation', '0');
+            setVal('custom_poster_path', '');
             var btn = document.getElementById('nf-crop-btn');
             if (btn) { btn.classList.remove('nf-crop-btn-active'); btn.textContent = '选择裁切区域…'; }
             var smallPreview = document.getElementById('nf-crop-preview');
@@ -689,6 +725,7 @@
           window._nfCanvasPreviewActive = false;
           if (window.nfUpdateDirectionPreview) window.nfUpdateDirectionPreview();
         };
+        function setVal(id, val) { var el = document.getElementById(id); if (el) el.value = val; }
 
         // 封面预览同步：监听 poster/crop 变更
         (function () {
@@ -711,14 +748,7 @@
           window._nfMaximizeCropBox();
         });
 
-        // 页面加载时封面预览同步到已选的 poster
-        (function () {
-          var poster = document.querySelector('input[name="poster_url"]:checked');
-          var coverImg = document.querySelector('.nf-meta-poster-img');
-          if (poster && coverImg) {
-            coverImg.src = _nfDisplayUrl(poster);
-          }
-        })();
+
 
         function _nfFitCanvasAfterRotate() {
           if (!_nfCropper) return;
@@ -900,7 +930,7 @@
           var popup = document.createElement("div");
           popup.id = "nf-id-popup";
           popup.className = "nf-id-popup";
-          popup.style.cssText = "top:" + (rect.bottom + window.scrollY + 4) + "px;left:" + (rect.left + window.scrollX) + "px;min-width:" + Math.max(rect.width, 200) + "px";
+          popup.style.cssText = "position:fixed;top:" + (rect.bottom + 4) + "px;left:" + (rect.left) + "px;min-width:" + Math.max(rect.width, 200) + "px";
           var title = document.createElement("div");
           title.className = "nf-id-popup-title";
           title.textContent = "选择番号：";
@@ -920,15 +950,17 @@
           closeBtn.onclick = _closePopup;
           popup.appendChild(closeBtn);
           document.body.appendChild(popup);
-          // 点击外部关闭
-          setTimeout(function () {
-            document.addEventListener("click", function _handler(e) {
-              if (!popup.contains(e.target) && e.target !== input) {
-                _closePopup();
-                document.removeEventListener("click", _handler);
+          // 点击外部关闭（使用单一 document handler 防止泄漏）
+          if (!window._nfIdPopupClickHandler) {
+            window._nfIdPopupClickHandler = function (e) {
+              var popup = document.getElementById("nf-id-popup");
+              var input = document.getElementById("url");
+              if (popup && !popup.contains(e.target) && e.target !== input) {
+                popup.remove();
               }
-            });
-          }, 0);
+            };
+            document.addEventListener("click", window._nfIdPopupClickHandler);
+          }
         };
       })();
 
@@ -1117,6 +1149,7 @@
             if (data.ok) {
               status.innerHTML = '<span class="nf-status-icon nf-status-success"><svg class="w-3 h-3" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span> 已保存';
               status.className = "nf-settings-status";
+              setTimeout(function () { status.innerHTML = ""; }, 3000);
             } else {
               status.innerHTML = '<span class="nf-status-icon nf-status-error"><svg class="w-3 h-3" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></span> 保存失败';
               status.className = "nf-settings-status nf-error";
@@ -1126,7 +1159,6 @@
             status.innerHTML = '<span class="nf-status-icon nf-status-error"><svg class="w-3 h-3" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></span> 保存失败';
             status.className = "nf-settings-status nf-error";
           });
-        setTimeout(function () { status.innerHTML = ""; }, 3000);
       };
 
       // 重命名格式：从服务器 JSON 文件加载，变更时自动保存
@@ -1158,9 +1190,9 @@
               if (jc && data.jav321_cookie) {
                 jc.value = data.jav321_cookie;
               }
-              var dc = document.getElementById("dmm_cookie");
-              if (dc && data.dmm_cookie) {
-                dc.value = data.dmm_cookie;
+              var dmmc = document.getElementById("dmm_cookie");
+              if (dmmc && data.dmm_cookie) {
+                dmmc.value = data.dmm_cookie;
               }
             })
             .catch(function () {});
@@ -1377,32 +1409,30 @@
         }
       })();
 
-      // 图片单击设 poster，双击设 fanart
+      // 图片单击设 poster，400ms 内再次单击设 fanart（无延迟感）
       (function () {
+        var _lastClick = 0;
+        var _lastOption = null;
+        var DBL_CLICK_MS = 400;
         document.body.addEventListener("click", function (e) {
           var thumb = e.target.closest(".nf-image-thumb");
           if (!thumb) return;
           var option = thumb.closest(".nf-image-option");
           if (!option) return;
-
-          if (option._clickTimer) {
-            clearTimeout(option._clickTimer);
-            option._clickTimer = null;
-            var fanartRadio = option.querySelector(
-              "input[name='fanart_url']"
-            );
+          var now = Date.now();
+          if (option === _lastOption && now - _lastClick < DBL_CLICK_MS) {
+            _lastClick = 0;
+            _lastOption = null;
+            var fanartRadio = option.querySelector("input[name='fanart_url']");
             if (fanartRadio) fanartRadio.checked = true;
           } else {
-            option._clickTimer = setTimeout(function () {
-              option._clickTimer = null;
-              var posterRadio = option.querySelector(
-                "input[name='poster_url']"
-              );
-              if (posterRadio) {
-                posterRadio.checked = true;
-                window._nfOnPosterSelected();
-              }
-            }, 250);
+            _lastClick = now;
+            _lastOption = option;
+            var posterRadio = option.querySelector("input[name='poster_url']");
+            if (posterRadio) {
+              posterRadio.checked = true;
+              window._nfOnPosterSelected();
+            }
           }
         });
       })();

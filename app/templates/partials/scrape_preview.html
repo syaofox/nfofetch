@@ -185,6 +185,7 @@
             <span class="nf-upload-zone-text">上传自定义图片（点击/拖拽/Ctrl+V）</span>
           </div>
 
+          <p class="nf-hint nf-image-grid-hint">单击图片选封面，双击选背景图（或点下方 poster/fanart 按钮）</p>
           <div class="nf-image-grid" id="nf-image-grid">
             {% for img_url in poster_candidates %}
               {% set is_local = img_url.startswith('/api/local-image') %}
@@ -331,6 +332,11 @@
           <polygon points="18 2 22 6 12 16 8 16 8 12 18 2"/>
         </svg>
       </button>
+      <noscript>
+        <button type="submit" form="write-form" class="nf-button nf-button-write nf-btn-ripple" style="position:relative">
+          写入
+        </button>
+      </noscript>
     </div>
   </div>
 
@@ -379,6 +385,12 @@
 
   <script>
     window._nfCanvasPreviewActive = false;
+    function _nfEscapeHtml(text) {
+      if (typeof text !== 'string') return '';
+      var div = document.createElement('div');
+      div.appendChild(document.createTextNode(text));
+      return div.innerHTML;
+    }
     window.nfUploadImage = function (file) {
       if (!file || !file.type.startsWith("image/")) return;
       var formData = new FormData();
@@ -391,15 +403,17 @@
         .then(function (data) {
           var grid = document.getElementById("nf-image-grid");
           if (!grid) return;
+          var escPath = _nfEscapeHtml(data.path);
+          var escUrl = _nfEscapeHtml(data.serve_url);
           var div = document.createElement("div");
           div.className = "nf-image-option";
           div.innerHTML =
-            '<img src="' + data.serve_url + '" alt="自定义图片" class="nf-image-thumb" onload="window.nfShowResolution(this)" />' +
+            '<img src="' + escUrl + '" alt="自定义图片" class="nf-image-thumb" onload="window.nfShowResolution(this)" />' +
             '<span class="nf-image-uploaded-badge">上传</span>' +
             '<span class="nf-image-resolution"></span>' +
             '<div class="nf-image-option-controls">' +
-              '<label class="nf-img-pill"><input type="radio" name="poster_url" value="' + data.path.replace(/"/g, "&quot;") + '" data-display-url="' + data.serve_url.replace(/"/g, "&quot;") + '" hidden /><span class="nf-img-pill-text">poster</span></label>' +
-              '<label class="nf-img-pill"><input type="radio" name="fanart_url" value="' + data.path.replace(/"/g, "&quot;") + '" data-display-url="' + data.serve_url.replace(/"/g, "&quot;") + '" hidden /><span class="nf-img-pill-text">fanart</span></label>' +
+              '<label class="nf-img-pill"><input type="radio" name="poster_url" value="' + escPath + '" data-display-url="' + escUrl + '" hidden /><span class="nf-img-pill-text">poster</span></label>' +
+              '<label class="nf-img-pill"><input type="radio" name="fanart_url" value="' + escPath + '" data-display-url="' + escUrl + '" hidden /><span class="nf-img-pill-text">fanart</span></label>' +
             '</div>';
           grid.appendChild(div);
         })

@@ -650,6 +650,10 @@
   color: #6b7280;
 }
 
+.nf-filter-hidden {
+  display: none !important;
+}
+
 /* 写入区域分隔 */
 .nf-write-section {
   margin-top: 0.5rem;
@@ -1295,6 +1299,13 @@
 .nf-image-option:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+}
+
+.nf-image-grid-hint {
+  margin-bottom: 0.5rem;
+  font-size: 0.78rem;
+  color: #6b7280;
+  font-style: italic;
 }
 
 .nf-image-resolution {

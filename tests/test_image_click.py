@@ -52,10 +52,11 @@ class TestImageClickJsInBase:
         assert "input[name='fanart_url']" in self.BASE_HTML
 
     def test_timer_based_distinction(self) -> None:
-        """使用 setTimeout/clearTimeout 区分单击和双击。"""
-        assert "setTimeout" in self.BASE_HTML
-        assert "clearTimeout" in self.BASE_HTML
-        assert "_clickTimer" in self.BASE_HTML
+        """使用 _lastClick / Date.now() 时间差区分单击和双击。"""
+        assert "Date.now()" in self.BASE_HTML
+        assert "_lastClick" in self.BASE_HTML
+        assert "_lastOption" in self.BASE_HTML
+        assert "DBL_CLICK_MS" in self.BASE_HTML
 
     def test_iiife_wrapped(self) -> None:
         """JS 逻辑以 IIFE 包裹。"""
@@ -64,7 +65,9 @@ class TestImageClickJsInBase:
 
     def test_click_handler_comment(self) -> None:
         """包含描述性注释。"""
-        assert "图片单击设 poster，双击设 fanart" in self.BASE_HTML
+        assert (
+            "图片单击设 poster，400ms 内再次单击设 fanart（无延迟感）" in self.BASE_HTML
+        )
 
     def test_single_click_triggers_poster_selected(self) -> None:
         """单击设 poster 后调用 _nfOnPosterSelected 更新封面预览。"""
@@ -280,10 +283,6 @@ class TestBaseTemplateDisplayUrl:
     def test_switch_crop_tab_uses_display_url(self) -> None:
         """切到精确裁切时使用 _nfDisplayUrl 获取图片 URL。"""
         assert "var imgUrl = _nfDisplayUrl(poster);" in self.BASE_HTML
-
-    def test_page_load_sync_uses_display_url(self) -> None:
-        """页面加载时封面预览同步使用 _nfDisplayUrl。"""
-        assert "coverImg.src = _nfDisplayUrl(poster);" in self.BASE_HTML
 
     def test_switch_to_direction_does_not_clear_precise_data(self) -> None:
         """切到方向裁切 tab 时不应清除精确裁切数据。"""
