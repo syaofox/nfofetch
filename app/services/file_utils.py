@@ -165,6 +165,7 @@ VIDEO_EXTENSIONS = (
     ".m2t",
     ".3g2",
     ".qt",
+    ".strm",
 )
 
 # 支持的字幕扩展名
