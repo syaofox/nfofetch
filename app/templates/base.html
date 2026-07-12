@@ -918,7 +918,7 @@
           ids = ids.filter(function (v, i) { return ids.indexOf(v) === i; });
 
           if (ids.length === 0) {
-            if (isAuto) {
+            if (isAuto && !input.value) {
               input.value = sourceText;
             }
             return;
@@ -969,10 +969,13 @@
 
       window.nfGetAutoExtract = function () {
         try {
-          return localStorage.getItem(AUTO_EXTRACT_KEY) === "true";
-        } catch (e) {
-          return false;
-        }
+          if (localStorage.getItem(AUTO_EXTRACT_KEY) === "true") return true;
+        } catch (e) { /* localStorage 不可用 */ }
+        try {
+          var cb = document.getElementById("auto_extract_id");
+          if (cb && cb.checked) return true;
+        } catch (e) { /* DOM 不可用 */ }
+        return false;
       };
 
       window.nfSetAutoExtract = function (checked) {

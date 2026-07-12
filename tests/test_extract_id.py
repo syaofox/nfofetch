@@ -102,9 +102,9 @@ class TestExtractIdJs:
         """多匹配时无论模式都弹出选择窗口（无自动取第一条的短路逻辑）。"""
         assert "多匹配时取第一个" not in self.HTML
 
-    def test_auto_mode_no_match_fallback(self) -> None:
-        """自动模式无匹配时回退填入原始文本。"""
-        assert "input.value = sourceText" in self.HTML
+    def test_auto_mode_no_match_empty_fallback(self) -> None:
+        """自动模式无匹配且 input 为空时才回退填入原始文本。"""
+        assert "isAuto && !input.value" in self.HTML
 
 
 class TestAutoExtractToggle:
@@ -145,8 +145,12 @@ class TestAutoExtractJs:
         assert "window.nfGetAutoExtract = function" in self.HTML
 
     def test_get_auto_extract_uses_localstorage(self) -> None:
-        """nfGetAutoExtract 读取 localStorage。"""
+        """nfGetAutoExtract 先读取 localStorage。"""
         assert "localStorage.getItem(AUTO_EXTRACT_KEY)" in self.HTML
+
+    def test_get_auto_extract_dom_fallback(self) -> None:
+        """nfGetAutoExtract 在 localStorage 不可用时回退到 DOM checkbox。"""
+        assert 'document.getElementById("auto_extract_id")' in self.HTML
 
     def test_set_auto_extract_exists(self) -> None:
         """nfSetAutoExtract 函数存在。"""
