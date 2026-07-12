@@ -405,9 +405,9 @@
             saveBrowsePath(path.substring(0, idx));
           }
           window.nfCloseFileBrowser();
-          // 自动提取番号：选中后从完整路径提取
+          // 自动提取番号：从文件名提取（不含路径，避免目录名干扰）
           if (window.nfGetAutoExtract()) {
-            window.nfExtractId(path);
+            window.nfExtractId(filename);
           }
         };
 

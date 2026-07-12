@@ -161,9 +161,9 @@ class TestAutoExtractJs:
         assert "localStorage.setItem(AUTO_EXTRACT_KEY" in self.HTML
 
     def test_select_file_calls_auto_extract(self) -> None:
-        """nfSelectFile 在自动模式下调用 nfExtractId(path)。"""
+        """nfSelectFile 在自动模式下调用 nfExtractId(filename)。"""
         assert "window.nfGetAutoExtract()" in self.HTML
-        assert "window.nfExtractId(path)" in self.HTML
+        assert "window.nfExtractId(filename)" in self.HTML
 
     def test_restore_on_load(self) -> None:
         """页面加载时恢复开关状态。"""
